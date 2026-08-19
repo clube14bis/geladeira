@@ -1,14 +1,14 @@
 # Geladeira 14 Bis — instalação completa
 
-O fluxo é: QR Code → site → login/cadastro único → escolha da bebida → ESP32 abre a fechadura → ESP32 registra data, hora, nome e bebida no Google Sheets.
+<img width="1245" height="175" alt="Captura de Tela 2026-08-19 às 08 44 22" src="https://github.com/user-attachments/assets/a3552bfd-6b61-4e79-8ef1-edeba069dca0" />
 
-## 1. Material recomendado
+<img width="1280" height="853" alt="photo_2026-08-19 14 41 08" src="https://github.com/user-attachments/assets/dbb57137-938b-4663-a3c5-973b5d822c5d" />
 
-Para uma geladeira comum, recomendo a **fechadura eletroímã Intelbras FE 20150** instalada externamente, com suporte metálico feito para a porta. Ela trabalha em 12–16 Vcc, consome cerca de 345 mA e tem força de tração de 150 kgf. A instalação deve ficar fora da área refrigerada e não pode impedir a vedação ou a abertura manual da porta. Veja a [ficha técnica](https://suporte.intelbras.com.br/images/9/97/Datasheet_FE_20150_01-15_site1.pdf) e confirme as medidas antes de comprar.
+QR Code → site → login/cadastro único → escolha da bebida → ESP32 abre a fechadura → ESP32 registra data, hora, nome e bebida no Google Sheets.
 
-Compre também:
+## 1. Material
 
-- ESP32 DOIT DevKit / ESP32-WROOM-32 (você já tem);
+- ESP32 DOIT DevKit -WROOM-32;
 - fonte **12 V / 2 A** certificada para a fechadura;
 - conversor buck 12 V → 5 V, de boa qualidade, para o ESP32;
 - módulo relé de 1 canal com entrada compatível com **GPIO 3,3 V**, optoacoplado e contato de pelo menos 5 A / 30 Vcc;
@@ -59,13 +59,11 @@ As regras permitem que cada pessoa leia somente seu próprio pedido. O ESP32 tem
 3. Aguarde o GitHub Pages publicar e abra `https://clube14bis.github.io/geladeira/`.
 4. Crie o primeiro usuário pelo botão **Criar cadastro**. Esse cadastro fica persistente no Firebase; nas próximas vezes a pessoa usa apenas usuário e senha.
 
-Não publique `esp32/secrets.h`. O `.gitignore` já o exclui.
 
 ## 5. Preparar a planilha e o Apps Script
 
-1. Crie uma planilha Google, renomeie a primeira aba para `Pedidos` (opcional) e coloque a primeira linha assim:
-
-   `Data | Hora | Nome | Bebida | Pedido ID`
+1. Primeira aba para `Pedidos` segunda aba `Valores`
+   `Data | Hora | Nome | Bebida | Pedido ID | Pago |`
 
 2. O quinto campo evita registros duplicados. Você pode ocultar a coluna **Pedido ID** depois.
 3. Copie o ID da planilha: é o trecho entre `/d/` e `/edit` na URL.
@@ -108,5 +106,6 @@ O firmware usa HTTPS com certificado raiz do Google; não use `setInsecure()` em
 5. Confirme a nova linha no Google Sheets.
 6. Só então conecte a fechadura e teste com a porta aberta.
 7. Teste queda/reinício do ESP32: com o relé usando **NC**, a fechadura deve voltar ao estado travado quando a fonte 12 V estiver presente.
+<img width="1556" height="214" alt="WhatsApp Image 2026-08-19 at 8 46 11 AM" src="https://github.com/user-attachments/assets/f829a466-6f32-40d3-a61f-5c12b9c29eaa" />
+<img width="1600" height="264" alt="WhatsApp Image 2026-08-19 at 8 46 11 AM" src="https://github.com/user-attachments/assets/1d52324d-310a-41e7-ae60-fe019e44afb4" />
 
-Se surgir `log_failed` no Firebase, a fechadura abriu mas o Apps Script não confirmou o registro. Revise a URL `/exec`, o segredo e a autorização da implantação antes de usar o sistema com clientes.
