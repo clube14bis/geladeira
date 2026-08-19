@@ -65,7 +65,7 @@ As regras permitem que cada pessoa leia somente seu próprio pedido. O ESP32 tem
 
 1. Crie uma planilha Google, renomeie a primeira aba para `Pedidos` (opcional) e coloque a primeira linha assim:
 
-   `Data | Hora | Nome | Bebida | Pedido ID` | Pago |
+   `Data | Hora | Nome da pessoa | Bebida | Pedido ID | Pago |`
 
 2. O quinto campo evita registros duplicados. Você pode ocultar a coluna **Pedido ID** depois.
 3. Copie o ID da planilha: é o trecho entre `/d/` e `/edit` na URL.
