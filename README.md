@@ -2,6 +2,7 @@
 
 <img width="1245" height="175" alt="Captura de Tela 2026-08-19 às 08 44 22" src="https://github.com/user-attachments/assets/054bd1cc-4a9a-409b-aa35-eddedb4d49cc" />
 
+<img width="1536" height="1024" alt="exemplo" src="https://github.com/user-attachments/assets/838e6e25-c883-4655-abe4-2bbe3d14ba65" />
 
 O fluxo é: QR Code → site → login/cadastro único → escolha da bebida → ESP32 abre a fechadura → ESP32 registra data, hora, nome e bebida no Google Sheets.
 
