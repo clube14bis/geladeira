@@ -12,56 +12,51 @@
     <meta property="og:title" content="14 Bis | Bebidas" />
     <meta property="og:description" content="Seleção de bebidas 14 Bis" />
     <meta property="og:image" content="favicon.jpg" />
-    <meta property="og:image:type" content="image/jpeg" />
-    <meta property="og:image:width" content="500" />
-    <meta property="og:image:height" content="500" />
     <meta name="twitter:card" content="summary" />
     <style>
       :root { font-family: Arial, sans-serif; color: #1c2a35; background: #fff; }
       * { box-sizing: border-box; }
       body { margin: 0; min-height: 100vh; background: #fff; }
       main { width: min(100%, 600px); min-height: 100vh; margin: auto; padding: 28px 18px; }
-      .tela { display: none; min-height: calc(100vh - 76px); }
+      .tela { display: none; min-height: calc(100vh - 56px); }
       .tela.ativa { display: flex; flex-direction: column; }
-      .login { align-items: center; justify-content: center; }
-      .logo { width: min(230px, 72vw); max-height: 150px; object-fit: contain; margin-bottom: 34px; }
+      .login, .cadastro { align-items: center; justify-content: center; }
+      .logo { width: min(230px, 72vw); max-height: 150px; object-fit: contain; margin-bottom: 30px; }
       .cartao { width: min(100%, 390px); }
-      h1, h2 { text-align: center; margin: 0 0 25px; }
-      h1 { font-size: 1.5rem; } h2 { font-size: 1.35rem; }
+      h1, h2 { text-align: center; margin: 0 0 22px; }
+      h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; }
       label { display: block; font-weight: 700; margin: 15px 0 7px; }
       input { width: 100%; padding: 13px; border: 1px solid #cbd3d8; border-radius: 9px; font: inherit; }
       button { border: 0; border-radius: 9px; padding: 13px 16px; font: inherit; font-weight: 700; cursor: pointer; transition: transform .15s, background .15s; }
       button:hover { transform: translateY(-1px); }
+      button:disabled { cursor: not-allowed; opacity: .45; transform: none; }
       .primario { width: 100%; margin-top: 24px; color: #fff; background: #143f5b; }
       .secundario { width: 100%; margin-top: 12px; color: #143f5b; background: #e8f1f6; }
       .erro { min-height: 20px; margin: 12px 0 0; color: #c62828; text-align: center; font-size: .9rem; }
+      .texto-menor { margin: 15px 0 0; text-align: center; font-size: .9rem; }
+      .link-botao { padding: 0; color: #143f5b; background: none; text-decoration: underline; }
       .cabecalho { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 28px; }
       .cabecalho h1 { margin: 0; text-align: left; }
       .sair { padding: 9px 13px; color: #143f5b; background: #e8f1f6; }
+      #tela-bebidas { padding-bottom: 82px; }
       .categoria { margin: 0 0 28px; }
-      .categoria h2 { margin-bottom: 12px; text-align: left; font-size: 1.1rem; color: #143f5b; }
+      .categoria h2 { margin-bottom: 12px; text-align: left; color: #143f5b; }
       .bebidas { display: grid; gap: 10px; }
-      .bebida { display: flex; align-items: center; width: 100%; min-height: 52px; padding: 13px 16px; color: #263744; text-align: left; border: 1px solid transparent; }
+      .bebida { display: flex; align-items: center; width: 100%; min-height: 52px; padding: 13px 16px; text-align: left; border: 1px solid transparent; }
       .icone-bebida { width: 30px; margin-right: 9px; font-size: 1.35rem; text-align: center; }
       .agua { color: #075b9d; background: #e4f4ff; border-color: #acd9f5; }
       .refrigerante { color: #9d1e1e; background: #ffeded; border-color: #f5b8b8; }
       .cerveja { color: #126b3b; background: #e8f8ee; border-color: #b6e7c7; }
       .suco { color: #9a5810; background: #fff4df; border-color: #f3d29a; }
       .bebida.selecionada { color: #fff; background: #177245; border-color: #177245; }
-      #tela-bebidas { padding-bottom: 82px; }
       .concluir { position: fixed; z-index: 5; bottom: 16px; left: 50%; width: min(calc(100% - 28px), 572px); margin: 0; color: #fff; background: #177245; transform: translateX(-50%); box-shadow: 0 4px 14px rgba(16, 78, 43, .28); }
       .concluir:hover { transform: translateX(-50%) translateY(-1px); }
-      .concluir:disabled { cursor: not-allowed; opacity: .45; transform: translateX(-50%); }
       .aviso { display: none; position: fixed; z-index: 10; inset: 0; align-items: center; justify-content: center; padding: 24px; color: #fff; background: #177245; text-align: center; }
       .aviso.visivel { display: flex; }
-      .aviso-conteudo { max-width: 360px; }
-      .aviso-icone { display: block; margin-bottom: 18px; font-size: 5rem; }
-      .aviso h2 { margin-bottom: 10px; font-size: 2.3rem; }
-      .aviso p { margin: 0; font-size: 1.25rem; }
+      .aviso-conteudo { max-width: 360px; }.aviso-icone { display: block; margin-bottom: 18px; font-size: 5rem; }
+      .aviso h2 { margin-bottom: 10px; font-size: 2.3rem; }.aviso p { margin: 0; font-size: 1.15rem; }
       .fechar-aviso { margin-top: 30px; color: #177245; background: #fff; }
-      .cadastro { justify-content: center; align-items: center; }
-      .cadastro .cartao { width: min(100%, 440px); }
-      @media (max-width: 480px) { main { padding: 22px 14px; } .logo { margin-bottom: 24px; } .cabecalho h1 { font-size: 1.25rem; } }
+      @media (max-width: 480px) { main { padding: 22px 14px; }.logo { margin-bottom: 24px; }.cabecalho h1 { font-size: 1.25rem; } }
     </style>
   </head>
   <body>
@@ -71,133 +66,39 @@
         <div class="cartao">
           <h1 id="titulo-login">Login</h1>
           <form id="form-login">
-            <label for="login">Nome</label>
-            <input id="login" name="login" autocomplete="username" required />
-            <label for="senha">Senha</label>
-            <input id="senha" name="senha" type="password" autocomplete="current-password" required />
+            <label for="usuario">Usuário</label><input id="usuario" autocomplete="username" required />
+            <label for="senha">Senha</label><input id="senha" type="password" autocomplete="current-password" required />
             <button class="primario" type="submit">Entrar</button>
           </form>
-          <button id="botao-convidado" class="secundario" type="button">Convidado</button>
+          <p class="texto-menor">Novo por aqui? <button id="abrir-cadastro" class="link-botao" type="button">Criar cadastro</button></p>
           <p id="erro-login" class="erro" aria-live="polite"></p>
         </div>
       </section>
 
       <section id="tela-cadastro" class="tela cadastro" aria-labelledby="titulo-cadastro">
         <div class="cartao">
-          <h1 id="titulo-cadastro">Cadastro de convidado</h1>
+          <h1 id="titulo-cadastro">Criar cadastro</h1>
           <form id="form-cadastro">
-            <label for="nome-completo">Nome completo</label>
-            <input id="nome-completo" name="nomeCompleto" autocomplete="name" required />
-            <label for="celular">Número de celular</label>
-            <input id="celular" name="celular" type="tel" autocomplete="tel" required />
-            <label for="cpf">CPF</label>
-            <input id="cpf" name="cpf" inputmode="numeric" required />
+            <label for="cad-nome">Nome completo</label><input id="cad-nome" autocomplete="name" required maxlength="80" />
+            <label for="cad-usuario">Nome de usuário</label><input id="cad-usuario" autocomplete="username" required minlength="3" maxlength="24" pattern="[A-Za-z0-9._-]+" />
+            <label for="cad-senha">Senha</label><input id="cad-senha" type="password" autocomplete="new-password" required minlength="6" />
             <button class="primario" type="submit">Concluir cadastro</button>
           </form>
+          <p class="texto-menor"><button id="voltar-login" class="link-botao" type="button">Voltar ao login</button></p>
           <p id="erro-cadastro" class="erro" aria-live="polite"></p>
         </div>
       </section>
 
       <section id="tela-bebidas" class="tela" aria-labelledby="titulo-bebidas">
-        <header class="cabecalho">
-          <h1 id="titulo-bebidas">Escolha sua bebida</h1>
-          <button id="botao-sair" class="sair" type="button">Sair</button>
-        </header>
+        <header class="cabecalho"><h1 id="titulo-bebidas">Escolha sua bebida</h1><button id="botao-sair" class="sair" type="button">Sair</button></header>
         <div id="lista-bebidas"></div>
         <button id="botao-concluir" class="concluir" type="button" disabled>Concluir pedido</button>
-        <div id="aviso" class="aviso" aria-live="polite" role="dialog" aria-modal="true">
-          <div class="aviso-conteudo">
-            <span class="aviso-icone" aria-hidden="true">🧊</span>
-            <h2>Obrigado!</h2>
-            <p>A geladeira está aberta.</p>
-            <button id="fechar-aviso" class="fechar-aviso" type="button">Voltar ao login</button>
-          </div>
-        </div>
       </section>
+
+      <div id="aviso" class="aviso" aria-live="polite" role="dialog" aria-modal="true">
+        <div class="aviso-conteudo"><span class="aviso-icone" aria-hidden="true">🧊</span><h2>Obrigado!</h2><p>Pedido enviado. Aguarde a geladeira destravar.</p><button id="fechar-aviso" class="fechar-aviso" type="button">Voltar ao login</button></div>
+      </div>
     </main>
-
-    <script src="database.js"></script>
-    <script>
-      const categorias = {
-        'Águas': { classe: 'agua', emoji: '💧', bebidas: ['Água Natural', 'Água com gás'] },
-        'Refrigerantes': { classe: 'refrigerante', emoji: '🥤', bebidas: ['Coca Cola', 'Coca Cola Zero', 'Guaraná Antártica', 'Guaraná Poty', 'Guaraná Cotuba', 'Fanta', 'Pepsi', 'Sprite', 'Schweppes', 'H20'] },
-        'Cervejas': { classe: 'cerveja', emoji: '🍺', bebidas: ['Cerveja Skol', 'Cerveja Brahma', 'Cerveja Heineken', 'Cerveja Amstel', 'Cerveja Budweiser', 'Cerveja Stella Artois', 'Cerveja Itaipava', 'Cerveja Antarctica', 'Cerveja Corona', 'Cerveja Eisenbahn', 'Cerveja Petra', 'Cerveja Kaiser', 'Cerveja Schin', 'Cerveja Devassa', 'Cerveja Bohemia', 'Cerveja Spaten', "Cerveja Beck's", 'Cerveja Baden Baden', 'Cerveja Colorado', 'Cerveja Crystal'] },
-        'Sucos': { classe: 'suco', emoji: '🧃', bebidas: ['Suco Laranja', 'Suco Del Valle', 'Suco Natural One', 'Suco Tang', 'Suco AdeS'] }
-      };
-
-      const telas = document.querySelectorAll('.tela');
-      const erroLogin = document.querySelector('#erro-login');
-      const erroCadastro = document.querySelector('#erro-cadastro');
-      const aviso = document.querySelector('#aviso');
-      const botaoConcluir = document.querySelector('#botao-concluir');
-      let retornoLogin;
-
-      function mostrarTela(id) {
-        telas.forEach((tela) => tela.classList.toggle('ativa', tela.id === id));
-        aviso.classList.remove('visivel');
-      }
-
-      function voltarAoLogin() {
-        clearTimeout(retornoLogin);
-        aviso.classList.remove('visivel');
-        botaoConcluir.disabled = true;
-        erroLogin.textContent = '';
-        erroCadastro.textContent = '';
-        mostrarTela('tela-login');
-      }
-
-      function exibirBebidas() {
-        const lista = document.querySelector('#lista-bebidas');
-        lista.innerHTML = Object.entries(categorias).map(([categoria, dados]) => `
-          <section class="categoria"><h2>${categoria}</h2><div class="bebidas">
-            ${dados.bebidas.map((bebida) => `<button class="bebida ${dados.classe}" type="button"><span class="icone-bebida">${dados.emoji}</span>${bebida}</button>`).join('')}
-          </div></section>`).join('');
-        botaoConcluir.disabled = true;
-        mostrarTela('tela-bebidas');
-      }
-
-      document.querySelector('#form-login').addEventListener('submit', (evento) => {
-        evento.preventDefault();
-        const dados = new FormData(evento.currentTarget);
-        if (validarLogin(dados.get('login'), dados.get('senha'))) {
-          erroLogin.textContent = '';
-          evento.currentTarget.reset();
-          exibirBebidas();
-        } else {
-          erroLogin.textContent = 'Login ou senha incorretos.';
-        }
-      });
-
-      document.querySelector('#botao-convidado').addEventListener('click', () => mostrarTela('tela-cadastro'));
-      document.querySelector('#form-cadastro').addEventListener('submit', (evento) => {
-        evento.preventDefault();
-        const cpf = new FormData(evento.currentTarget).get('cpf').replace(/\D/g, '');
-        if (cpf.length !== 11) {
-          erroCadastro.textContent = 'Informe um CPF com 11 números.';
-          return;
-        }
-        erroCadastro.textContent = '';
-        evento.currentTarget.reset();
-        exibirBebidas();
-      });
-
-      document.querySelector('#lista-bebidas').addEventListener('click', (evento) => {
-        if (!evento.target.matches('.bebida')) return;
-        document.querySelectorAll('.bebida').forEach((botao) => botao.classList.remove('selecionada'));
-        evento.target.classList.add('selecionada');
-        botaoConcluir.disabled = false;
-      });
-
-      botaoConcluir.addEventListener('click', () => {
-        aviso.classList.add('visivel');
-        clearTimeout(retornoLogin);
-        retornoLogin = setTimeout(voltarAoLogin, 2500);
-      });
-      document.querySelector('#fechar-aviso').addEventListener('click', voltarAoLogin);
-
-      document.querySelector('#botao-sair').addEventListener('click', () => {
-        voltarAoLogin();
-      });
-    </script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

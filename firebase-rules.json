@@ -1,0 +1,31 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || auth.uid === 'COLE_O_UID_DO_ESP32_AQUI')",
+        ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.hasChildren(['username', 'fullName', 'createdAt'])",
+        "username": { ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9._-]{3,24}$/)" },
+        "fullName": { ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 80" },
+        "createdAt": { ".validate": "newData.isNumber() && newData.val() <= now" },
+        "$other": { ".validate": false }
+      }
+    },
+    "orders": {
+      ".indexOn": ["status"],
+      "$orderId": {
+        ".read": "auth != null && (auth.uid === 'COLE_O_UID_DO_ESP32_AQUI' || data.child('uid').val() === auth.uid)",
+        ".write": "auth != null && (auth.uid === 'COLE_O_UID_DO_ESP32_AQUI' || (!data.exists() && newData.child('uid').val() === auth.uid && newData.child('username').val() === root.child('users').child(auth.uid).child('username').val() && newData.child('fullName').val() === root.child('users').child(auth.uid).child('fullName').val() && newData.child('status').val() === 'pending'))",
+        ".validate": "newData.hasChildren(['uid', 'username', 'fullName', 'drink', 'status', 'createdAt'])",
+        "uid": { ".validate": "newData.isString()" },
+        "username": { ".validate": "newData.isString() && newData.val().length <= 24" },
+        "fullName": { ".validate": "newData.isString() && newData.val().length <= 80" },
+        "drink": { ".validate": "newData.isString() && newData.val().length <= 80" },
+        "status": { ".validate": "newData.val() === 'pending' || newData.val() === 'processing' || newData.val() === 'log_failed'" },
+        "createdAt": { ".validate": "newData.isNumber() && newData.val() <= now" },
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}
