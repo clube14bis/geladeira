@@ -1,6 +1,9 @@
-# Geladeira 14 Bis — instalação completa
+# Geladeira 14 Bis
+
 
 <img width="1245" height="175" alt="Captura de Tela 2026-08-19 às 08 44 22" src="https://github.com/user-attachments/assets/a3552bfd-6b61-4e79-8ef1-edeba069dca0" />
+
+
 
 <img width="1280" height="853" alt="photo_2026-08-19 14 41 08" src="https://github.com/user-attachments/assets/dbb57137-938b-4663-a3c5-973b5d822c5d" />
 
@@ -106,6 +109,4 @@ O firmware usa HTTPS com certificado raiz do Google; não use `setInsecure()` em
 5. Confirme a nova linha no Google Sheets.
 6. Só então conecte a fechadura e teste com a porta aberta.
 7. Teste queda/reinício do ESP32: com o relé usando **NC**, a fechadura deve voltar ao estado travado quando a fonte 12 V estiver presente.
-<img width="1556" height="214" alt="WhatsApp Image 2026-08-19 at 8 46 11 AM" src="https://github.com/user-attachments/assets/f829a466-6f32-40d3-a61f-5c12b9c29eaa" />
-<img width="1600" height="264" alt="WhatsApp Image 2026-08-19 at 8 46 11 AM" src="https://github.com/user-attachments/assets/1d52324d-310a-41e7-ae60-fe019e44afb4" />
 
