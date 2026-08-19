@@ -1,11 +1,14 @@
 # Geladeira 14 Bis — instalação completa
 
+<img width="1245" height="175" alt="Captura de Tela 2026-08-19 às 08 44 22" src="https://github.com/user-attachments/assets/054bd1cc-4a9a-409b-aa35-eddedb4d49cc" />
+
+
 O fluxo é: QR Code → site → login/cadastro único → escolha da bebida → ESP32 abre a fechadura → ESP32 registra data, hora, nome e bebida no Google Sheets.
 
-## 1. Material recomendado
+## 1. Material
 
-Para uma geladeira comum fechadura eletroímã instalada externamente, com suporte metálico feito para a porta.Em 12–16 Vcc, consome cerca de 345 mA e tem força de tração de 150 kgf. A instalação deve ficar fora da área refrigerada e não pode impedir a vedação ou a abertura manual da porta. modelo exemplo (https://suporte.intelbras.com.br/images/9/97/Datasheet_FE_20150_01-15_site1.pdf) 
-
+Geladeira + fechadura eletroímã instalada externamente, com suporte metálico feito para a porta. Em 12–16 Vcc, consome cerca de 345 mA e tem força de tração de 150 kgf. A instalação deve ficar fora da área refrigerada e não pode impedir a vedação ou a abertura manual da porta. modelo exemplo (https://suporte.intelbras.com.br/images/9/97/Datasheet_FE_20150_01-15_site1.pdf) 
+ 
 
 - ESP32 DOIT DevKit / ESP32-WROOM-32;
 - fonte **12 V / 2 A** certificada para a fechadura;
@@ -55,8 +58,10 @@ As regras permitem que cada pessoa leia somente seu próprio pedido. O ESP32 tem
 
 1. Edite [`firebase-config.js`](firebase-config.js) com o objeto do seu projeto Firebase.
 
+2. pagina modelo de login: https://clube14bis.github.io/geladeira/
 
-## 5. Preparar a planilha e o Apps Script
+
+## 5. Planilha e o Apps Script
 
 1. Crie uma planilha Google, renomeie a primeira aba para `Pedidos` (opcional) e coloque a primeira linha assim:
 
@@ -72,6 +77,8 @@ As regras permitem que cada pessoa leia somente seu próprio pedido. O ESP32 tem
 7. Clique em **Deploy → New deployment → Web app**. Selecione **Execute as: Me** e acesso para **Anyone**. Autorize o script e copie a URL terminada em `/exec`.
 
 O endpoint é público para o ESP32 poder alcançá-lo, mas só aceita registros com o `DEVICE_SECRET`. Não coloque esse segredo no site.
+
+Adicione aba na planilha com nome da bebidas e o valor delas. (para ser total transparência publique a planilha online e compartilhe o link dela para visualização) 
 
 ## 6. Gravar o ESP32
 
