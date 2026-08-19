@@ -1,11 +1,12 @@
-#pragma once
+#define WIFI_SSID "SEU_WIFI"
+#define WIFI_PASSWORD "SUA_SENHA"
 
-// Copie este arquivo como secrets.h e preencha. Nunca publique secrets.h no GitHub.
-#define WIFI_SSID "NOME_DO_WIFI"
-#define WIFI_PASSWORD "SENHA_DO_WIFI"
-#define FIREBASE_API_KEY "API_KEY_DO_FIREBASE"
-#define FIREBASE_DB_HOST "SEU_PROJETO-default-rtdb.firebaseio.com"
-#define DEVICE_EMAIL "geladeira-esp32@usuarios.clube14bis.com"
-#define DEVICE_PASSWORD "UMA_SENHA_LONGA_E_UNICA"
-#define APPS_SCRIPT_URL "https://script.google.com/macros/s/SEU_ID/exec"
-#define DEVICE_SECRET "COLE_UM_SEGREDO_ALEATORIO_COM_32_OU_MAIS_CARACTERES"
+#define FIREBASE_API_KEY "SUA_API_KEY"
+#define FIREBASE_DB_HOST "SEU_DATABASE.firebaseio.com"
+
+#define DEVICE_EMAIL "USUARIO_DO_ESP32"
+#define DEVICE_PASSWORD "SENHA_DO_ESP32"
+
+#define DEVICE_SECRET "SEGREDO_DO_DISPOSITIVO"
+
+#define APPS_SCRIPT_URL "URL_DO_GOOGLE_APPS_SCRIPT"
