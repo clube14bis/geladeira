@@ -4,18 +4,17 @@ O fluxo é: QR Code → site → login/cadastro único → escolha da bebida →
 
 ## 1. Material recomendado
 
-Para uma geladeira comum, recomendo a **fechadura eletroímã Intelbras FE 20150** instalada externamente, com suporte metálico feito para a porta. Ela trabalha em 12–16 Vcc, consome cerca de 345 mA e tem força de tração de 150 kgf. A instalação deve ficar fora da área refrigerada e não pode impedir a vedação ou a abertura manual da porta. Veja a [ficha técnica](https://suporte.intelbras.com.br/images/9/97/Datasheet_FE_20150_01-15_site1.pdf) e confirme as medidas antes de comprar.
+Para uma geladeira comum fechadura eletroímã instalada externamente, com suporte metálico feito para a porta.Em 12–16 Vcc, consome cerca de 345 mA e tem força de tração de 150 kgf. A instalação deve ficar fora da área refrigerada e não pode impedir a vedação ou a abertura manual da porta. modelo exemplo (https://suporte.intelbras.com.br/images/9/97/Datasheet_FE_20150_01-15_site1.pdf) 
 
-Compre também:
 
-- ESP32 DOIT DevKit / ESP32-WROOM-32 (você já tem);
+- ESP32 DOIT DevKit / ESP32-WROOM-32;
 - fonte **12 V / 2 A** certificada para a fechadura;
 - conversor buck 12 V → 5 V, de boa qualidade, para o ESP32;
 - módulo relé de 1 canal com entrada compatível com **GPIO 3,3 V**, optoacoplado e contato de pelo menos 5 A / 30 Vcc;
 - porta-fusível e fusível de 1 A no positivo da fechadura;
 - caixa isolante, bornes e cabos adequados.
 
-> **Segurança:** eletroímãs normalmente são *fail-safe*: se a energia da fechadura acabar, ela destrava. Não use este projeto para controle de acesso crítico. Mantenha abertura manual de emergência e peça a um instalador para a parte elétrica/mecânica. Nunca conecte 12 V a um GPIO do ESP32.
+> **Segurança:** Nunca conecte 12 V a um GPIO do ESP32.
 
 ## 2. Ligações elétricas
 
@@ -55,17 +54,13 @@ As regras permitem que cada pessoa leia somente seu próprio pedido. O ESP32 tem
 ## 4. Configurar a página do GitHub Pages
 
 1. Edite [`firebase-config.js`](firebase-config.js) com o objeto do seu projeto Firebase.
-2. Envie `index.html`, `app.js`, `firebase-config.js`, `logo14bis.jpg`, `favicon.jpg` e `apple-touch-icon.png` para o repositório `geladeira`.
-3. Aguarde o GitHub Pages publicar e abra `https://clube14bis.github.io/geladeira/`.
-4. Crie o primeiro usuário pelo botão **Criar cadastro**. Esse cadastro fica persistente no Firebase; nas próximas vezes a pessoa usa apenas usuário e senha.
 
-Não publique `esp32/secrets.h`. O `.gitignore` já o exclui.
 
 ## 5. Preparar a planilha e o Apps Script
 
 1. Crie uma planilha Google, renomeie a primeira aba para `Pedidos` (opcional) e coloque a primeira linha assim:
 
-   `Data | Hora | Nome | Bebida | Pedido ID`
+   `Data | Hora | Nome | Bebida | Pedido ID` | Pago |
 
 2. O quinto campo evita registros duplicados. Você pode ocultar a coluna **Pedido ID** depois.
 3. Copie o ID da planilha: é o trecho entre `/d/` e `/edit` na URL.
