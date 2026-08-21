@@ -55,7 +55,10 @@ function validarTokenFirebase(token, props) {
       payload:JSON.stringify({idToken:token}),
       muteHttpExceptions:true
     });
-    if (retorno.getResponseCode() !== 200) return null;
+    if (retorno.getResponseCode() !== 200) {
+      console.log("Firebase Auth rejeitou o token: " + retorno.getResponseCode() + " " + retorno.getContentText());
+      return null;
+    }
     const dados = JSON.parse(retorno.getContentText());
     return dados.users && dados.users[0] ? dados.users[0].localId : null;
   } catch (erro) {
@@ -68,6 +71,12 @@ function configurarPlanilha() {
   const planilhaId = PropertiesService.getScriptProperties().getProperty("SPREADSHEET_ID");
   if (!planilhaId) throw new Error("SPREADSHEET_ID não configurado");
   obterAbaPedidos(SpreadsheetApp.openById(planilhaId));
+}
+
+// Execute esta função uma única vez no editor caso o Google peça autorização
+// para usar UrlFetchApp. Ela garante que a validação Firebase tenha permissão.
+function autorizarIntegracaoFirebase() {
+  UrlFetchApp.fetch("https://identitytoolkit.googleapis.com/", {muteHttpExceptions:true});
 }
 
 function obterAbaPedidos(planilha) {
