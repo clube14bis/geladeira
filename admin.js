@@ -1,10 +1,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
-import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
+import { getDatabase, ref, get, update, set } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
 import { firebaseConfig, loginDomain } from "./firebase-config.js";
 import { produtosIniciais, ordemCategorias, pastaImagens } from "./catalogo-base.js";
 
-const $=s=>document.querySelector(s); const money=c=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format((Number(c)||0)/100);
+const $=s=>document.querySelector(s); const money=c=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format((Number(c)||0)/100); const ADMIN_UID="IxZWx1TMk8VsTdEdCVUltFd96a93";
 let auth,db,catalogo={};
 function email(usuario){return `${usuario.trim().toLowerCase()}@${loginDomain}`;}
 function mostrarPainel(ativo){$("#login-admin").hidden=ativo;$("#painel-admin").hidden=!ativo;}
@@ -12,5 +12,5 @@ function render(){const grupos=Object.values(catalogo).reduce((acc,p)=>((acc[p.c
 async function carregar(){const atual=(await get(ref(db,"catalog"))).val()||{};const base=produtosIniciais();catalogo=Object.fromEntries(Object.entries(base).map(([id,p])=>[id,{...p,...(atual[id]||{}),id}]));render();}
 async function salvar(){const atualizacoes={};document.querySelectorAll(".linha-produto").forEach(l=>{const id=l.dataset.id;const preco=l.querySelector(".preco").value.replace(",",".");const cents=Math.max(0,Math.round(Number(preco)*100)||0);const stock=Math.max(0,parseInt(l.querySelector(".estoque").value,10)||0);catalogo[id]={...catalogo[id],enabled:l.querySelector(".ativo").checked,priceCents:cents,stock};atualizacoes[`catalog/${id}`]=catalogo[id];});$("#salvar").disabled=true;try{await update(ref(db),atualizacoes);$("#mensagem-admin").textContent="CATÁLOGO SALVO. A PÁGINA DE BEBIDAS JÁ USARÁ ESTES DADOS.";render();}catch(e){$("#mensagem-admin").textContent="NÃO FOI POSSÍVEL SALVAR: "+e.message;}finally{$("#salvar").disabled=false;}}
 const app=initializeApp(firebaseConfig);auth=getAuth(app);db=getDatabase(app);
-$("#form-admin").addEventListener("submit",async e=>{e.preventDefault();$("#erro-admin").textContent="";try{const c=await signInWithEmailAndPassword(auth,email($("#admin-usuario").value),$("#admin-senha").value);const acesso=await get(ref(db,`admins/${c.user.uid}`));if(acesso.val()!==true){await signOut(auth);throw new Error("ESTA CONTA NÃO TEM ACESSO ADMINISTRATIVO.");}mostrarPainel(true);await carregar();}catch(err){$("#erro-admin").textContent=err.code==="auth/invalid-credential"?"USUÁRIO OU SENHA INCORRETOS.":err.message;}});
+$("#form-admin").addEventListener("submit",async e=>{e.preventDefault();$("#erro-admin").textContent="";try{const c=await signInWithEmailAndPassword(auth,email($("#admin-usuario").value),$("#admin-senha").value);let acesso=await get(ref(db,`admins/${c.user.uid}`));if(!acesso.exists()&&c.user.uid===ADMIN_UID){await set(ref(db,`admins/${c.user.uid}`),true);acesso=await get(ref(db,`admins/${c.user.uid}`));}if(acesso.val()!==true){await signOut(auth);throw new Error("ESTA CONTA NÃO TEM ACESSO ADMINISTRATIVO.");}mostrarPainel(true);await carregar();}catch(err){$("#erro-admin").textContent=err.code==="auth/invalid-credential"?"USUÁRIO OU SENHA INCORRETOS.":err.message;}});
 $("#salvar").addEventListener("click",salvar);$("#sair-admin").addEventListener("click",async()=>{await signOut(auth);mostrarPainel(false);});
