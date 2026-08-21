@@ -6,8 +6,11 @@
 
 constexpr uint8_t RELAY_PIN = 26;
 constexpr bool RELAY_ACTIVE_LOW = true;
-constexpr uint32_t OPEN_TIME_MS = 5000;
+constexpr uint8_t STATUS_LED_PIN = 2;
+constexpr bool STATUS_LED_ACTIVE_HIGH = true;
+constexpr uint32_t OPEN_TIME_MS = 6000;
 constexpr uint32_t POLL_INTERVAL_MS = 2000;
+constexpr uint32_t LED_BLINK_MS = 150;
 
 static const char GOOGLE_ROOT_CA[] PROGMEM = R"EOF(
 -----BEGIN CERTIFICATE-----
@@ -48,6 +51,15 @@ String idToken;
 unsigned long tokenExpiresAt=0,lastPoll=0;
 
 void relayWrite(bool open){digitalWrite(RELAY_PIN,(RELAY_ACTIVE_LOW?!open:open)?HIGH:LOW);}
+void statusLedWrite(bool on){digitalWrite(STATUS_LED_PIN,(STATUS_LED_ACTIVE_HIGH?on:!on)?HIGH:LOW);}
+void blinkStatusLed(){
+  for(uint8_t i=0;i<5;i++){
+    statusLedWrite(true);
+    delay(LED_BLINK_MS);
+    statusLedWrite(false);
+    delay(LED_BLINK_MS);
+  }
+}
 
 bool requestHttps(const String& method,const String& url,const String& body,String& response){
   HTTPClient http;
@@ -66,6 +78,11 @@ bool requestHttps(const String& method,const String& url,const String& body,Stri
 void connectWifi(){
   if(WiFi.status()==WL_CONNECTED)return;
   WiFi.begin(WIFI_SSID,WIFI_PASSWORD);
+  for(uint8_t i=0;WiFi.status()!=WL_CONNECTED&&i<30;i++)delay(500);
+  if(WiFi.status()==WL_CONNECTED)return;
+  WiFi.disconnect(true);
+  delay(200);
+  WiFi.begin(WIFI_BACKUP_SSID,WIFI_BACKUP_PASSWORD);
   for(uint8_t i=0;WiFi.status()!=WL_CONNECTED&&i<30;i++)delay(500);
 }
 
@@ -117,11 +134,14 @@ bool sendToSheets(const String& orderId,const String& fullName,JsonArray items){
 void processOrder(const String& orderId,JsonObject pedido){
   String name=pedido["fullName"].as<String>();
   JsonArray items=pedido["items"].as<JsonArray>();
-  if(items.isNull()||items.size()==0){updateStatus(orderId,"invalid");return;}
+  if(items.isNull()||items.size()==0){updateStatus(orderId,"log_failed");return;}
   if(!updateStatus(orderId,"processing"))return;
+  const unsigned long openedAt=millis();
   relayWrite(true);
+  blinkStatusLed();
   bool registrado=sendToSheets(orderId,name,items);
-  delay(OPEN_TIME_MS);
+  const uint32_t elapsed=millis()-openedAt;
+  if(elapsed<OPEN_TIME_MS)delay(OPEN_TIME_MS-elapsed);
   relayWrite(false);
   String response;
   if(registrado)requestHttps("DELETE",firebaseUrl("/orders/"+orderId+".json"),"",response);
@@ -144,7 +164,9 @@ void pollOrders(){
 void setup(){
   Serial.begin(115200);
   pinMode(RELAY_PIN,OUTPUT);
+  pinMode(STATUS_LED_PIN,OUTPUT);
   relayWrite(false);
+  statusLedWrite(false);
   tls.setCACert(GOOGLE_ROOT_CA);
   connectWifi();
 }
