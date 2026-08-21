@@ -17,7 +17,7 @@ const $=s=>document.querySelector(s);const telas=document.querySelectorAll(".tel
 const erroLogin=$("#erro-login"),erroCadastro=$("#erro-cadastro"),carrinhoModal=$("#carrinho"),listaCarrinho=$("#lista-carrinho"),botaoCarrinho=$("#botao-concluir"),resumoCarrinho=$("#resumo-carrinho"),obrigado=$("#obrigado"),barraCarrinho=$(".carrinho-barra"),carregando=$("#carregando"),textoCarregando=$("#texto-carregando");
 const demoLocal=["localhost","127.0.0.1"].includes(location.hostname);
 let app,auth,db,usuarioAtual=null,perfilAtual=null,carrinho={},retornoLogin=null;
-const VERSAO_APP="V1.0.7";
+const VERSAO_APP="V1.0.8";
 $("#cad-senha").minLength=6;
 ["#cad-nome","#cad-usuario","#cad-telefone","#cad-cpf","#cad-senha"].forEach(seletor=>$(seletor).placeholder="");
 
