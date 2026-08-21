@@ -23,6 +23,7 @@ function doPost(e) {
     const planilha = SpreadsheetApp.openById(planilhaId);
     const aba = obterAbaPedidos(planilha);
     const bebidas = dado.items.map(item => `${textoSeguro(item.drink,80)} x${Math.max(1,Number(item.quantity)||1)}`).join(", ");
+    const totalCentavos = Math.max(0, Number(dado.totalCents) || 0);
     const agora = new Date();
     const fuso = Session.getScriptTimeZone() || "America/Sao_Paulo";
 
@@ -31,7 +32,8 @@ function doPost(e) {
       Utilities.formatDate(agora,fuso,"HH:mm:ss"),
       textoSeguro(dado.fullName,80),
       bebidas,
-      String(dado.orderId)
+      String(dado.orderId),
+      totalCentavos / 100
     ]);
 
     return resposta({ok:true});
@@ -86,10 +88,14 @@ function obterAbaPedidos(planilha) {
     aba = primeiraAba.getLastRow() === 0 ? primeiraAba.setName("Pedidos") : planilha.insertSheet("Pedidos");
   }
   if (aba.getLastRow() === 0) {
-    aba.getRange(1,1,1,6).setValues([["Data","Hora","Nome","Bebidas","Pedido ID","Pago"]]);
-    aba.getRange("A1:F1").setFontWeight("bold").setBackground("#1f4e78").setFontColor("#ffffff");
+    aba.getRange(1,1,1,7).setValues([["Data","Hora","Nome","Bebidas","Pedido ID","Pago","Valor total"]]);
+    aba.getRange("A1:G1").setFontWeight("bold").setBackground("#1f4e78").setFontColor("#ffffff");
     aba.setFrozenRows(1);
-    aba.autoResizeColumns(1,6);
+    aba.autoResizeColumns(1,7);
+  }
+  if (aba.getRange("G1").getValue() !== "Valor total") {
+    aba.getRange("G1").setValue("Valor total").setFontWeight("bold").setBackground("#1f4e78").setFontColor("#ffffff");
+    aba.autoResizeColumn(7);
   }
   return aba;
 }
