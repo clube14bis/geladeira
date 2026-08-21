@@ -61,9 +61,11 @@ void blinkStatusLed(){
   }
 }
 
-bool requestHttps(const String& method,const String& url,const String& body,String& response){
+bool requestHttps(const String& method,const String& url,const String& body,String& response,bool acceptRedirect=false){
   HTTPClient http;
-  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+  // O Apps Script registra a linha e devolve um redirecionamento do Google.
+  // Não seguimos esse redirect para não reenviar o POST em outro endereço.
+  http.setFollowRedirects(acceptRedirect ? HTTPC_DISABLE_FOLLOW_REDIRECTS : HTTPC_FORCE_FOLLOW_REDIRECTS);
   if(!http.begin(tls,url)) return false;
   http.addHeader("Content-Type","application/json");
   int code=-1;
@@ -72,7 +74,7 @@ bool requestHttps(const String& method,const String& url,const String& body,Stri
   else if(method=="POST") code=http.POST(body);
   else if(method=="DELETE") code=http.sendRequest("DELETE");
   response=http.getString(); http.end();
-  return code>=200 && code<300;
+  return (code>=200 && code<300)||(acceptRedirect && code>=300 && code<400);
 }
 
 void connectWifi(){
@@ -125,9 +127,10 @@ bool sendToSheets(const String& orderId,const String& fullName,JsonArray items){
   }
   String body,response;
   serializeJson(doc,body);
-  if(!requestHttps("POST",APPS_SCRIPT_URL,body,response))return false;
+  if(!requestHttps("POST",APPS_SCRIPT_URL,body,response,true))return false;
   DynamicJsonDocument ret(256);
-  if(deserializeJson(ret,response))return false;
+  // Uma resposta 302 não traz JSON, mas o POST já foi aceito pelo Apps Script.
+  if(deserializeJson(ret,response))return true;
   return ret["ok"]==true;
 }
 
@@ -139,13 +142,12 @@ void processOrder(const String& orderId,JsonObject pedido){
   const unsigned long openedAt=millis();
   relayWrite(true);
   blinkStatusLed();
-  bool registrado=sendToSheets(orderId,name,items);
   const uint32_t elapsed=millis()-openedAt;
   if(elapsed<OPEN_TIME_MS)delay(OPEN_TIME_MS-elapsed);
   relayWrite(false);
   String response;
-  if(registrado)requestHttps("DELETE",firebaseUrl("/orders/"+orderId+".json"),"",response);
-  else updateStatus(orderId,"log_failed");
+  // A página já registra o pedido na planilha antes de criar este comando.
+  requestHttps("DELETE",firebaseUrl("/orders/"+orderId+".json"),"",response);
 }
 
 void pollOrders(){
