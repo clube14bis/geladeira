@@ -1,11 +1,29 @@
-// Catálogo-base usado para iniciar e identificar os produtos no Firebase.
+// Catálogo inicial. O painel administrativo grava estas configurações no Firebase.
 export const pastaImagens = "Imagens Bebidas/ ";
 export const ordemCategorias = ["ÁGUA", "REFRIGERANTES E OUTROS", "CERVEJAS", "SUCOS"];
 export const catalogoBase = {
-  "ÁGUA":[["ÁGUA NATURAL","agua.png"],["ÁGUA COM GÁS","agua com gas.png"]],
-  "CERVEJAS":[["SPATEN","cerveja-puro-malte-spaten-lt-269ml-1.png"],["STELLA ARTOIS","stella artois lata.png"],["PETRA ORIGEM","Cerveja-Puro-Malte-Petra-Origem-Lata-269ml.png"],["CORONA","corona.png"],["ORIGINAL GARRAFA","original-garrafa.png"],["BLUE MOON","cerveja-blue-moon-garrafa-355ml-1.png"],["ITAIPAVA","itaipava.png"],["AMSTEL","amstel.png"],["AMSTEL LAGER","cerveja-amstel-lager-lata-269ml-1.png"],["HEINEKEN GARRAFA","heineken-garrafa.png"],["HEINEKEN LATA","heineken-lata.png"],["HEINEKEN ZERO GARRAFA","cerveja-heineken-zero-garrafa-330ml-1.png"],["HEINEKEN ZERO LATA","cerveja-heineken-zero-lata-269ml-1.png"],["BUDWEISER","cerveja-budweiser-american-lager-330ml-long-neck-1-2.png"],["SKOL","cerveja-skol-pilsen-lata-350ml-1.png"],["EISENBAHN PILSEN","cerveja-eisenbahn-pilsen-long-neck-355ml-1.png"],["SPATEN 600 ML","cerveja-spaten-one-way-600-ml-1.png"],["STELLA PURE GOLD","cerveja-stella-artois-pure-gold-330ml-1.png"],["ANTARCTICA","antarctica.png"],["ORIGINAL LATA","original-lata.png"],["SUBZERO","subzero-lata.png"]],
-  "SUCOS":[["SUCO PRATS LARANJA","suco prats laranja.png"],["DEL VALLE LARANJA","dellvale laranja.png"],["KAPO UVA","refresco-de-uva-del-valle-kapo-200ml-1.png"],["GATORADE TANGERINA","isotonico-gatorade-tangerina-garrafa-500ml-1.png"],["GATORADE MORANGO","isotonico-gatorade-morango-com-maracuja-500ml-garrafa-1.png"]],
-  "REFRIGERANTES E OUTROS":[["COCA-COLA PET 200 ML","refrigerante-coca-cola-original-pet-200-ml-1.png"],["COCA-COLA 600 ML","coca-cola-600ml-1.png"],["COCA-COLA LATA","coca-cola-lata-350-ml-1.png"],["COCA-COLA 2 L","refrigerante-coca-cola-garrafa-2-l-1.png"],["COCA-COLA ZERO 2 L","cocazero 2litro.png"],["COCA-COLA ZERO LATA","cocazero-lata.png"],["FANTA LARANJA","fanta-laranja-220ml-1.png"],["GUARANÁ ANTARCTICA","refrigerante-guarana-antarctica-350ml-1.png"],["SPRITE","sprite.png"],["PEPSI","pepsi.png"],["SCHWEPPES CITRUS","refrigerante-schweppes-citrus-350ml-1.png"],["BEATS SENSES","drink-pronto-beats-senses-269ml-lata-1.png"],["RED BULL","redbull.png"],["MONSTER ENERGY","energetico-monster-energy-lata-473ml-1.png"]]
+  "ÁGUA":[
+    ["ÁGUA MINERAL LEVITY 510ML S/GÁS","agua.png",350,12],
+    ["ÁGUA MINERAL LEVITY 510ML C/GÁS","agua com gas.png",350,12]
+  ],
+  "CERVEJAS":[
+    ["CERVEJA HEINEKEN 269ML (ZERO)","cerveja-heineken-zero-lata-269ml-1.png",600,12],
+    ["CERVEJA HEINEKEN 330ML LAGER","heineken-garrafa.png",800,36],
+    ["CERVEJA ORIGINAL 350ML","original-lata.png",600,36]
+  ],
+  "REFRIGERANTES E OUTROS":[
+    ["MONSTER 473ML ENERGY","energetico-monster-energy-lata-473ml-1.png",1000,6],
+    ["MONSTER 473ML ENERGY (ZERO)","energetico-monster-energy-lata-473ml-1.png",1000,6],
+    ["REFRIG ANTARCTICA 350ML GUARANÁ","refrigerante-guarana-antarctica-350ml-1.png",500,12],
+    ["REFRIG ANTARCTICA 350ML (ZERO)","refrigerante-guarana-antarctica-350ml-1.png",500,0],
+    ["REFRIG COCA COLA 350ML","coca-cola-lata-350-ml-1.png",550,12],
+    ["REFRIG COCA COLA 350ML (ZERO)","cocazero-lata.png",550,12],
+    ["REFRIG FANTA 350ML LARANJA","fanta-laranja-220ml-1.png",500,12],
+    ["REFRIG FANTA 350ML LARANJA (ZERO)","fanta-laranja-220ml-1.png",500,0],
+    ["REFRIG SPRITE 350ML ORIGINAL","sprite.png",500,0],
+    ["REFRIG SPRITE 350ML S/ AÇÚCAR","sprite.png",500,12]
+  ],
+  "SUCOS":[]
 };
 export const slugProduto = nome => nome.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
-export function produtosIniciais(){return Object.fromEntries(Object.entries(catalogoBase).flatMap(([category,items])=>items.map(([name,image])=>{const id=slugProduto(name);return [id,{name,category,image,enabled:false,priceCents:0,stock:0}];})));}
+export function produtosIniciais(){return Object.fromEntries(Object.entries(catalogoBase).flatMap(([category,items])=>items.map(([name,image,priceCents,stock])=>{const id=slugProduto(name);return [id,{name,category,image,enabled:stock>0,priceCents,stock}];})));}
