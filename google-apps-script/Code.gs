@@ -53,7 +53,9 @@ function validarTokenFirebase(token, props) {
     const dados = JSON.parse(retorno.getContentText());
     if (dados.aud !== projectId) return null;
     if (dados.iss !== "https://securetoken.google.com/" + projectId) return null;
-    return dados.user_id || null;
+    // tokeninfo segue o padrão OpenID e devolve o UID em "sub".
+    // Alguns retornos do Firebase também usam "user_id".
+    return dados.user_id || dados.sub || null;
   } catch (erro) {
     console.error(erro);
     return null;
