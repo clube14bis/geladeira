@@ -44,18 +44,20 @@ function doPost(e) {
 // O site manda o ID token do Firebase, nunca o segredo do equipamento.
 // O token é validado nos servidores do Google antes de a linha ser gravada.
 function validarTokenFirebase(token, props) {
-  const projectId = props.getProperty("FIREBASE_PROJECT_ID") || "geladeira-14-bis";
+  const apiKey = props.getProperty("FIREBASE_API_KEY") || "AIzaSyCdEUfUn9inSrri42DXKgmh27d9eT7Yd0Q";
   if (!token) return null;
   try {
-    const url = "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(token);
-    const retorno = UrlFetchApp.fetch(url, {muteHttpExceptions:true});
+    // O próprio Firebase valida a assinatura, expiração e projeto do ID token.
+    const url = "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" + apiKey;
+    const retorno = UrlFetchApp.fetch(url, {
+      method:"post",
+      contentType:"application/json",
+      payload:JSON.stringify({idToken:token}),
+      muteHttpExceptions:true
+    });
     if (retorno.getResponseCode() !== 200) return null;
     const dados = JSON.parse(retorno.getContentText());
-    if (dados.aud !== projectId) return null;
-    if (dados.iss !== "https://securetoken.google.com/" + projectId) return null;
-    // tokeninfo segue o padrão OpenID e devolve o UID em "sub".
-    // Alguns retornos do Firebase também usam "user_id".
-    return dados.user_id || dados.sub || null;
+    return dados.users && dados.users[0] ? dados.users[0].localId : null;
   } catch (erro) {
     console.error(erro);
     return null;
