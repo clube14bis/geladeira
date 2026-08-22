@@ -12,21 +12,20 @@ import {
   get,
   push,
   serverTimestamp,
-  runTransaction,
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
 import {
   firebaseConfig,
   loginDomain,
   sheetsEndpoint,
-} from "./firebase-config.js?v=1.1.6";
+} from "./firebase-config.js?v=1.2.0";
 import {
   ordemCategorias,
   imagemProduto,
   produtosIniciais,
-} from "./catalogo-base.js?v=1.1.6";
+} from "./catalogo-base.js?v=1.2.0";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.1.6",
+  VERSAO_APP = "V1.2.0",
   PIX = "c9cb7e85-240b-46e5-b500-327844209247",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -143,8 +142,7 @@ async function catalogo() {
 }
 function itens(cat) {
   return Object.values(produtos).filter(
-    (p) =>
-      p.category === cat && p.stock > 0 && (!catalogoConfigurado || p.enabled),
+    (p) => p.category === cat && (!catalogoConfigurado || p.enabled),
   );
 }
 async function bebidas() {
@@ -182,7 +180,7 @@ function total() {
   );
 }
 function add(id) {
-  if (produtos[id] && (!carrinho[id] || carrinho[id] < produtos[id].stock)) {
+  if (produtos[id]) {
     carrinho[id] = (carrinho[id] || 0) + 1;
     atualizarInterface();
     atualizar();
@@ -279,32 +277,6 @@ async function sheets(orderId, items, totalCents) {
     }),
   });
 }
-async function baixar(items) {
-  let ok = [];
-  try {
-    for (let i of items) {
-      const estoqueRef = ref(db, `catalog/${i.id}/stock`);
-      await get(estoqueRef);
-      let r = await runTransaction(estoqueRef, (valor) => {
-        const estoque = Number(valor);
-        if (!Number.isFinite(estoque) || estoque < i.quantity) return;
-        return Math.floor(estoque) - i.quantity;
-      });
-      if (!r.committed) throw Error(`${i.drink} ESTÁ SEM ESTOQUE SUFICIENTE.`);
-      ok.push(i);
-    }
-  } catch (e) {
-    await Promise.all(
-      ok.map((i) =>
-        runTransaction(
-          ref(db, `catalog/${i.id}/stock`),
-          (valor) => (Number(valor) || 0) + i.quantity,
-        ),
-      ),
-    );
-    throw e;
-  }
-}
 async function enviar(b) {
   if (!usuarioAtual || !qtd()) return;
   b.disabled = true;
@@ -319,7 +291,6 @@ async function enviar(b) {
       })),
       v = total();
     if (!demo) {
-      await baixar(items);
       let pedido = push(ref(db, "orders"));
       await sheets(pedido.key, items, v);
       await set(pedido, {
