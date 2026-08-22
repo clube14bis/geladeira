@@ -11,6 +11,7 @@ import {
   set,
   get,
   push,
+  update,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
 import {
@@ -25,7 +26,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.3.0",
+  VERSAO_APP = "V1.4.0",
   PIX = "c9cb7e85-240b-46e5-b500-327844209247",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -41,7 +42,10 @@ let auth,
   produtos = {},
   catalogoConfigurado = false,
   retornoLogin,
-  intervaloObrigado;
+  intervaloObrigado,
+  historicoPedidos = [],
+  mesHistorico = new Date(),
+  diaHistorico = "";
 const erroLogin = $("#erro-login"),
   erroCadastro = $("#erro-cadastro"),
   carrinhoModal = $("#carrinho"),
@@ -166,6 +170,73 @@ async function bebidas() {
   } catch (e) {
     erroLogin.textContent = erro(e);
     tela("tela-login");
+  } finally {
+    load(false);
+  }
+}
+const nomesMeses = [
+  "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO",
+  "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO",
+];
+const nomesSemana = ["DOMINGO", "SEGUNDA-FEIRA", "TERÇA-FEIRA", "QUARTA-FEIRA", "QUINTA-FEIRA", "SEXTA-FEIRA", "SÁBADO"];
+const escapar = (texto) => String(texto || "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+function chaveData(data) {
+  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
+}
+function inicioMes(data) { return new Date(data.getFullYear(), data.getMonth(), 1); }
+function dentroDosTresMeses(data) {
+  const limite = new Date();
+  limite.setHours(0, 0, 0, 0);
+  limite.setMonth(limite.getMonth() - 3);
+  return data >= limite;
+}
+function renderCalendarioHistorico() {
+  const mes = inicioMes(mesHistorico);
+  const agora = inicioMes(new Date());
+  const limite = inicioMes(new Date());
+  limite.setMonth(limite.getMonth() - 2);
+  const ano = mes.getFullYear(), numeroMes = mes.getMonth();
+  $("#mes-historico").textContent = `${nomesMeses[numeroMes]} ${ano}`;
+  $("#mes-anterior").disabled = mes <= limite;
+  $("#mes-proximo").disabled = mes >= agora;
+  const consumoPorDia = new Set(historicoPedidos.map((p) => chaveData(new Date(p.createdAt))));
+  let html = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"].map((d) => `<span class="semana-calendario">${d}</span>`).join("");
+  for (let vazio = 0; vazio < new Date(ano, numeroMes, 1).getDay(); vazio++) html += '<span class="dia-vazio"></span>';
+  const ultimoDia = new Date(ano, numeroMes + 1, 0).getDate();
+  for (let dia = 1; dia <= ultimoDia; dia++) {
+    const data = new Date(ano, numeroMes, dia), chave = chaveData(data), temConsumo = consumoPorDia.has(chave);
+    html += `<button class="dia-calendario${temConsumo ? " tem-consumo" : ""}${chave === diaHistorico ? " selecionado" : ""}" type="button" data-dia="${chave}" aria-label="${dia} de ${nomesMeses[numeroMes]}">${dia}</button>`;
+  }
+  $("#calendario-historico").innerHTML = html;
+}
+function renderDetalhesHistorico() {
+  const data = new Date(`${diaHistorico}T12:00:00`);
+  const pedidosDia = historicoPedidos.filter((p) => chaveData(new Date(p.createdAt)) === diaHistorico).sort((a, b) => a.createdAt - b.createdAt);
+  $("#titulo-dia-historico").textContent = `${String(data.getDate()).padStart(2, "0")}/${String(data.getMonth() + 1).padStart(2, "0")}/${data.getFullYear()} — ${nomesSemana[data.getDay()]}`;
+  if (!pedidosDia.length) {
+    $("#itens-historico").innerHTML = '<p class="historico-vazio">NENHUM CONSUMO REGISTRADO NESTE DIA.</p>';
+    $("#total-dia-historico").textContent = fmt(0);
+    return;
+  }
+  $("#itens-historico").innerHTML = pedidosDia.map((pedido) => {
+    const hora = new Date(pedido.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const itens = Object.values(pedido.items || {}).map((item) => `<li>${Number(item.quantity) || 1}x ${escapar(item.drink)} <strong>${fmt(item.subtotalCents ?? ((item.priceCents || 0) * (item.quantity || 1)))}</strong></li>`).join("");
+    return `<article class="consumo-historico"><time>${hora}</time><ul>${itens}</ul><b>${fmt(pedido.totalCents)}</b></article>`;
+  }).join("");
+  $("#total-dia-historico").textContent = fmt(pedidosDia.reduce((s, p) => s + (+p.totalCents || 0), 0));
+}
+async function abrirHistorico() {
+  load(true, "CARREGANDO HISTÓRICO...");
+  try {
+    let dados = demo ? {} : (await get(ref(db, `userOrders/${usuarioAtual.uid}`))).val() || {};
+    historicoPedidos = Object.values(dados).filter((p) => p && Number.isFinite(+p.createdAt) && dentroDosTresMeses(new Date(+p.createdAt)));
+    mesHistorico = inicioMes(new Date());
+    diaHistorico = chaveData(new Date());
+    renderCalendarioHistorico();
+    renderDetalhesHistorico();
+    tela("tela-historico");
+  } catch (e) {
+    alert(erro(e));
   } finally {
     load(false);
   }
@@ -303,7 +374,7 @@ async function enviar(b) {
     if (!demo) {
       let pedido = push(ref(db, "orders"));
       await sheets(pedido.key, items, v);
-      await set(pedido, {
+      const dadosPedido = {
         uid: usuarioAtual.uid,
         username: perfilAtual.username,
         fullName: perfilAtual.fullName,
@@ -314,6 +385,15 @@ async function enviar(b) {
         // O ESP32 usa este horário para iniciar a abertura junto com a tela.
         unlockAt: Date.now() + 6000,
         createdAt: serverTimestamp(),
+      };
+      await update(ref(db), {
+        [`orders/${pedido.key}`]: dadosPedido,
+        [`userOrders/${usuarioAtual.uid}/${pedido.key}`]: {
+          uid: usuarioAtual.uid,
+          items,
+          totalCents: v,
+          createdAt: serverTimestamp(),
+        },
       });
     }
     fechar();
@@ -418,6 +498,17 @@ listaCarrinho.onclick = (e) => {
 botaoCarrinho.onclick = abrir;
 $("#confirmar-carrinho").onclick = () => enviar($("#confirmar-carrinho"));
 $("#botao-sair").onclick = sair;
+$("#botao-historico").onclick = abrirHistorico;
+$("#voltar-historico").onclick = () => tela("tela-bebidas");
+$("#mes-anterior").onclick = () => { mesHistorico.setMonth(mesHistorico.getMonth() - 1); renderCalendarioHistorico(); };
+$("#mes-proximo").onclick = () => { mesHistorico.setMonth(mesHistorico.getMonth() + 1); renderCalendarioHistorico(); };
+$("#calendario-historico").onclick = (e) => {
+  const botao = e.target.closest("[data-dia]");
+  if (!botao) return;
+  diaHistorico = botao.dataset.dia;
+  renderCalendarioHistorico();
+  renderDetalhesHistorico();
+};
 $("#copiar-pix").onclick = async () => {
   try {
     await navigator.clipboard.writeText(PIX);
