@@ -1524,6 +1524,30 @@
         .carrinho-barra.tem-itens { width: calc(100% - 16px) !important; }
         .carrinho-barra .concluir { min-width: 154px !important; font-size: 0.76rem !important; }
       }
+      /* ESCALA MAIS EQUILIBRADA PARA A LISTA DE PRODUTOS NO CELULAR */
+      @media (max-width: 600px) {
+        :root { font-size: 16px; }
+        #lista-bebidas { width: 100%; }
+        .categoria h2 { font-size: 0.8rem; }
+        .produto { min-height: 132px; }
+        .produto-imagem {
+          width: 116px;
+          height: 132px;
+          flex-basis: 116px;
+          padding: 8px;
+        }
+        .produto-corpo { padding: 12px 10px; }
+        .produto-nome { font-size: clamp(0.88rem, 3.8vw, 1rem); }
+        .produto-preco { font-size: clamp(1.14rem, 5vw, 1.3rem); }
+        .produto-add {
+          flex-basis: 48px;
+          width: 48px;
+          height: 48px;
+          margin-left: 7px;
+        }
+        .produto-add:has(.quantidade) { flex-basis: 104px; width: 104px; }
+        .produto-add .quantidade button { flex-basis: 25px; width: 25px; height: 25px; }
+      }
     </style>
   </head>
   <body>
@@ -1749,6 +1773,6 @@
         <p class="toque-voltar">TOQUE NA TELA PARA VOLTAR AO LOGIN</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.2.6"></script>
+    <script type="module" src="app.js?v=1.2.7"></script>
   </body>
 </html>
