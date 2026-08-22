@@ -615,6 +615,9 @@
         font-size: 2.25rem;
         font-weight: 900;
       }
+      .contador.oculto {
+        display: none;
+      }
       .obrigado p.geladeira-aberta {
         max-width: 100%;
         font-size: clamp(1.7rem, 7vw, 3.1rem);
@@ -1437,6 +1440,9 @@
       .obrigado .pagamento-pix {
         color: #fff;
       }
+      .obrigado .pagamento-pix {
+        margin-top: 42px;
+      }
       /* CARRINHO: LEITURA AMPLIADA E CONTROLES À DIREITA */
       .carrinho-conteudo {
         padding: 34px clamp(22px, 5vw, 70px) calc(28px + env(safe-area-inset-bottom)) !important;
@@ -1767,12 +1773,12 @@
             class="botao-pix"
             type="button"
             aria-label="COPIAR CHAVE PIX"
-          >COPIAR CHAVE
+          >COPIAR CHAVE PIX
           </button>
         </div>
         <p class="toque-voltar">TOQUE NA TELA PARA VOLTAR AO LOGIN</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.2.7"></script>
+    <script type="module" src="app.js?v=1.2.8"></script>
   </body>
 </html>
