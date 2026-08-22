@@ -1,5 +1,11 @@
 # Geladeira 14 BIS
 
+<img width="1600" height="264" alt="WhatsApp Image 2026-08-19 at 8 46 11 AM" src="https://github.com/user-attachments/assets/e1e745c1-4037-4d1c-8d81-7469c925986d" />
+
+<img width="1280" height="853" alt="WhatsApp Image 2026-08-19 at 3 53 42 PM" src="https://github.com/user-attachments/assets/02b59fa2-7ec7-47b4-98f5-437ef00a6a8e" />
+
+
+
 Sistema de retirada de bebidas por QR Code: o cliente acessa o site, faz login, monta o carrinho e confirma. O pedido é salvo no Firebase e no Google Sheets; o ESP32 recebe o pedido e controla a fechadura eletromagnética.
 
 > Estado atual: site, painel administrativo, Firebase, planilha, Apps Script e ESP32 estão configurados. A trava ainda deve ser instalada fisicamente e testada com segurança.
