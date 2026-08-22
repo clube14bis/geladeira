@@ -14,11 +14,13 @@
     <style>
       :root {
         font-family:
-          Inter,
           -apple-system,
           BlinkMacSystemFont,
+          "SF Pro Display",
+          "SF Pro Text",
           "Segoe UI",
           sans-serif;
+        font-size: 17px;
         --bg: #eaf1ef;
         --panel: #fff;
         --soft: #f3f7f6;
@@ -1333,6 +1335,63 @@
         font-size: 0.78rem;
         font-weight: 900;
       }
+      /* CATÁLOGO: COLUNA CENTRAL, INFORMAÇÕES MAIORES E AÇÃO NO RODAPÉ */
+      #lista-bebidas {
+        width: min(100%, 720px);
+        margin: 0 auto;
+      }
+      .categoria {
+        width: 100%;
+      }
+      .produto {
+        min-height: 152px;
+        align-items: stretch;
+      }
+      .produto-corpo {
+        align-self: stretch;
+        display: flex;
+        align-items: stretch;
+        padding: 16px 14px;
+      }
+      .produto-corpo > span:first-child {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .produto-nome {
+        font-size: 1.15rem;
+        line-height: 1.24;
+      }
+      .produto-preco {
+        margin-top: 9px;
+        color: #158557;
+        font-size: 1.56rem;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -0.03em;
+      }
+      .produto-add {
+        align-self: flex-end;
+        margin-left: 10px;
+        margin-bottom: 1px;
+      }
+      @media (max-width: 720px) {
+        .produto {
+          min-height: 158px;
+        }
+        .produto-imagem {
+          width: 142px;
+          height: 158px;
+          flex-basis: 142px;
+        }
+        .produto-nome {
+          font-size: 1.08rem;
+        }
+        .produto-preco {
+          font-size: 1.5rem;
+        }
+      }
       .item-carrinho strong small {
         display: block;
         margin-top: 4px;
@@ -1603,6 +1662,6 @@
         <p class="toque-voltar">TOQUE NA TELA PARA VOLTAR AO LOGIN</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.2.4"></script>
+    <script type="module" src="app.js?v=1.2.5"></script>
   </body>
 </html>
