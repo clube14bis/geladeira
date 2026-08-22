@@ -25,7 +25,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.2.7",
+  VERSAO_APP = "V1.2.8",
   PIX = "c9cb7e85-240b-46e5-b500-327844209247",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -251,6 +251,7 @@ function obrigadoTela(v) {
   p.classList.remove("geladeira-aberta");
   $("#valor-final").textContent = fmt(v);
   $("#contador").textContent = s;
+  $("#contador").classList.remove("oculto");
   obrigado.classList.add("visivel");
   intervaloObrigado = setInterval(() => {
     $("#contador").textContent = --s;
@@ -260,7 +261,7 @@ function obrigadoTela(v) {
     p.textContent =
       "GELADEIRA ABERTA.";
     p.classList.add("geladeira-aberta");
-    $("#contador").textContent = "✓";
+    $("#contador").classList.add("oculto");
   }, 6000);
 }
 async function sheets(orderId, items, totalCents) {
