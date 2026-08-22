@@ -11,13 +11,13 @@ import {
   update,
   set,
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
-import { firebaseConfig, loginDomain } from "./firebase-config.js?v=1.1.5";
+import { firebaseConfig, loginDomain } from "./firebase-config.js?v=1.1.6";
 import {
   produtosIniciais,
   ordemCategorias,
   imagemProduto,
   slugProduto,
-} from "./catalogo-base.js?v=1.1.5";
+} from "./catalogo-base.js?v=1.1.6";
 
 const $ = (s) => document.querySelector(s);
 const money = (c) =>
