@@ -17,15 +17,15 @@ import {
   firebaseConfig,
   loginDomain,
   sheetsEndpoint,
-} from "./firebase-config.js?v=1.2.0";
+} from "./firebase-config.js?v=1.2.2";
 import {
   ordemCategorias,
   imagemProduto,
   produtosIniciais,
-} from "./catalogo-base.js?v=1.2.0";
+} from "./catalogo-base.js?v=1.2.2";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.2.0",
+  VERSAO_APP = "V1.2.2",
   PIX = "c9cb7e85-240b-46e5-b500-327844209247",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -257,7 +257,7 @@ function obrigadoTela(v) {
   }, 1000);
   retornoLogin = setTimeout(() => {
     p.textContent =
-      "GELADEIRA ABERTA. RETIRE SUAS BEBIDAS E FECHE A PORTA AO TERMINAR.";
+      "GELADEIRA ABERTA.";
     $("#contador").textContent = "✓";
   }, 5000);
 }
@@ -409,10 +409,7 @@ $("#botao-sair").onclick = sair;
 $("#copiar-pix").onclick = async () => {
   try {
     await navigator.clipboard.writeText(PIX);
-    $("#texto-pix").textContent = "CHAVE PIX COPIADA";
-  } catch {
-    $("#texto-pix").textContent = PIX;
-  }
+  } catch {}
 };
 let f = document.createElement("button");
 f.id = "fechar-obrigado";
