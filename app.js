@@ -17,15 +17,15 @@ import {
   firebaseConfig,
   loginDomain,
   sheetsEndpoint,
-} from "./firebase-config.js?v=1.2.2";
+} from "./firebase-config.js?v=1.2.3";
 import {
   ordemCategorias,
   imagemProduto,
   produtosIniciais,
-} from "./catalogo-base.js?v=1.2.2";
+} from "./catalogo-base.js?v=1.2.3";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.2.2",
+  VERSAO_APP = "V1.2.3",
   PIX = "c9cb7e85-240b-46e5-b500-327844209247",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -244,10 +244,11 @@ async function sair() {
   tela("tela-login");
 }
 function obrigadoTela(v) {
-  let s = 5,
+  let s = 6,
     p = obrigado.querySelector(".obrigado-conteudo p");
   p.textContent =
     "SUA ESCOLHA FOI REGISTRADA. A GELADEIRA SERÁ ABERTA EM INSTANTES.";
+  p.classList.remove("geladeira-aberta");
   $("#valor-final").textContent = fmt(v);
   $("#contador").textContent = s;
   obrigado.classList.add("visivel");
@@ -258,8 +259,9 @@ function obrigadoTela(v) {
   retornoLogin = setTimeout(() => {
     p.textContent =
       "GELADEIRA ABERTA.";
+    p.classList.add("geladeira-aberta");
     $("#contador").textContent = "✓";
-  }, 5000);
+  }, 6000);
 }
 async function sheets(orderId, items, totalCents) {
   let idToken = await usuarioAtual.getIdToken();
