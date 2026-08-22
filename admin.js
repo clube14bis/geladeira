@@ -11,13 +11,13 @@ import {
   update,
   set,
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
-import { firebaseConfig, loginDomain } from "./firebase-config.js?v=1.1.6";
+import { firebaseConfig, loginDomain } from "./firebase-config.js?v=1.2.0";
 import {
   produtosIniciais,
   ordemCategorias,
   imagemProduto,
   slugProduto,
-} from "./catalogo-base.js?v=1.1.6";
+} from "./catalogo-base.js?v=1.2.0";
 
 const $ = (s) => document.querySelector(s);
 const money = (c) =>
@@ -44,7 +44,7 @@ function render() {
     .map((cat) =>
       !grupos[cat]
         ? ""
-        : `<section class="grupo-admin"><h2>${cat}</h2>${grupos[cat].map((p) => `<article class="linha-produto" data-id="${p.id}"><img src="${encodeURI(imagemProduto(p.image))}" alt=""><div class="nome-produto">${p.name}</div><label class="chave"><input class="ativo" type="checkbox" ${p.enabled ? "checked" : ""}><span>EXIBIR</span></label><label>PREÇO<input class="preco" inputmode="decimal" value="${((p.priceCents || 0) / 100).toFixed(2).replace(".", ",")}" aria-label="PREÇO ${p.name}"></label><label>ESTOQUE<input class="estoque" type="number" min="0" step="1" value="${p.stock || 0}" aria-label="ESTOQUE ${p.name}"></label><strong>${money(p.priceCents)}</strong></article>`).join("")}</section>`,
+        : `<section class="grupo-admin"><h2>${cat}</h2>${grupos[cat].map((p) => `<article class="linha-produto" data-id="${p.id}"><img src="${encodeURI(imagemProduto(p.image))}" alt=""><div class="nome-produto">${p.name}</div><label class="chave"><input class="ativo" type="checkbox" ${p.enabled ? "checked" : ""}><span>EXIBIR</span></label><label>PREÇO<input class="preco" inputmode="decimal" value="${((p.priceCents || 0) / 100).toFixed(2).replace(".", ",")}" aria-label="PREÇO ${p.name}"></label><strong>${money(p.priceCents)}</strong></article>`).join("")}</section>`,
     )
     .join("");
 }
@@ -69,15 +69,10 @@ async function salvar() {
     const id = l.dataset.id;
     const preco = l.querySelector(".preco").value.replace(",", ".");
     const cents = Math.max(0, Math.round(Number(preco) * 100) || 0);
-    const stock = Math.max(
-      0,
-      parseInt(l.querySelector(".estoque").value, 10) || 0,
-    );
     catalogo[id] = {
       ...catalogo[id],
       enabled: l.querySelector(".ativo").checked,
       priceCents: cents,
-      stock,
     };
     const { id: campoTecnico, ...produtoParaSalvar } = catalogo[id];
     atualizacoes[`catalog/${id}`] = produtoParaSalvar;
@@ -137,7 +132,6 @@ $("#adicionar-produto").addEventListener("click", () => {
       0,
       Math.round(Number($("#novo-preco").value.replace(",", ".")) * 100) || 0,
     ),
-    stock = Math.max(0, parseInt($("#novo-estoque").value, 10) || 0),
     id = slugProduto(name);
   if (!name) {
     $("#mensagem-admin").textContent = "INFORME O NOME DO NOVO PRODUTO.";
@@ -154,9 +148,9 @@ $("#adicionar-produto").addEventListener("click", () => {
     image,
     enabled: true,
     priceCents,
-    stock,
+    stock: 999,
   };
-  ["#novo-nome", "#nova-imagem", "#novo-preco", "#novo-estoque"].forEach(
+  ["#novo-nome", "#nova-imagem", "#novo-preco"].forEach(
     (s) => ($(s).value = ""),
   );
   $("#mensagem-admin").textContent =
