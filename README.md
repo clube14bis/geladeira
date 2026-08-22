@@ -1,112 +1,236 @@
-# Geladeira 14 Bis
+# Geladeira 14 BIS
 
+Sistema de retirada de bebidas por QR Code: o cliente acessa o site, faz login, monta o carrinho e confirma. O pedido é salvo no Firebase e no Google Sheets; o ESP32 recebe o pedido e controla a fechadura eletromagnética.
 
-<img width="1245" height="175" alt="Captura de Tela 2026-08-19 às 08 44 22" src="https://github.com/user-attachments/assets/a3552bfd-6b61-4e79-8ef1-edeba069dca0" />
+> Estado atual: site, painel administrativo, Firebase, planilha, Apps Script e ESP32 estão configurados. A trava ainda deve ser instalada fisicamente e testada com segurança.
 
+## Funções implementadas
 
+- Cadastro com nome completo, usuário, telefone, CPF e senha.
+- Login, botão para mostrar senha e carregamento visual.
+- Catálogo responsivo por categorias: água, refrigerantes, cervejas, sucos, alimentos e outros produtos.
+- Carrinho com adição, remoção, quantidades, total em reais e Pix.
+- Tela verde de confirmação e sequência de abertura/trancamento.
+- Registro de data, hora, cliente, itens e valor total no Google Sheets.
+- Painel em [admin.html](admin.html) para habilitar, precificar, adicionar imagem por URL e remover produtos.
+- Firebase Authentication, Realtime Database e regras de acesso restritas.
+- ESP32 com duas redes Wi-Fi, sinal visual no LED integrado e controle do relé.
 
-<img width="1280" height="853" alt="photo_2026-08-19 14 41 08" src="https://github.com/user-attachments/assets/dbb57137-938b-4663-a3c5-973b5d822c5d" />
+## Fluxo do pedido
 
-QR Code → site → login/cadastro único → escolha da bebida → ESP32 abre a fechadura → ESP32 registra data, hora, nome e bebida no Google Sheets.
-
-## 1. Material
-
-- ESP32 DOIT DevKit -WROOM-32;
-- fonte **12 V / 2 A** certificada para a fechadura;
-- conversor buck 12 V → 5 V, de boa qualidade, para o ESP32;
-- módulo relé de 1 canal com entrada compatível com **GPIO 3,3 V**, optoacoplado e contato de pelo menos 5 A / 30 Vcc;
-- porta-fusível e fusível de 1 A no positivo da fechadura;
-- caixa isolante, bornes e cabos adequados.
-
-> **Segurança:** eletroímãs normalmente são *fail-safe*: se a energia da fechadura acabar, ela destrava. Não use este projeto para controle de acesso crítico. Mantenha abertura manual de emergência e peça a um instalador para a parte elétrica/mecânica. Nunca conecte 12 V a um GPIO do ESP32.
-
-## 2. Ligações elétricas
-
-Use o GPIO **26** como sinal do relé. O contato **NC** mantém o eletroímã energizado e a porta travada no estado normal.
-
-```text
-FONTE 12 V (+) ── fusível 1 A ── COM do relé
-NC do relé ───────────────────── (+) fechadura eletroímã
-FONTE 12 V (-) ──────────────── (-) fechadura eletroímã
-
-FONTE 12 V (+/-) ── entrada do buck 12 V → 5 V
-buck 5 V ─────────── pino VIN/5V do ESP32 e VCC do relé*
-buck GND ─────────── GND do ESP32 e GND do relé*
-GPIO 26 do ESP32 ─── IN do relé
+```mermaid
+sequenceDiagram
+  participant C as Cliente
+  participant S as Site
+  participant F as Firebase
+  participant P as Planilha
+  participant E as ESP32
+  participant T as Trava
+  C->>S: Login e confirmação do carrinho
+  S->>F: Cria pedido pendente
+  S->>P: Registra cliente, produtos e total
+  E->>F: Lê novo pedido
+  E-->>E: Espera 6 s
+  E->>T: Libera por 10 s
+  E-->>E: Pisca LED azul
+  E->>T: Tranca novamente
 ```
 
-\* Siga o manual do módulo relé. Alguns módulos têm `VCC`, `GND`, `IN` e outros têm `JD-VCC`; use a alimentação externa indicada pelo fabricante. Não acione a bobina do relé pelo GPIO.
+## Endereços
 
-Antes de ligar a fechadura, teste o programa apenas com o LED/LED de status do relé. O relé deve ser acionado por 5 segundos quando um pedido válido chegar. Se ele agir ao contrário, altere `RELAY_ACTIVE_LOW` no firmware.
+| Item | Endereço |
+| --- | --- |
+| Site | [clube14bis.github.io/geladeira](https://clube14bis.github.io/geladeira/) |
+| Painel administrativo | [admin.html](https://clube14bis.github.io/geladeira/admin.html) |
+| Repositório | [github.com/clube14bis/geladeira](https://github.com/clube14bis/geladeira) |
+| Firebase | Projeto `geladeira-14-bis` |
+| Planilha | Aba `Pedidos`, título `Geladeira 14 BIS` |
 
-## 3. Criar e configurar o Firebase
+## Arquivos principais
 
-1. Acesse o [Firebase Console](https://console.firebase.google.com/) e crie um projeto no plano **Spark**.
-2. Em **Project overview → Web**, registre uma aplicação web. Copie o objeto `firebaseConfig`.
-3. Cole os valores em [`firebase-config.js`](firebase-config.js). A `apiKey` web não é segredo; as regras do banco são a proteção real.
-4. Em **Authentication → Sign-in method**, habilite **Email/Password**. A página continua mostrando somente “Usuário”; internamente ela gera um identificador técnico, como `adauto@usuarios.clube14bis.com`.
-5. Em **Authentication → Settings → Authorized domains**, adicione `clube14bis.github.io`.
-6. Em **Realtime Database**, crie o banco em **Locked mode**. Copie o conteúdo de [`firebase-rules.json`](firebase-rules.json) para a aba **Rules**, mas ainda não publique.
-7. Em **Authentication → Users**, crie o usuário do dispositivo:
-   - e-mail: `geladeira-esp32@usuarios.clube14bis.com`;
-   - senha: longa, exclusiva e diferente das senhas dos clientes.
-8. Copie o **UID** desse usuário e substitua `COLE_O_UID_DO_ESP32_AQUI` em **todas** as ocorrências de `firebase-rules.json`. Agora publique as regras.
-9. Em **Project settings → General**, copie a `apiKey` e a `databaseURL`. A URL tem o formato `https://SEU-PROJETO-default-rtdb.firebaseio.com`.
+| Arquivo | Responsabilidade |
+| --- | --- |
+| [index.html](index.html) | Interface pública: login, cadastro, produtos, carrinho e Pix. |
+| [app.js](app.js) | Firebase, autenticação, carrinho, pedido e envio ao Sheets. |
+| [admin.html](admin.html) e [admin.js](admin.js) | Painel do catálogo. |
+| [firebase-rules.json](firebase-rules.json) | Regras do Realtime Database. |
+| [google-apps-script/Code.gs](google-apps-script/Code.gs) | Registro seguro na planilha. |
+| [esp32/esp32.ino](esp32/esp32.ino) | Firmware do equipamento. |
+| [esp32/secrets.example.h](esp32/secrets.example.h) | Modelo de credenciais locais. |
 
-As regras permitem que cada pessoa leia somente seu próprio pedido. O ESP32 tem uma conta exclusiva para ler pedidos pendentes, abrir a fechadura e apagar o pedido depois do registro.
+## Uso do site
 
-## 4. Configurar a página do GitHub Pages
+### Cliente
 
-1. Edite [`firebase-config.js`](firebase-config.js) com o objeto do seu projeto Firebase.
-2. Envie `index.html`, `app.js`, `firebase-config.js`, `logo14bis.jpg`, `favicon.jpg` e `apple-touch-icon.png` para o repositório `geladeira`.
-3. Aguarde o GitHub Pages publicar e abra `https://clube14bis.github.io/geladeira/`.
-4. Crie o primeiro usuário pelo botão **Criar cadastro**. Esse cadastro fica persistente no Firebase; nas próximas vezes a pessoa usa apenas usuário e senha.
+1. Escaneie o QR Code e entre no site.
+2. Faça login ou use **CRIAR CADASTRO**.
+3. No primeiro acesso, informe nome, usuário, celular, CPF e senha.
+4. Escolha os produtos. O botão **Ver carrinho** aparece depois da primeira seleção.
+5. Confira quantidades, valor total e confirme.
+6. A tela verde mostra o total e a chave Pix. O pedido fica registrado e o ESP32 inicia a sequência de abertura.
 
+CPF é formatado automaticamente; telefone aceita só números; a senha tem mínimo de seis caracteres.
 
-## 5. Preparar a planilha e o Apps Script
+### Administrador
 
-1. Primeira aba para `Pedidos` segunda aba `Valores`
-   `Data | Hora | Nome | Bebida | Pedido ID | Pago |`
+1. Abra [admin.html](admin.html) e entre com a conta administrativa cadastrada.
+2. Habilite ou desabilite produtos, altere preços e salve.
+3. Para novo produto, informe nome, categoria, preço e uma URL direta de imagem.
+4. Use o botão de remoção para excluir produto errado.
 
-2. O quinto campo evita registros duplicados. Você pode ocultar a coluna **Pedido ID** depois.
-3. Copie o ID da planilha: é o trecho entre `/d/` e `/edit` na URL.
-4. Na planilha, abra **Extensões → Apps Script** e substitua o conteúdo por [`google-apps-script/Code.gs`](google-apps-script/Code.gs).
-5. Em **Project Settings → Script properties**, crie:
-   - `SPREADSHEET_ID`: ID copiado da planilha;
-   - `DEVICE_SECRET`: uma senha aleatória com 32 ou mais caracteres.
-6. Em **Project Settings**, defina o fuso horário como `America/Sao_Paulo`.
-7. Clique em **Deploy → New deployment → Web app**. Selecione **Execute as: Me** e acesso para **Anyone**. Autorize o script e copie a URL terminada em `/exec`.
+O catálogo fica em `/catalog` no Firebase; só os itens habilitados aparecem para os clientes.
 
-O endpoint é público para o ESP32 poder alcançá-lo, mas só aceita registros com o `DEVICE_SECRET`. Não coloque esse segredo no site.
+## Firebase
 
-## 6. Gravar o ESP32
+### Serviços
+
+- **Authentication / E-mail e senha:** clientes e administrador.
+- **Realtime Database:** perfis, catálogo, permissões e pedidos.
+
+As regras começam fechadas. Clientes criam apenas seus próprios dados e pedidos; administrador altera catálogo; a conta técnica do ESP32 lê pedidos e registra `opened` e `locked`.
+
+### Manutenção das regras
+
+1. Acesse **Firebase Console → Realtime Database → Rules**.
+2. Cole [firebase-rules.json](firebase-rules.json).
+3. Clique em **Publicar**.
+
+> Nunca use `.read: true` ou `.write: true` globalmente. Nunca publique `esp32/secrets.h`, senhas ou tokens; ele já está no `.gitignore`.
+
+## Google Sheets e Apps Script
+
+A aba `Pedidos` contém:
+
+| Data | Hora | Nome do cliente | Bebidas | Valor total |
+| --- | --- | --- | --- | --- |
+
+O [Code.gs](google-apps-script/Code.gs) valida o token Firebase antes de gravar, evita fórmulas maliciosas, usa reais e mantém o título **Geladeira 14 BIS**.
+
+### Reinstalar ou corrigir a integração
+
+1. Na planilha, abra **Extensões → Apps Script**.
+2. Cole [google-apps-script/Code.gs](google-apps-script/Code.gs).
+3. Em **Configurações do projeto → Propriedades do script**, confirme:
+   - `SPREADSHEET_ID`: ID da planilha;
+   - `FIREBASE_API_KEY`: chave web do projeto, se usada.
+4. Execute `autorizarIntegracaoFirebase` uma vez se o Google pedir autorização.
+5. Execute `configurarPlanilha` para recriar/formatar os cabeçalhos.
+6. Em **Implantar → Gerenciar implantações**, publique como **Aplicativo da web**, executando como o proprietário.
+7. Coloque a URL terminada em `/exec` em `sheetsEndpoint` de [firebase-config.js](firebase-config.js).
+
+## ESP32
+
+### Comportamento atual
+
+| Evento | Resultado |
+| --- | --- |
+| Conectou ao Wi-Fi | LED azul integrado pisca 3 vezes. |
+| Conectou ao Firebase | LED azul integrado pisca 5 vezes. |
+| Pedido novo | Aguarda 6 segundos. |
+| Porta liberada | Relé corta a energia da trava por 10 segundos; LED azul pisca. |
+| Fim do tempo | Relé volta ao normal e o LED apaga. |
+
+O firmware tenta automaticamente as duas redes configuradas. No primeiro acesso ele ignora pedidos antigos, evitando abertura por histórico. Portanto, ligue o ESP32, espere os cinco piscas do Firebase e faça **um pedido novo**.
+
+O LED vermelho comum dessas placas normalmente é só de energia, não é programável. O LED azul integrado costuma usar GPIO 2; isso varia conforme fabricante. GPIO 2 e GPIO 26 estão disponíveis no ESP32 DevKitC, conforme o [guia oficial da Espressif](https://documentation.espressif.com/esp-dev-kits/en/latest/esp32/esp32-devkitc/user_guide.html).
+
+### Regravar o ESP32
 
 1. Instale o [Arduino IDE 2](https://www.arduino.cc/en/software/).
-2. Em **Preferences → Additional boards manager URLs**, adicione:
+2. Em **Settings/Preferences → Additional Boards Manager URLs**, adicione:
 
    `https://espressif.github.io/arduino-esp32/package_esp32_index.json`
 
-3. Em **Boards Manager**, instale **esp32 by Espressif Systems**. Selecione **DOIT ESP32 DEVKIT V1** em **Tools → Board**.
-4. Em **Library Manager**, instale **ArduinoJson** (versão 7 ou superior).
-5. Crie uma pasta de sketch chamada `Geladeira14Bis`. Copie para ela [`esp32/Geladeira14Bis.ino`](esp32/Geladeira14Bis.ino).
-6. Na mesma pasta, copie [`esp32/secrets.example.h`](esp32/secrets.example.h), renomeie para `secrets.h` e preencha:
-   - Wi-Fi da geladeira;
-   - `FIREBASE_API_KEY` e `FIREBASE_DB_HOST`;
-   - e-mail/senha do usuário técnico do ESP32;
-   - URL `/exec` do Apps Script;
-   - o mesmo `DEVICE_SECRET` das Script properties.
-7. Ligue o ESP32 por USB. Selecione a porta em **Tools → Port**, clique em **Upload**. Se ficar em “Connecting…”, mantenha o botão **BOOT** pressionado até iniciar o envio.
-8. Abra o **Serial Monitor** em 115200 baud. Ele deve mostrar o IP do ESP32 e não deve exibir erros HTTP.
+3. Em **Boards Manager**, instale **esp32 by Espressif Systems**.
+4. Em **Library Manager**, instale `FirebaseClient` e `ArduinoJson`.
+5. Abra [esp32/esp32.ino](esp32/esp32.ino).
+6. Copie [esp32/secrets.example.h](esp32/secrets.example.h) como `secrets.h` na mesma pasta e complete as credenciais privadas.
+7. Escolha **Tools → Board → ESP32 Arduino → ESP32 Dev Module**.
+8. Conecte o cabo USB de dados e selecione **Tools → Port**.
+9. Clique em **Upload**. Se ficar em `Connecting...`, mantenha **BOOT** pressionado até o envio começar.
+10. Abra **Tools → Serial Monitor** em **115200 baud** para ver status e erros.
 
-O firmware usa HTTPS com certificado raiz do Google; não use `setInsecure()` em um dispositivo que destrava uma fechadura.
+## Instalação física na geladeira
 
-## 7. Teste obrigatório antes da instalação final
+### O que comprar
 
-1. Deixe a fechadura desconectada e ligue apenas o módulo relé.
-2. Crie um usuário no site, entre, escolha uma bebida e clique em **Concluir pedido**.
-3. Confirme no Serial Monitor que aparece `Abrindo para ...`.
-4. Confirme que o relé muda de estado por 5 segundos.
-5. Confirme a nova linha no Google Sheets.
-6. Só então conecte a fechadura e teste com a porta aberta.
-7. Teste queda/reinício do ESP32: com o relé usando **NC**, a fechadura deve voltar ao estado travado quando a fonte 12 V estiver presente.
+| Item | Especificação / referência | Qtde. | Observação |
+| --- | --- | ---: | --- |
+| Trava | Fechadura eletroímã **12 Vcc, 60 kg / 180 lb**, com suporte L/Z compatível | 1 | Escolha pelo tamanho e material da porta. Confirme se é *fail-safe*: sem energia ela abre. |
+| Relé | Módulo 1 canal, 5 V, optoacoplado, entrada compatível com **3,3 V**, COM/NC/NO, com **Songle SRD-05VDC-SL-C** ou equivalente | 1 | O relé Songle é de 5 V; os contatos têm capacidade de até 7 A em 28 Vcc para carga resistiva. Confira o módulo antes da compra. [Datasheet](https://www.handsontec.com/dataspecs/relay/SRD-05VDC-SL-C.pdf) |
+| Fonte da trava | Fonte certificada **12 Vcc, mínimo 2 A** | 1 | Referência industrial: Mean Well **HDR-30-12** (12 V / 2 A). A fonte deve superar a corrente nominal da trava. [Especificação](https://www.meanwell.com/Upload/PDF/HDR-30/HDR-30-SPEC.PDF) |
+| Conversor | Buck **LM2596**, entrada 7–35 V, saída ajustável em 5 V, mínimo 2 A | 1 | Ajuste em **5,0 V antes** de ligar ESP32/relé. |
+| Proteção | Porta-fusível e fusível 1 A, ou conforme corrente da trava | 1 | Instale no positivo de 12 V. |
+| Instalação | Caixa isolante, bornes, cabo 0,5–0,75 mm², prensa-cabos e abraçadeiras | — | Mantenha tudo fora de condensação e umidade. |
 
+> Não compre somente pela força anunciada. Confira dimensões, suporte mecânico, polaridade, corrente e se a trava cabe na porta. Se ela consumir mais de 2 A, aumente fonte e fusível conforme o manual do fabricante.
+
+### Ligações
+
+```text
+REDE AC (127/220 V)
+        │
+        └── Fonte 12 Vcc certificada ──────────────────────────────────────┐
+              +12 V ── fusível ── COM do relé                              │
+                                     NC ─────────── + da trava eletromã    │
+              GND  ──────────────────────────────── - da trava eletromã   │
+                                                                            │
+              +12 V/GND ── entrada do buck LM2596                          │
+                         buck ajustado em 5,0 V                             │
+                         OUT+ ── 5V/VIN do ESP32 e VCC do relé             │
+                         OUT- ── GND ESP32 e GND do relé ──────────────────┘
+
+ESP32 GPIO 26 ─────────────────────────── IN do módulo relé
+```
+
+Use **NC** no relé:
+
+- relé inativo → COM ligado ao NC → trava recebe 12 V → porta travada;
+- ESP32 ativa relé → COM sai do NC → corta 12 V → porta liberada;
+- após 10 segundos → volta ao NC → trava energiza e tranca.
+
+O firmware atual considera relé **ativo em nível baixo**: GPIO 26 em `HIGH` mantém travada e `LOW` libera. Se seu relé operar ao contrário, ajuste `RELE_TRAVADO` e `RELE_DESTRAVADO` em [esp32/esp32.ino](esp32/esp32.ino) **antes** de conectar a trava.
+
+### Ordem segura de instalação
+
+1. Não conecte a trava inicialmente; ligue somente ESP32 e relé.
+2. Alimente o ESP32 por USB e confirme 3 piscas de Wi‑Fi e 5 de Firebase.
+3. Ligue VCC/GND do relé à saída de 5 V do buck; ligue GPIO 26 ao IN.
+4. Faça pedido novo. Após 6 segundos, confirme que o LED do relé muda por 10 segundos.
+5. Com multímetro, confirme que COM–NC abre somente durante esses 10 segundos.
+6. Desligue as fontes, instale fusível, trava e alimentação de 12 V.
+7. Teste com a porta aberta. Só depois faça o teste de retenção com a porta fechada.
+8. Fixe fonte, relé, buck e conexões em caixa isolante externa.
+
+## Segurança
+
+- **Nunca ligue 12 V, trava ou bobina do relé diretamente a um GPIO.**
+- GPIO do ESP32 é 3,3 V e serve somente como sinal.
+- Não trabalhe na rede 127/220 V sem qualificação; use fonte AC/DC pronta e certificada.
+- Travas eletromagnéticas *fail-safe* abrem quando falta energia. Mantenha abertura de emergência.
+- Não instale eletrônica onde haja condensação, calor excessivo ou partes móveis.
+
+## Teste completo
+
+1. Ligue ESP32 e espere os padrões 3 + 5 piscas.
+2. Faça um pedido novo no site.
+3. Confirme a nova linha no Sheets.
+4. Depois de cerca de 6 segundos, veja o LED azul piscar por 10 segundos.
+5. No Serial Monitor, confira `Novo pedido`, `GELADEIRA ABERTA` e `GELADEIRA TRANCADA`.
+6. Com relé instalado, confirme clique e mudança COM–NC.
+7. Só então conecte a trava.
+
+## Solução de problemas
+
+| Sintoma | Verificação |
+| --- | --- |
+| LED não pisca 3 vezes | Wi-Fi/senha incorretos ou rede não é 2,4 GHz. Confira `secrets.h`. |
+| Pisca 3, mas não 5 | Wi‑Fi funciona; Firebase não autenticou. Confira credenciais técnicas e regras. |
+| Pedido não aciona ESP32 | Espere a sincronização e faça pedido **novo**; verifique Serial Monitor e Firebase. |
+| Pedido não aparece no Sheets | Revise implantação `/exec`, `SPREADSHEET_ID` e execute `autorizarIntegracaoFirebase`. |
+| Relé invertido | Teste COM/NC/NO com multímetro e ajuste níveis no firmware. |
+| ESP32 reinicia com relé | Use fonte/buck adequados, GND comum e mantenha cabos da trava afastados dos sinais. |
+
+## Publicação
+
+O site é publicado da branch `main` pelo GitHub Pages. Após alterar arquivos, faça commit, aguarde alguns minutos e atualize o navegador. O projeto usa versão de arquivos e cabeçalhos para reduzir cache.
