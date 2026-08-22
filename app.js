@@ -17,15 +17,15 @@ import {
   firebaseConfig,
   loginDomain,
   sheetsEndpoint,
-} from "./firebase-config.js?v=1.2.3";
+} from "./firebase-config.js?v=1.2.4";
 import {
   ordemCategorias,
   imagemProduto,
   produtosIniciais,
-} from "./catalogo-base.js?v=1.2.3";
+} from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.2.3",
+  VERSAO_APP = "V1.2.4",
   PIX = "c9cb7e85-240b-46e5-b500-327844209247",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
