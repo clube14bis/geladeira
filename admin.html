@@ -330,13 +330,12 @@
         <header class="topo">
           <div>
             <h1>Produtos da geladeira</h1>
-            <p>Escolha o que aparece, preço e estoque disponível.</p>
+            <p>Escolha o que aparece e defina o preço de venda.</p>
           </div>
           <button id="sair-admin" class="sair">SAIR</button>
         </header>
         <p class="ajuda">
-          ATENÇÃO: O estoque diminui automaticamente a cada pedido confirmado.
-          Deixe <b>EXIBIR</b> desmarcado para ocultar um produto do cliente.
+          Cadastre produtos, defina o preço e use <b>EXIBIR</b> para controlar o que aparece ao cliente.
         </p>
         <section class="novo-produto">
           <h2>ADICIONAR NOVO PRODUTO</h2>
@@ -358,13 +357,6 @@
                 id="novo-preco"
                 inputmode="decimal"
                 placeholder="0,00" /></label
-            ><label
-              >ESTOQUE<input
-                id="novo-estoque"
-                type="number"
-                min="0"
-                step="1"
-                placeholder="0" /></label
             ><button id="adicionar-produto" type="button">
               ADICIONAR PRODUTO
             </button>
@@ -375,6 +367,6 @@
         <p id="mensagem-admin" class="mensagem"></p>
       </section>
     </main>
-    <script type="module" src="admin.js?v=1.1.6"></script>
+    <script type="module" src="admin.js?v=1.2.0"></script>
   </body>
 </html>
