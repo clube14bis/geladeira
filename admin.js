@@ -27,6 +27,18 @@ let auth,
 function email(usuario) {
   return `${usuario.trim().toLowerCase()}@${loginDomain}`;
 }
+// Aceita valores brasileiros com separadores de milhar, por exemplo:
+// 550.000.000.000,00. O valor em centavos permanece seguro no JavaScript.
+function paraCentavos(valor) {
+  let texto = String(valor ?? "").trim().replace(/\s|R\$/gi, "");
+  if (!texto) return null;
+  if (texto.includes(",")) texto = texto.replace(/\./g, "").replace(",", ".");
+  else if ((texto.match(/\./g) || []).length > 1) texto = texto.replace(/\./g, "");
+  const reais = Number(texto);
+  if (!Number.isFinite(reais) || reais < 0) return null;
+  const centavos = Math.round(reais * 100);
+  return Number.isSafeInteger(centavos) ? centavos : null;
+}
 function mostrarPainel(ativo) {
   $("#login-admin").hidden = ativo;
   $("#painel-admin").hidden = !ativo;
@@ -61,10 +73,14 @@ async function carregar() {
 }
 async function salvar() {
   const atualizacoes = {};
+  let erroPreco = "";
   document.querySelectorAll(".linha-produto").forEach((l) => {
     const id = l.dataset.id;
-    const preco = l.querySelector(".preco").value.replace(",", ".");
-    const cents = Math.max(0, Math.round(Number(preco) * 100) || 0);
+    const cents = paraCentavos(l.querySelector(".preco").value);
+    if (cents === null) {
+      erroPreco = `PREÇO INVÁLIDO PARA ${catalogo[id].name}.`;
+      return;
+    }
     catalogo[id] = {
       ...catalogo[id],
       enabled: l.querySelector(".ativo").checked,
@@ -73,6 +89,10 @@ async function salvar() {
     const { id: campoTecnico, ...produtoParaSalvar } = catalogo[id];
     atualizacoes[`catalog/${id}`] = produtoParaSalvar;
   });
+  if (erroPreco) {
+    $("#mensagem-admin").textContent = erroPreco;
+    return;
+  }
   $("#salvar").disabled = true;
   try {
     await update(ref(db), atualizacoes);
@@ -139,13 +159,14 @@ $("#adicionar-produto").addEventListener("click", () => {
   const name = $("#novo-nome").value.trim().toUpperCase(),
     category = $("#novo-categoria").value,
     image = $("#nova-imagem").value.trim() || "agua.png",
-    priceCents = Math.max(
-      0,
-      Math.round(Number($("#novo-preco").value.replace(",", ".")) * 100) || 0,
-    ),
+    priceCents = paraCentavos($("#novo-preco").value),
     id = slugProduto(name);
   if (!name) {
     $("#mensagem-admin").textContent = "INFORME O NOME DO NOVO PRODUTO.";
+    return;
+  }
+  if (priceCents === null) {
+    $("#mensagem-admin").textContent = "INFORME UM PREÇO VÁLIDO.";
     return;
   }
   if (catalogo[id]) {
