@@ -1118,6 +1118,30 @@
         margin: 0 4px;
         color: var(--brand);
       }
+      .registro-uso {
+        grid-column: 1/-1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        padding: 8px 13px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.72);
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-decoration: none;
+        text-transform: uppercase;
+        transition: transform 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      }
+      .registro-uso:hover,
+      .registro-uso:focus-visible {
+        border-color: var(--blue);
+        color: var(--blue);
+        transform: translateY(-1px);
+      }
       /* FUNDO PADRONIZADO */
       :root {
         --bg: #f2f2f7;
@@ -1667,6 +1691,12 @@
             </button>
             <p id="erro-login" class="erro" aria-live="polite"></p>
           </div>
+          <a
+            class="registro-uso"
+            href="https://docs.google.com/spreadsheets/d/e/2PACX-1vTXmdi51Ag4GLZFPqTYDb32EkDBdtXqgzHMSrI1OV7dZXDb7hcpbpEReewRThz63tm21hlFA-CHoLiY/pubhtml"
+            target="_blank"
+            rel="noopener noreferrer"
+          >REGISTRO DE USO DA GELADEIRA</a>
           <p id="status-clube" class="status-clube">
             <span>CLUBE 14 BIS</span><span> MIRASSOL: --°C</span
             ><span>V1.0.7</span>
