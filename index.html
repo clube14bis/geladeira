@@ -1673,6 +1673,23 @@
       .consumo-historico li strong, .consumo-historico > b { color: var(--green); white-space: nowrap; }
       .resumo-historico { display: flex; justify-content: space-between; gap: 15px; margin-top: 16px; padding-top: 16px; border-top: 2px solid var(--line); font-size: 1rem; font-weight: 900; }
       .resumo-historico b { color: var(--green); font-size: 1.25rem; }
+      .pix-historico {
+        width: 100%;
+        min-height: 52px;
+        margin-top: 16px;
+        border: 0;
+        border-radius: 14px;
+        color: #fff;
+        background: var(--green);
+        box-shadow: 0 8px 18px rgba(21, 133, 87, 0.24);
+        cursor: pointer;
+        font: inherit;
+        font-size: .8rem;
+        font-weight: 900;
+        letter-spacing: .05em;
+        transition: transform .2s ease, filter .2s ease;
+      }
+      .pix-historico:hover, .pix-historico:focus-visible { filter: brightness(1.08); transform: translateY(-1px); }
       .historico-vazio { margin: 0; padding: 20px 0; color: var(--muted); font-size: .83rem; font-weight: 800; text-align: center; }
       @media (max-width: 480px) {
         .historico-painel { padding-inline: 12px; }
@@ -1872,6 +1889,7 @@
             <h2 id="titulo-dia-historico"></h2>
             <div id="itens-historico"></div>
             <div class="resumo-historico"><span>RESUMO TOTAL DO DIA</span><b id="total-dia-historico">R$ 0,00</b></div>
+            <button id="copiar-pix-historico" class="pix-historico" type="button">COPIAR CHAVE PIX</button>
           </section>
         </div>
       </section>
