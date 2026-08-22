@@ -244,24 +244,31 @@ async function sair() {
   tela("tela-login");
 }
 function obrigadoTela(v) {
-  let s = 6,
-    p = obrigado.querySelector(".obrigado-conteudo p");
+  const p = obrigado.querySelector(".obrigado-conteudo p");
   p.textContent =
     "SUA ESCOLHA FOI REGISTRADA. A GELADEIRA SERÁ ABERTA EM INSTANTES.";
-  p.classList.remove("geladeira-aberta");
+  p.classList.remove("geladeira-aberta", "geladeira-trancada");
   $("#valor-final").textContent = fmt(v);
-  $("#contador").textContent = s;
-  $("#contador").classList.remove("oculto");
+  $("#contador").classList.add("oculto");
   obrigado.classList.add("visivel");
-  intervaloObrigado = setInterval(() => {
-    $("#contador").textContent = --s;
-    if (s <= 0) clearInterval(intervaloObrigado);
-  }, 1000);
   retornoLogin = setTimeout(() => {
-    p.textContent =
-      "GELADEIRA ABERTA.";
+    let restante = 10;
+    p.textContent = "GELADEIRA ABERTA. DESTRAVADA POR 10 SEGUNDOS.";
     p.classList.add("geladeira-aberta");
-    $("#contador").classList.add("oculto");
+    $("#contador").textContent = restante;
+    $("#contador").classList.remove("oculto");
+    intervaloObrigado = setInterval(() => {
+      restante -= 1;
+      if (restante <= 0) {
+        clearInterval(intervaloObrigado);
+        $("#contador").classList.add("oculto");
+        p.textContent = "GELADEIRA TRANCADA.";
+        p.classList.remove("geladeira-aberta");
+        p.classList.add("geladeira-trancada");
+        return;
+      }
+      $("#contador").textContent = restante;
+    }, 1000);
   }, 6000);
 }
 async function sheets(orderId, items, totalCents) {
