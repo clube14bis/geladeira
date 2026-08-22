@@ -26,4 +26,5 @@ export const catalogoBase = {
   "SUCOS":[]
 };
 export const slugProduto = nome => nome.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+export const imagemProduto = imagem => /^(https?:)?\/\//i.test(imagem) ? imagem : pastaImagens + imagem;
 export function produtosIniciais(){return Object.fromEntries(Object.entries(catalogoBase).flatMap(([category,items])=>items.map(([name,image,priceCents,stock])=>{const id=slugProduto(name);return [id,{name,category,image,enabled:stock>0,priceCents,stock}];})));}
