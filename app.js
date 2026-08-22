@@ -514,6 +514,11 @@ $("#copiar-pix").onclick = async () => {
     await navigator.clipboard.writeText(PIX);
   } catch {}
 };
+$("#copiar-pix-historico").onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(PIX);
+  } catch {}
+};
 let f = document.createElement("button");
 f.id = "fechar-obrigado";
 f.textContent = "×";
