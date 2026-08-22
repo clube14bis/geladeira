@@ -11,13 +11,13 @@ import {
   update,
   set,
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
-import { firebaseConfig, loginDomain } from "./firebase-config.js?v=1.2.1";
+import { firebaseConfig, loginDomain } from "./firebase-config.js?v=1.2.2";
 import {
   produtosIniciais,
   ordemCategorias,
   imagemProduto,
   slugProduto,
-} from "./catalogo-base.js?v=1.2.1";
+} from "./catalogo-base.js?v=1.2.2";
 
 const $ = (s) => document.querySelector(s);
 const ADMIN_UID = "IxZWx1TMk8VsTdEdCVUltFd96a93";
