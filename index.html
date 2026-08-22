@@ -1437,6 +1437,93 @@
       .obrigado .pagamento-pix {
         color: #fff;
       }
+      /* CARRINHO: LEITURA AMPLIADA E CONTROLES À DIREITA */
+      .carrinho-conteudo {
+        padding: 34px clamp(22px, 5vw, 70px) calc(28px + env(safe-area-inset-bottom)) !important;
+      }
+      .carrinho-topo h2 {
+        font-size: clamp(2rem, 5vw, 3rem);
+        letter-spacing: -0.04em;
+      }
+      .lista-carrinho {
+        width: min(100%, 920px);
+        margin: 0 auto;
+        gap: 16px;
+      }
+      .item-carrinho {
+        display: grid;
+        grid-template-columns: 82px minmax(0, 1fr) auto;
+        grid-template-areas:
+          "imagem detalhes quantidade"
+          "imagem valor remover";
+        column-gap: 16px;
+        row-gap: 8px;
+        align-items: center;
+        padding: 18px;
+      }
+      .item-carrinho img { grid-area: imagem; width: 82px; height: 82px; }
+      .item-carrinho strong { grid-area: detalhes; font-size: 1.18rem; }
+      .item-carrinho strong small { font-size: 1rem; }
+      .item-carrinho .quantidade { grid-area: quantidade; justify-self: end; }
+      .item-carrinho b {
+        grid-area: valor;
+        color: #158557;
+        font-size: 1.45rem;
+        line-height: 1;
+      }
+      .remover-item {
+        grid-area: remover;
+        justify-self: end;
+        width: auto;
+        padding: 9px 12px;
+        font-size: 0.8rem;
+      }
+      .total-carrinho {
+        width: min(100%, 920px);
+        margin: 14px auto 0;
+        font-size: 1.45rem;
+      }
+      .total-carrinho span { font-size: 1.75rem; color: #158557; }
+      .carrinho-acoes { width: min(100%, 920px); margin: 0 auto !important; }
+      .carrinho-barra.tem-itens {
+        width: min(720px, calc(100% - 32px)) !important;
+        padding: 15px 16px !important;
+        border-radius: 21px !important;
+      }
+      .carrinho-barra .carrinho-info strong { font-size: 1rem !important; }
+      .carrinho-barra .carrinho-info span { font-size: 0.78rem !important; }
+      .carrinho-barra .concluir {
+        min-width: 210px !important;
+        height: 62px !important;
+        font-size: 0.9rem !important;
+      }
+      @media (min-width: 721px) {
+        #lista-bebidas,
+        .categoria,
+        .produtos {
+          width: min(100%, 760px) !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+        }
+      }
+      @media (max-width: 600px) {
+        .carrinho-conteudo { padding: 25px 16px calc(20px + env(safe-area-inset-bottom)) !important; }
+        .carrinho-topo h2 { font-size: 2rem; }
+        .item-carrinho {
+          grid-template-columns: 64px minmax(0, 1fr) auto;
+          column-gap: 11px;
+          padding: 13px;
+        }
+        .item-carrinho img { width: 64px; height: 64px; }
+        .item-carrinho strong { font-size: 1rem; }
+        .item-carrinho strong small { font-size: 0.88rem; }
+        .item-carrinho .quantidade { gap: 5px; }
+        .item-carrinho .quantidade button { width: 34px; height: 34px; }
+        .item-carrinho b { font-size: 1.22rem; }
+        .remover-item { padding: 7px 9px; font-size: 0.68rem; }
+        .carrinho-barra.tem-itens { width: calc(100% - 16px) !important; }
+        .carrinho-barra .concluir { min-width: 154px !important; font-size: 0.76rem !important; }
+      }
     </style>
   </head>
   <body>
@@ -1662,6 +1749,6 @@
         <p class="toque-voltar">TOQUE NA TELA PARA VOLTAR AO LOGIN</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.2.5"></script>
+    <script type="module" src="app.js?v=1.2.6"></script>
   </body>
 </html>
