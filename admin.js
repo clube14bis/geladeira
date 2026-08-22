@@ -11,19 +11,15 @@ import {
   update,
   set,
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
-import { firebaseConfig, loginDomain } from "./firebase-config.js?v=1.2.0";
+import { firebaseConfig, loginDomain } from "./firebase-config.js?v=1.2.1";
 import {
   produtosIniciais,
   ordemCategorias,
   imagemProduto,
   slugProduto,
-} from "./catalogo-base.js?v=1.2.0";
+} from "./catalogo-base.js?v=1.2.1";
 
 const $ = (s) => document.querySelector(s);
-const money = (c) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
-    (Number(c) || 0) / 100,
-  );
 const ADMIN_UID = "IxZWx1TMk8VsTdEdCVUltFd96a93";
 let auth,
   db,
@@ -44,7 +40,7 @@ function render() {
     .map((cat) =>
       !grupos[cat]
         ? ""
-        : `<section class="grupo-admin"><h2>${cat}</h2>${grupos[cat].map((p) => `<article class="linha-produto" data-id="${p.id}"><img src="${encodeURI(imagemProduto(p.image))}" alt=""><div class="nome-produto">${p.name}</div><label class="chave"><input class="ativo" type="checkbox" ${p.enabled ? "checked" : ""}><span>EXIBIR</span></label><label>PREÇO<input class="preco" inputmode="decimal" value="${((p.priceCents || 0) / 100).toFixed(2).replace(".", ",")}" aria-label="PREÇO ${p.name}"></label><strong>${money(p.priceCents)}</strong></article>`).join("")}</section>`,
+        : `<section class="grupo-admin"><h2>${cat}</h2>${grupos[cat].map((p) => `<article class="linha-produto" data-id="${p.id}"><img src="${encodeURI(imagemProduto(p.image))}" alt=""><div class="nome-produto">${p.name}</div><label class="chave"><input class="ativo" type="checkbox" ${p.enabled ? "checked" : ""}><span>EXIBIR</span></label><label class="preco-campo">PREÇO<input class="preco" inputmode="decimal" value="${((p.priceCents || 0) / 100).toFixed(2).replace(".", ",")}" aria-label="PREÇO ${p.name}"></label><button class="remover-produto" type="button" data-remover="${p.id}" aria-label="REMOVER ${p.name}">×</button></article>`).join("")}</section>`,
     )
     .join("");
 }
@@ -120,6 +116,21 @@ $("#form-admin").addEventListener("submit", async (e) => {
   }
 });
 $("#salvar").addEventListener("click", salvar);
+$("#produtos-admin").addEventListener("click", async (e) => {
+  const botao = e.target.closest("[data-remover]");
+  if (!botao) return;
+  const id = botao.dataset.remover;
+  const produto = catalogo[id];
+  if (!produto || !confirm(`REMOVER ${produto.name}?`)) return;
+  try {
+    await update(ref(db), { [`catalog/${id}`]: null });
+    delete catalogo[id];
+    render();
+    $("#mensagem-admin").textContent = "PRODUTO REMOVIDO DO CATÁLOGO.";
+  } catch (e) {
+    $("#mensagem-admin").textContent = "NÃO FOI POSSÍVEL REMOVER: " + e.message;
+  }
+});
 $("#sair-admin").addEventListener("click", async () => {
   await signOut(auth);
   mostrarPainel(false);
