@@ -25,7 +25,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.2.8",
+  VERSAO_APP = "V1.3.0",
   PIX = "c9cb7e85-240b-46e5-b500-327844209247",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -311,6 +311,8 @@ async function enviar(b) {
         totalItems: qtd(),
         totalCents: v,
         status: "pending",
+        // O ESP32 usa este horário para iniciar a abertura junto com a tela.
+        unlockAt: Date.now() + 6000,
         createdAt: serverTimestamp(),
       });
     }
