@@ -54,7 +54,7 @@
         ".validate": "newData.hasChildren(['name','category','image','enabled','priceCents','stock'])",
         "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80" },
         "category": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40" },
-        "image": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 140" },
+        "image": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500" },
         "enabled": { ".validate": "newData.isBoolean()" },
         "priceCents": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
         "stock": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000" },
