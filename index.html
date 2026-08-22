@@ -1613,6 +1613,74 @@
         .produto-add:has(.quantidade) { flex-basis: 104px; width: 104px; }
         .produto-add .quantidade button { flex-basis: 25px; width: 25px; height: 25px; }
       }
+      .historico-painel {
+        width: min(760px, 100%);
+        margin: 0 auto;
+        padding: 24px 18px 42px;
+      }
+      .historico-cabecalho {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 22px;
+      }
+      .historico-cabecalho h1 { margin: 0; font-size: clamp(1.45rem, 5vw, 2.1rem); }
+      .voltar-historico, .navegar-mes {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel);
+        color: var(--text);
+        cursor: pointer;
+        font-weight: 800;
+      }
+      .voltar-historico { padding: 10px 13px; font-size: .72rem; }
+      .navegar-mes { width: 40px; height: 40px; font-size: 1.5rem; }
+      .navegar-mes:disabled { opacity: .35; cursor: default; }
+      .navegacao-mes { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 12px; }
+      .navegacao-mes strong { font-size: 1rem; letter-spacing: .05em; }
+      .calendario-historico {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+      .semana-calendario { color: var(--muted); font-size: .62rem; font-weight: 800; text-align: center; }
+      .dia-vazio { min-height: 39px; }
+      .dia-calendario {
+        min-height: 42px;
+        border: 0;
+        border-radius: 12px;
+        color: var(--text);
+        background: transparent;
+        cursor: pointer;
+        font: inherit;
+        font-size: .92rem;
+        font-weight: 800;
+      }
+      .dia-calendario.tem-consumo { color: #fff; background: var(--green); box-shadow: 0 5px 12px rgba(21,133,87,.24); }
+      .dia-calendario.selecionado { outline: 3px solid color-mix(in srgb, var(--blue) 34%, transparent); }
+      .detalhes-historico { margin-top: 22px; padding: 20px; border: 1px solid var(--line); border-radius: 20px; background: var(--panel); }
+      .detalhes-historico h2 { margin: 0 0 15px; font-size: clamp(1rem, 4vw, 1.3rem); }
+      .consumo-historico { display: grid; grid-template-columns: 56px minmax(0,1fr) auto; gap: 10px; padding: 14px 0; border-top: 1px solid var(--line); align-items: start; }
+      .consumo-historico time { color: var(--muted); font-weight: 800; font-size: .85rem; }
+      .consumo-historico ul { margin: 0; padding: 0; list-style: none; }
+      .consumo-historico li { margin: 0 0 7px; font-size: .9rem; line-height: 1.35; }
+      .consumo-historico li strong, .consumo-historico > b { color: var(--green); white-space: nowrap; }
+      .resumo-historico { display: flex; justify-content: space-between; gap: 15px; margin-top: 16px; padding-top: 16px; border-top: 2px solid var(--line); font-size: 1rem; font-weight: 900; }
+      .resumo-historico b { color: var(--green); font-size: 1.25rem; }
+      .historico-vazio { margin: 0; padding: 20px 0; color: var(--muted); font-size: .83rem; font-weight: 800; text-align: center; }
+      @media (max-width: 480px) {
+        .historico-painel { padding-inline: 12px; }
+        .calendario-historico { gap: 4px; padding: 10px; }
+        .dia-calendario { min-height: 38px; font-size: .82rem; }
+        .consumo-historico { grid-template-columns: 47px minmax(0,1fr); }
+        .consumo-historico > b { grid-column: 2; }
+      }
     </style>
   </head>
   <body>
@@ -1774,6 +1842,7 @@
               <small>ADICIONE UMA OU MAIS OPÇÕES AO CARRINHO</small>
             </div>
             <button id="botao-sair" class="sair" type="button">SAIR</button>
+            <button id="botao-historico" class="sair" type="button">HISTÓRICO</button>
           </header>
           <div class="carrinho-barra">
             <div class="carrinho-info">
@@ -1785,6 +1854,25 @@
             </button>
           </div>
           <div id="lista-bebidas"></div>
+        </div>
+      </section>
+      <section id="tela-historico" class="tela">
+        <div class="historico-painel">
+          <header class="historico-cabecalho">
+            <h1>HISTÓRICO DE CONSUMO</h1>
+            <button id="voltar-historico" class="voltar-historico" type="button">VOLTAR</button>
+          </header>
+          <div class="navegacao-mes">
+            <button id="mes-anterior" class="navegar-mes" type="button" aria-label="MÊS ANTERIOR">‹</button>
+            <strong id="mes-historico"></strong>
+            <button id="mes-proximo" class="navegar-mes" type="button" aria-label="PRÓXIMO MÊS">›</button>
+          </div>
+          <div id="calendario-historico" class="calendario-historico" aria-label="CALENDÁRIO DE CONSUMO"></div>
+          <section class="detalhes-historico">
+            <h2 id="titulo-dia-historico"></h2>
+            <div id="itens-historico"></div>
+            <div class="resumo-historico"><span>RESUMO TOTAL DO DIA</span><b id="total-dia-historico">R$ 0,00</b></div>
+          </section>
         </div>
       </section>
       <div id="carrinho" class="carrinho" aria-hidden="true">
@@ -1844,6 +1932,6 @@
         <p class="toque-voltar">TOQUE NA TELA PARA VOLTAR AO LOGIN</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.3.0"></script>
+    <script type="module" src="app.js?v=1.4.0"></script>
   </body>
 </html>
