@@ -17,14 +17,14 @@
           "Segoe UI",
           sans-serif;
         color: #11262c;
-        background: #25282d;
+        background: #e4e7ec;
       }
       * {
         box-sizing: border-box;
       }
       body {
         margin: 0;
-        background: #25282d;
+        background: #e4e7ec;
       }
       button,
       input {
@@ -152,7 +152,7 @@
       }
       .linha-produto {
         display: grid;
-        grid-template-columns: 64px minmax(150px, 1fr) 84px 115px 105px 92px;
+        grid-template-columns: 64px minmax(150px, 1fr) 84px 120px 42px;
         align-items: center;
         gap: 12px;
         margin: 8px 0;
@@ -190,10 +190,16 @@
         width: 18px;
         height: 18px;
       }
-      .linha-produto strong {
-        font-size: 0.78rem;
-        color: #1976d2;
-        text-align: right;
+      .remover-produto {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 11px;
+        background: #fff0f0;
+        color: #c43838;
+        font-size: 1.35rem;
+        line-height: 1;
       }
       .acoes {
         position: sticky;
@@ -224,7 +230,7 @@
           padding: 18px 10px 42px;
         }
         .linha-produto {
-          grid-template-columns: 58px 1fr 88px;
+          grid-template-columns: 58px 1fr 42px;
           gap: 8px;
         }
         .nome-produto {
@@ -233,13 +239,13 @@
         .linha-produto .chave {
           grid-column: 2;
         }
-        .linha-produto label:not(.chave) {
-          grid-column: auto;
-        }
-        .linha-produto strong {
-          grid-column: 3;
+        .linha-produto .preco-campo {
+          grid-column: 2;
           grid-row: 2;
-          text-align: right;
+        }
+        .remover-produto {
+          grid-column: 3;
+          grid-row: 1;
         }
         .topo h1 {
           font-size: 1.15rem;
@@ -265,7 +271,7 @@
       }
       .novo-grid {
         display: grid;
-        grid-template-columns: 2fr 1.2fr 1.8fr 1fr 1fr 1.3fr;
+        grid-template-columns: 2fr 1.2fr 2fr 1fr 1.3fr;
         gap: 10px;
         align-items: end;
       }
@@ -367,6 +373,6 @@
         <p id="mensagem-admin" class="mensagem"></p>
       </section>
     </main>
-    <script type="module" src="admin.js?v=1.2.0"></script>
+    <script type="module" src="admin.js?v=1.2.1"></script>
   </body>
 </html>
