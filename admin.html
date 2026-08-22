@@ -1,1 +1,380 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#F2F2F7"><title>Administração | Geladeira 14 Bis</title><style>:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#11262c;background:#25282d}*{box-sizing:border-box}body{margin:0;background:#25282d}button,input{font:inherit}button{border:0;cursor:pointer;font-weight:850;letter-spacing:.06em}main{width:min(1100px,100%);margin:auto;padding:28px 16px 60px}.logo{display:block;width:170px;height:130px;margin:0 auto 14px;object-fit:contain}.cartao{max-width:450px;margin:auto;padding:30px;border:1px solid #dce6e3;border-radius:25px;background:#fff;box-shadow:0 18px 45px #16323718}h1,h2{margin:0;text-transform:uppercase}h1{text-align:center;font-size:1.65rem}p{line-height:1.5}.sub{color:#63777c;text-align:center;font-size:.75rem;font-weight:700;letter-spacing:.08em}label{display:block;margin:15px 0 7px;font-size:.7rem;font-weight:850;letter-spacing:.09em}input{width:100%;height:52px;padding:0 14px;border:1px solid #d5e0de;border-radius:13px;background:#f6f8f8}button.primario{width:100%;height:55px;margin-top:20px;border-radius:14px;color:#fff;background:#1976d2}.erro,.mensagem{min-height:20px;text-align:center;font-size:.78rem;font-weight:700}.erro{color:#c43838}.topo{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:22px;padding:16px 18px;border-radius:18px;background:#fff;border:1px solid #dce6e3}.topo p{margin:4px 0 0;color:#63777c;font-size:.75rem;text-transform:uppercase}.sair{padding:12px 16px;border-radius:11px;background:#eef3f4;color:#17333a}.ajuda{margin:0 0 18px;padding:14px 16px;border-radius:14px;background:#e8f2ff;color:#164f8d;font-size:.78rem;font-weight:650;line-height:1.5}.grupo-admin{margin:22px 0}.grupo-admin h2{margin:0 0 10px;font-size:.84rem;letter-spacing:.13em}.linha-produto{display:grid;grid-template-columns:64px minmax(150px,1fr) 84px 115px 105px 92px;align-items:center;gap:12px;margin:8px 0;padding:10px 12px;border:1px solid #dce6e3;border-radius:15px;background:#fff}.linha-produto img{width:58px;height:58px;object-fit:contain;background:#fff}.nome-produto{font-size:.82rem;font-weight:900}.linha-produto label{margin:0;font-size:.62rem}.linha-produto label input:not([type=checkbox]){height:39px;margin-top:5px;padding:0 9px;font-size:.82rem}.chave{display:flex!important;align-items:center;gap:6px}.chave input{width:18px;height:18px}.linha-produto strong{font-size:.78rem;color:#1976d2;text-align:right}.acoes{position:sticky;bottom:12px;display:flex;justify-content:flex-end;gap:12px;margin-top:26px;padding:14px;border-radius:18px;background:#ffffffeb;backdrop-filter:blur(8px);box-shadow:0 8px 28px #1632371c}.acoes button{height:56px;padding:0 24px;border-radius:14px;color:#fff;background:#1976d2}.mensagem{margin:8px 0;color:#168757}@media(max-width:720px){main{padding:18px 10px 42px}.linha-produto{grid-template-columns:58px 1fr 88px;gap:8px}.nome-produto{font-size:.75rem}.linha-produto .chave{grid-column:2}.linha-produto label:not(.chave){grid-column:auto}.linha-produto strong{grid-column:3;grid-row:2;text-align:right}.topo h1{font-size:1.15rem}.topo{align-items:flex-start}.acoes button{width:100%}}.novo-produto{margin:0 0 24px;padding:18px;border:1px solid #cfe0f3;border-radius:18px;background:#fff}.novo-produto h2{margin:0 0 14px;font-size:.86rem;letter-spacing:.1em}.novo-grid{display:grid;grid-template-columns:2fr 1.2fr 1.8fr 1fr 1fr 1.3fr;gap:10px;align-items:end}.novo-grid label{margin:0;font-size:.62rem}.novo-grid input,.novo-grid select{width:100%;height:42px;margin-top:5px;padding:0 9px;border:1px solid #d5e0de;border-radius:10px;background:#f6f8f8}.novo-grid button{height:42px;border-radius:10px;color:#fff;background:#1976d2;font-size:.65rem}@media(max-width:720px){.novo-grid{grid-template-columns:1fr 1fr}.novo-grid label:first-child,.novo-grid label:nth-child(3),.novo-grid button{grid-column:1/-1}}</style></head><body><main><section id="login-admin"><img class="logo" src="logo14bis.png" alt="Clube 14 Bis"><div class="cartao"><h1>Painel administrativo</h1><p class="sub">CONFIGURAÇÃO DA GELADEIRA</p><form id="form-admin"><label>USUÁRIO<input id="admin-usuario" autocomplete="username" required></label><label>SENHA<input id="admin-senha" type="password" autocomplete="current-password" required></label><button class="primario" type="submit">ENTRAR NO PAINEL</button></form><p id="erro-admin" class="erro"></p></div></section><section id="painel-admin" hidden><header class="topo"><div><h1>Produtos da geladeira</h1><p>Escolha o que aparece, preço e estoque disponível.</p></div><button id="sair-admin" class="sair">SAIR</button></header><p class="ajuda">ATENÇÃO: O estoque diminui automaticamente a cada pedido confirmado. Deixe <b>EXIBIR</b> desmarcado para ocultar um produto do cliente.</p><section class="novo-produto"><h2>ADICIONAR NOVO PRODUTO</h2><div class="novo-grid"><label>NOME<input id="novo-nome" maxlength="80"></label><label>CATEGORIA<select id="novo-categoria"><option>ÁGUA</option><option>REFRIGERANTES E OUTROS</option><option>CERVEJAS</option><option>SUCOS</option></select></label><label>ARQUIVO DA IMAGEM<input id="nova-imagem" placeholder="EX.: MINHA-BEBIDA.PNG"></label><label>PREÇO<input id="novo-preco" inputmode="decimal" placeholder="0,00"></label><label>ESTOQUE<input id="novo-estoque" type="number" min="0" step="1" placeholder="0"></label><button id="adicionar-produto" type="button">ADICIONAR PRODUTO</button></div></section><div id="produtos-admin"></div><div class="acoes"><button id="salvar">SALVAR ALTERAÇÕES</button></div><p id="mensagem-admin" class="mensagem"></p></section></main><script type="module" src="admin.js?v=1.1.2"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <meta name="theme-color" content="#F2F2F7" />
+    <title>Administração | Geladeira 14 Bis</title>
+    <style>
+      :root {
+        font-family:
+          Inter,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        color: #11262c;
+        background: #25282d;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #25282d;
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      button {
+        border: 0;
+        cursor: pointer;
+        font-weight: 850;
+        letter-spacing: 0.06em;
+      }
+      main {
+        width: min(1100px, 100%);
+        margin: auto;
+        padding: 28px 16px 60px;
+      }
+      .logo {
+        display: block;
+        width: 170px;
+        height: 130px;
+        margin: 0 auto 14px;
+        object-fit: contain;
+      }
+      .cartao {
+        max-width: 450px;
+        margin: auto;
+        padding: 30px;
+        border: 1px solid #dce6e3;
+        border-radius: 25px;
+        background: #fff;
+        box-shadow: 0 18px 45px #16323718;
+      }
+      h1,
+      h2 {
+        margin: 0;
+        text-transform: uppercase;
+      }
+      h1 {
+        text-align: center;
+        font-size: 1.65rem;
+      }
+      p {
+        line-height: 1.5;
+      }
+      .sub {
+        color: #63777c;
+        text-align: center;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+      label {
+        display: block;
+        margin: 15px 0 7px;
+        font-size: 0.7rem;
+        font-weight: 850;
+        letter-spacing: 0.09em;
+      }
+      input {
+        width: 100%;
+        height: 52px;
+        padding: 0 14px;
+        border: 1px solid #d5e0de;
+        border-radius: 13px;
+        background: #f6f8f8;
+      }
+      button.primario {
+        width: 100%;
+        height: 55px;
+        margin-top: 20px;
+        border-radius: 14px;
+        color: #fff;
+        background: #1976d2;
+      }
+      .erro,
+      .mensagem {
+        min-height: 20px;
+        text-align: center;
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+      .erro {
+        color: #c43838;
+      }
+      .topo {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 22px;
+        padding: 16px 18px;
+        border-radius: 18px;
+        background: #fff;
+        border: 1px solid #dce6e3;
+      }
+      .topo p {
+        margin: 4px 0 0;
+        color: #63777c;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+      }
+      .sair {
+        padding: 12px 16px;
+        border-radius: 11px;
+        background: #eef3f4;
+        color: #17333a;
+      }
+      .ajuda {
+        margin: 0 0 18px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: #e8f2ff;
+        color: #164f8d;
+        font-size: 0.78rem;
+        font-weight: 650;
+        line-height: 1.5;
+      }
+      .grupo-admin {
+        margin: 22px 0;
+      }
+      .grupo-admin h2 {
+        margin: 0 0 10px;
+        font-size: 0.84rem;
+        letter-spacing: 0.13em;
+      }
+      .linha-produto {
+        display: grid;
+        grid-template-columns: 64px minmax(150px, 1fr) 84px 115px 105px 92px;
+        align-items: center;
+        gap: 12px;
+        margin: 8px 0;
+        padding: 10px 12px;
+        border: 1px solid #dce6e3;
+        border-radius: 15px;
+        background: #fff;
+      }
+      .linha-produto img {
+        width: 58px;
+        height: 58px;
+        object-fit: contain;
+        background: #fff;
+      }
+      .nome-produto {
+        font-size: 0.82rem;
+        font-weight: 900;
+      }
+      .linha-produto label {
+        margin: 0;
+        font-size: 0.62rem;
+      }
+      .linha-produto label input:not([type="checkbox"]) {
+        height: 39px;
+        margin-top: 5px;
+        padding: 0 9px;
+        font-size: 0.82rem;
+      }
+      .chave {
+        display: flex !important;
+        align-items: center;
+        gap: 6px;
+      }
+      .chave input {
+        width: 18px;
+        height: 18px;
+      }
+      .linha-produto strong {
+        font-size: 0.78rem;
+        color: #1976d2;
+        text-align: right;
+      }
+      .acoes {
+        position: sticky;
+        bottom: 12px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 26px;
+        padding: 14px;
+        border-radius: 18px;
+        background: #ffffffeb;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 8px 28px #1632371c;
+      }
+      .acoes button {
+        height: 56px;
+        padding: 0 24px;
+        border-radius: 14px;
+        color: #fff;
+        background: #1976d2;
+      }
+      .mensagem {
+        margin: 8px 0;
+        color: #168757;
+      }
+      @media (max-width: 720px) {
+        main {
+          padding: 18px 10px 42px;
+        }
+        .linha-produto {
+          grid-template-columns: 58px 1fr 88px;
+          gap: 8px;
+        }
+        .nome-produto {
+          font-size: 0.75rem;
+        }
+        .linha-produto .chave {
+          grid-column: 2;
+        }
+        .linha-produto label:not(.chave) {
+          grid-column: auto;
+        }
+        .linha-produto strong {
+          grid-column: 3;
+          grid-row: 2;
+          text-align: right;
+        }
+        .topo h1 {
+          font-size: 1.15rem;
+        }
+        .topo {
+          align-items: flex-start;
+        }
+        .acoes button {
+          width: 100%;
+        }
+      }
+      .novo-produto {
+        margin: 0 0 24px;
+        padding: 18px;
+        border: 1px solid #cfe0f3;
+        border-radius: 18px;
+        background: #fff;
+      }
+      .novo-produto h2 {
+        margin: 0 0 14px;
+        font-size: 0.86rem;
+        letter-spacing: 0.1em;
+      }
+      .novo-grid {
+        display: grid;
+        grid-template-columns: 2fr 1.2fr 1.8fr 1fr 1fr 1.3fr;
+        gap: 10px;
+        align-items: end;
+      }
+      .novo-grid label {
+        margin: 0;
+        font-size: 0.62rem;
+      }
+      .novo-grid input,
+      .novo-grid select {
+        width: 100%;
+        height: 42px;
+        margin-top: 5px;
+        padding: 0 9px;
+        border: 1px solid #d5e0de;
+        border-radius: 10px;
+        background: #f6f8f8;
+      }
+      .novo-grid button {
+        height: 42px;
+        border-radius: 10px;
+        color: #fff;
+        background: #1976d2;
+        font-size: 0.65rem;
+      }
+      @media (max-width: 720px) {
+        .novo-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+        .novo-grid label:first-child,
+        .novo-grid label:nth-child(3),
+        .novo-grid button {
+          grid-column: 1/-1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section id="login-admin">
+        <img class="logo" src="logo14bis.png" alt="Clube 14 Bis" />
+        <div class="cartao">
+          <h1>Painel administrativo</h1>
+          <p class="sub">CONFIGURAÇÃO DA GELADEIRA</p>
+          <form id="form-admin">
+            <label
+              >USUÁRIO<input
+                id="admin-usuario"
+                autocomplete="username"
+                required /></label
+            ><label
+              >SENHA<input
+                id="admin-senha"
+                type="password"
+                autocomplete="current-password"
+                required /></label
+            ><button class="primario" type="submit">ENTRAR NO PAINEL</button>
+          </form>
+          <p id="erro-admin" class="erro"></p>
+        </div>
+      </section>
+      <section id="painel-admin" hidden>
+        <header class="topo">
+          <div>
+            <h1>Produtos da geladeira</h1>
+            <p>Escolha o que aparece, preço e estoque disponível.</p>
+          </div>
+          <button id="sair-admin" class="sair">SAIR</button>
+        </header>
+        <p class="ajuda">
+          ATENÇÃO: O estoque diminui automaticamente a cada pedido confirmado.
+          Deixe <b>EXIBIR</b> desmarcado para ocultar um produto do cliente.
+        </p>
+        <section class="novo-produto">
+          <h2>ADICIONAR NOVO PRODUTO</h2>
+          <div class="novo-grid">
+            <label>NOME<input id="novo-nome" maxlength="80" /></label
+            ><label
+              >CATEGORIA<select id="novo-categoria">
+                <option>ÁGUA</option>
+                <option>REFRIGERANTES E OUTROS</option>
+                <option>CERVEJAS</option>
+                <option>SUCOS</option>
+              </select></label
+            ><label
+              >LINK OU ARQUIVO DA IMAGEM<input
+                id="nova-imagem"
+                placeholder="HTTPS://... OU MINHA-BEBIDA.PNG" /></label
+            ><label
+              >PREÇO<input
+                id="novo-preco"
+                inputmode="decimal"
+                placeholder="0,00" /></label
+            ><label
+              >ESTOQUE<input
+                id="novo-estoque"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="0" /></label
+            ><button id="adicionar-produto" type="button">
+              ADICIONAR PRODUTO
+            </button>
+          </div>
+        </section>
+        <div id="produtos-admin"></div>
+        <div class="acoes"><button id="salvar">SALVAR ALTERAÇÕES</button></div>
+        <p id="mensagem-admin" class="mensagem"></p>
+      </section>
+    </main>
+    <script type="module" src="admin.js?v=1.1.4"></script>
+  </body>
+</html>
