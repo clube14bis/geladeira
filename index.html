@@ -626,6 +626,12 @@
         text-shadow: 0 0 12px rgba(255, 255, 255, 0.85), 0 0 28px rgba(255, 255, 255, 0.55);
         animation: brilho-aberto 1.4s ease-in-out infinite alternate;
       }
+      .obrigado p.geladeira-trancada {
+        max-width: 100%;
+        font-size: clamp(1.7rem, 7vw, 3.1rem);
+        font-weight: 950;
+        line-height: 1.1;
+      }
       @keyframes brilho-aberto {
         from { filter: brightness(1); transform: scale(1); }
         to { filter: brightness(1.25); transform: scale(1.03); }
@@ -1779,6 +1785,6 @@
         <p class="toque-voltar">TOQUE NA TELA PARA VOLTAR AO LOGIN</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.2.8"></script>
+    <script type="module" src="app.js?v=1.2.9"></script>
   </body>
 </html>
