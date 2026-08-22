@@ -1345,7 +1345,8 @@
         gap: 10px;
       }
       .valor-final {
-        font-size: 1.8rem;
+        font-size: clamp(2.7rem, 12vw, 4.2rem);
+        line-height: 1;
         font-weight: 950;
       }
       .botao-pix {
@@ -1367,11 +1368,6 @@
         width: 25px;
         height: 25px;
         fill: currentColor;
-      }
-      .texto-pix {
-        min-height: 16px;
-        margin: 0 !important;
-        font-size: 0.64rem !important;
       }
       .obrigado .pagamento-pix {
         color: #fff;
@@ -1596,17 +1592,15 @@
             type="button"
             aria-label="COPIAR CHAVE PIX"
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M7.1 3.3a2.8 2.8 0 0 1 4 0L12 4.2l.9-.9a2.8 2.8 0 0 1 4 0l3.1 3.1a2.8 2.8 0 0 1 0 4L16 14.3a2.8 2.8 0 0 1-4 0L8 10.4a2.8 2.8 0 0 1 0-4L9.1 5.3 7.1 3.3Zm1.8 9.1 2 2 2-2 2 2-2 2a2.8 2.8 0 0 1-4 0l-2-2 2-2Zm6.2 0 2-2 2 2a2.8 2.8 0 0 1 0 4l-3.1 3.1a2.8 2.8 0 0 1-4 0l-.9-.9 2-2 1 1a1 1 0 0 0 1.4 0l3.1-3.1a1 1 0 0 0 0-1.4l-1.6-1.7Z"
-              /></svg
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M9.1 5.5a3.2 3.2 0 0 1 4.5 0L16 8l2.4-2.5a3.2 3.2 0 0 1 4.5 0l3.6 3.7a3.2 3.2 0 0 1 0 4.5L20.5 20a6.4 6.4 0 0 1-9 0l-6-6.3a3.2 3.2 0 0 1 0-4.5l3.6-3.7Zm2.2 2.1-3.6 3.7a.2.2 0 0 0 0 .3l6 6.3a3.4 3.4 0 0 0 4.6 0l6-6.3a.2.2 0 0 0 0-.3l-3.6-3.7a.2.2 0 0 0-.3 0l-3.5 3.7a1.2 1.2 0 0 1-1.8 0l-3.5-3.7a.2.2 0 0 0-.3 0Z"/><path d="m9.4 22.1 2.1 2.2a6.4 6.4 0 0 0 9 0l2.1-2.2-2.2-2.2-2.1 2.2a3.4 3.4 0 0 1-4.6 0l-2.1-2.2-2.2 2.2Z"/>
+            </svg>
             >COPIAR CHAVE
           </button>
-          <p id="texto-pix" class="texto-pix"></p>
         </div>
         <p class="toque-voltar">TOQUE NA TELA PARA VOLTAR AO LOGIN</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.2.0"></script>
+    <script type="module" src="app.js?v=1.2.1"></script>
   </body>
 </html>
