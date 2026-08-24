@@ -32,7 +32,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.5.15",
+  VERSAO_APP = "V1.5.16",
   PIX = "00020126580014BR.GOV.BCB.PIX0136c9cb7e85-240b-46e5-b500-3278442092475204000053039865802BR5912Clube 14 Bis6011Mirassol SP62160512Bebidas14Bis63045F94",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -208,7 +208,7 @@ async function bebidas() {
         let ps = itens(cat);
         return !ps.length
           ? ""
-          : `<section class="categoria"><h2>${cat}</h2><div class="produtos">${ps.map((p) => `<button class="produto" type="button" data-bebida="${p.id}"><img class="produto-imagem" src="${encodeURI(imagemProduto(p.image))}" alt="${p.name}"><span class="produto-corpo"><span><span class="produto-nome">${p.name}</span><small class="produto-preco">${fmt(p.priceCents)}</small></span><span class="produto-add"><span class="icone-adicionar">+</span></span></span></button>`).join("")}</div></section>`;
+          : `<section class="categoria"><h2>${cat}</h2><div class="produtos">${ps.map((p) => `<button class="produto" type="button" data-bebida="${p.id}"><img class="produto-imagem" src="${encodeURI(imagemProduto(p.image))}" alt="${p.name}"><span class="produto-corpo"><span class="produto-nome">${p.name}</span><small class="produto-preco">${fmt(p.priceCents)}</small></span><span class="produto-add"><span class="icone-adicionar">+</span></span></button>`).join("")}</div></section>`;
       })
       .join("");
     $("#lista-bebidas").innerHTML =
