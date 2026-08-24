@@ -1789,21 +1789,36 @@
       #abrir-recuperacao { color: #e5484d !important; }
       body.carrinho-aberto { overflow: hidden; overscroll-behavior: none; }
       .produto-add {
-        flex: 0 0 112px !important;
-        width: 112px !important;
+        flex: 0 0 88px !important;
+        width: 88px !important;
         background: transparent !important;
       }
       .produto-add .icone-adicionar {
         display: grid;
         place-items: center;
-        width: 54px;
-        height: 54px;
+        width: 46px;
+        height: 46px;
         margin-left: auto;
         border-radius: 12px;
         background: var(--brand);
         color: #fff;
       }
       .produto-add.tem-quantidade { background: var(--green) !important; }
+      .produto-add .quantidade { gap: 2px !important; }
+      .produto-add .quantidade button {
+        flex-basis: 24px !important;
+        width: 24px !important;
+        height: 24px !important;
+        font-size: 1rem;
+      }
+      .produto-add .quantidade span { min-width: 12px; font-size: .75rem; }
+      .produto-corpo > span:first-child { min-width: 0; }
+      .produto-nome {
+        font-size: clamp(.78rem, 3.1vw, .92rem) !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
       @media (max-width: 600px) {
         main { padding-inline: 14px; }
         .cartao { padding: 30px 22px; }
