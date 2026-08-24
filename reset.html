@@ -42,8 +42,9 @@
     </main>
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
-      import { getAuth, verifyPasswordResetCode, confirmPasswordReset, applyActionCode } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
-      import { firebaseConfig } from "./firebase-config.js?v=1.5.1";
+      import { getAuth, verifyPasswordResetCode, confirmPasswordReset, applyActionCode, reload } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
+      import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
+      import { firebaseConfig, authServiceUrl } from "./firebase-config.js?v=1.5.2";
 
       const $ = (s) => document.querySelector(s);
       const parametros = new URLSearchParams(location.search);
@@ -51,11 +52,27 @@
       const mensagem = $("#mensagem"), form = $("#form-reset");
       const mostrarErro = (texto) => { mensagem.textContent = texto; };
       let auth;
+      async function atualizarVinculoEmail() {
+        const user = auth.currentUser;
+        if (!user) return;
+        await reload(user);
+        const db = getDatabase();
+        const perfil = (await get(ref(db, `users/${user.uid}`))).val();
+        if (!perfil?.username || !user.email) return;
+        const resposta = await fetch(`${authServiceUrl}/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: perfil.username, idToken: await user.getIdToken() }),
+        });
+        if (!resposta.ok) throw Error("NÃO FOI POSSÍVEL ATUALIZAR O VÍNCULO.");
+        await update(ref(db, `users/${user.uid}`), { email: user.email });
+      }
       try {
         auth = getAuth(initializeApp(firebaseConfig));
         if (!codigo) throw Error("LINK DE RECUPERAÇÃO INVÁLIDO OU EXPIRADO.");
-        if (modo === "verifyEmail") {
+        if (modo === "verifyEmail" || modo === "verifyAndChangeEmail") {
           await applyActionCode(auth, codigo);
+          await atualizarVinculoEmail();
           $("#descricao").textContent = "E-MAIL CONFIRMADO COM SUCESSO. VOCÊ JÁ PODE USAR A GELADEIRA.";
           mensagem.classList.add("ok");
           mensagem.textContent = "CONTA CONFIRMADA.";
