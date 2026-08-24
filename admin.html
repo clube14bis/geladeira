@@ -306,6 +306,7 @@
           grid-column: 1/-1;
         }
       }
+      body, button, input, select, textarea { text-transform: none !important; }
     </style>
   </head>
   <body>
@@ -314,20 +315,20 @@
         <img class="logo" src="logo14bis.png" alt="Clube 14 Bis" />
         <div class="cartao">
           <h1>Painel administrativo</h1>
-          <p class="sub">CONFIGURAÇÃO DA GELADEIRA</p>
+          <p class="sub">Configuração da geladeira</p>
           <form id="form-admin">
             <label
-              >USUÁRIO<input
+              >Usuário<input
                 id="admin-usuario"
                 autocomplete="username"
                 required /></label
             ><label
-              >SENHA<input
+              >Senha<input
                 id="admin-senha"
                 type="password"
                 autocomplete="current-password"
                 required /></label
-            ><button class="primario" type="submit">ENTRAR NO PAINEL</button>
+            ><button class="primario" type="submit">Entrar no painel</button>
           </form>
           <p id="erro-admin" class="erro"></p>
         </div>
@@ -338,17 +339,17 @@
             <h1>Produtos da geladeira</h1>
             <p>Escolha o que aparece e defina o preço de venda.</p>
           </div>
-          <button id="sair-admin" class="sair">SAIR</button>
+          <button id="sair-admin" class="sair">Sair</button>
         </header>
         <p class="ajuda">
-          Cadastre produtos, defina o preço e use <b>EXIBIR</b> para controlar o que aparece ao cliente.
+          Cadastre produtos, defina o preço e use <b>Exibir</b> para controlar o que aparece ao cliente.
         </p>
         <section class="novo-produto">
-          <h2>ADICIONAR NOVO PRODUTO</h2>
+          <h2>Adicionar novo produto</h2>
           <div class="novo-grid">
-            <label>NOME<input id="novo-nome" maxlength="80" /></label
+            <label>Nome<input id="novo-nome" maxlength="80" /></label
             ><label
-              >CATEGORIA<select id="novo-categoria">
+              >Categoria<select id="novo-categoria">
                 <option>ÁGUA</option>
                 <option>REFRIGERANTES E OUTROS</option>
                 <option>CERVEJAS</option>
@@ -357,11 +358,11 @@
                 <option>ALIMENTOS</option>
               </select></label
             ><label
-              >LINK OU ARQUIVO DA IMAGEM<input
+              >Link ou arquivo da imagem<input
                 id="nova-imagem"
                 placeholder="HTTPS://... OU MINHA-BEBIDA.PNG" /></label
             ><label
-              >PREÇO<input
+              >Preço<input
                 id="novo-preco"
                 inputmode="decimal"
                 placeholder="0,00" /></label
@@ -371,7 +372,7 @@
           </div>
         </section>
         <div id="produtos-admin"></div>
-        <div class="acoes"><button id="salvar">SALVAR ALTERAÇÕES</button></div>
+        <div class="acoes"><button id="salvar">Salvar alterações</button></div>
         <p id="mensagem-admin" class="mensagem"></p>
       </section>
     </main>
