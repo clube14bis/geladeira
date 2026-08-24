@@ -62,7 +62,7 @@
       <div id="conteudo" class="carregando">Atualizando condições do campo...</div>
     </main>
     <script>
-      const cidade = "Mirassol";
+      const cidade = "Clube 14 BIS";
       const icone = (codigo) => ({0:"☀️",1:"🌤️",2:"⛅",3:"☁️",45:"🌫️",48:"🌫️",51:"🌦️",53:"🌦️",55:"🌧️",61:"🌧️",63:"🌧️",65:"🌧️",71:"❄️",80:"🌦️",81:"🌧️",82:"⛈️",95:"⛈️"}[codigo] || "🌤️");
       const descricao = (codigo) => ({0:"Céu limpo",1:"Predominantemente limpo",2:"Parcialmente nublado",3:"Nublado",45:"Neblina",48:"Neblina",51:"Garoa",53:"Garoa",55:"Garoa",61:"Chuva fraca",63:"Chuva",65:"Chuva forte",80:"Pancadas de chuva",81:"Pancadas de chuva",82:"Pancadas fortes",95:"Trovoadas"}[codigo] || "Condições do campo");
       const direcao = (graus) => ["Norte","Nordeste","Leste","Sudeste","Sul","Sudoeste","Oeste","Noroeste"][Math.round(graus / 45) % 8];
