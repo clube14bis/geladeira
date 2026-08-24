@@ -274,6 +274,18 @@
         letter-spacing: 0.08em;
         text-decoration: none;
       }
+      /* A interface usa escrita normal; nomes de produtos preservam o cadastro. */
+      body,
+      button,
+      input,
+      select,
+      textarea {
+        text-transform: none !important;
+      }
+      #form-recuperacao .primario {
+        font-size: 1.02rem;
+        padding-block: 20px;
+      }
       .texto-menor,
       .erro {
         text-align: center;
@@ -1723,7 +1735,7 @@
     >
       <div class="carregando-caixa">
         <div class="carregando-anel" aria-hidden="true"></div>
-        <strong id="texto-carregando">CARREGANDO...</strong>
+        <strong id="texto-carregando">Carregando...</strong>
       </div>
     </div>
     <button
@@ -1752,17 +1764,16 @@
         <div class="acesso-grid">
           <div class="marca">
             <img class="logo" src="logo14bis.png" alt="LOGO CLUBE 14 BIS" />
-            <h2>CLUBE 14 BIS</h2>
           </div>
           <div class="cartao">
-            <h1>ACESSE A GELADEIRA</h1>
+            <h1>Acesse a geladeira</h1>
             <form id="form-login">
-              <label for="usuario">NOME DE USUÁRIO</label
+              <label for="usuario">Nome de usuário</label
               ><input
                 id="usuario"
                 autocomplete="username"
                 required
-              /><label for="senha">SENHA</label
+              /><label for="senha">Senha</label
               ><span class="senha-campo"
                 ><input
                   id="senha"
@@ -1780,13 +1791,13 @@
                     />
                     <circle cx="12" cy="12" r="2.7" />
                   </svg></button></span
-              ><button class="primario" type="submit">ENTRAR</button>
+              ><button class="primario" type="submit">Entrar</button>
             </form>
             <button id="abrir-cadastro" class="cadastro-btn" type="button">
-              CRIAR CADASTRO
+              Criar cadastro
             </button>
             <button id="abrir-recuperacao" class="cadastro-btn recuperar-btn" type="button">
-              ESQUECI MINHA SENHA
+              Esqueci minha senha
             </button>
             <p id="erro-login" class="erro" aria-live="polite"></p>
           </div>
@@ -1795,9 +1806,9 @@
             href="https://docs.google.com/spreadsheets/d/e/2PACX-1vTXmdi51Ag4GLZFPqTYDb32EkDBdtXqgzHMSrI1OV7dZXDb7hcpbpEReewRThz63tm21hlFA-CHoLiY/pubhtml"
             target="_blank"
             rel="noopener noreferrer"
-          >REGISTRO DE USO DA GELADEIRA</a>
+          >Registro de uso da geladeira</a>
           <p id="status-clube" class="status-clube">
-            <span>CLUBE 14 BIS</span><span> MIRASSOL: --°C</span
+            <span>Clube 14 Bis</span><span> Mirassol: --°C</span
             ><span>V1.5.0</span>
           </p>
         </div>
@@ -1806,22 +1817,21 @@
         <div class="acesso-grid">
           <div class="marca">
             <img class="logo" src="logo14bis.png" alt="LOGO CLUBE 14 BIS" />
-            <h2>CLUBE 14 BIS</h2>
           </div>
           <div class="cartao">
-            <h1>CRIAR CADASTRO</h1>
+            <h1>Criar cadastro</h1>
             <p class="subtitulo">
-              PREENCHA SEUS DADOS PARA ACESSAR A GELADEIRA
+              Preencha seus dados para acessar a geladeira
             </p>
             <form id="form-cadastro">
-              <label for="cad-nome">NOME COMPLETO</label
+              <label for="cad-nome">Nome completo</label
               ><input
                 id="cad-nome"
                 autocomplete="name"
                 placeholder="SEU NOME COMPLETO"
                 required
                 maxlength="80"
-              /><label for="cad-usuario">NOME DE USUÁRIO</label
+              /><label for="cad-usuario">Nome de usuário</label
               ><input
                 id="cad-usuario"
                 autocomplete="username"
@@ -1830,7 +1840,7 @@
                 minlength="3"
                 maxlength="24"
                 pattern="[A-Za-z0-9._-]+"
-              /><label for="cad-telefone">TELEFONE CELULAR</label
+              /><label for="cad-telefone">Telefone celular</label
               ><input
                 id="cad-telefone"
                 autocomplete="tel"
@@ -1846,7 +1856,7 @@
                 placeholder="000.000.000-00"
                 required
                 maxlength="14"
-              /><label for="cad-email">E-MAIL</label
+              /><label for="cad-email">E-mail</label
               ><input
                 id="cad-email"
                 type="email"
@@ -1854,7 +1864,7 @@
                 placeholder="SEU E-MAIL"
                 required
                 maxlength="120"
-              /><label for="cad-senha">SENHA</label
+              /><label for="cad-senha">Senha</label
               ><input
                 id="cad-senha"
                 type="password"
@@ -1862,11 +1872,11 @@
                 placeholder="MÍNIMO DE 4 CARACTERES"
                 required
                 minlength="4"
-              /><button class="primario" type="submit">CRIAR CADASTRO</button>
+              /><button class="primario" type="submit">Criar cadastro</button>
             </form>
             <p class="texto-menor">
               <button id="voltar-login" class="link-botao" type="button">
-                VOLTAR AO LOGIN
+                Voltar ao login
               </button>
             </p>
             <p id="erro-cadastro" class="erro" aria-live="polite"></p>
@@ -1879,15 +1889,14 @@
             <img class="logo" src="logo14bis.png" alt="LOGO CLUBE 14 BIS" />
           </div>
           <div class="cartao">
-            <h1>RECUPERAR SENHA</h1>
-            <p class="subtitulo">ENVIAREMOS UM LINK SEGURO PARA O SEU E-MAIL</p>
+            <h1>Recuperar senha</h1>
             <form id="form-recuperacao">
-              <label for="rec-email">DIGITE SEU E-MAIL</label>
-              <input id="rec-email" type="email" autocomplete="email" placeholder="SEU E-MAIL" required maxlength="120" />
-              <button class="primario" type="submit">ENVIAR LINK DE RECUPERAÇÃO</button>
+              <label for="rec-email">E-mail</label>
+              <input id="rec-email" type="email" autocomplete="email" required maxlength="120" />
+              <button class="primario" type="submit">Enviar link de recuperação</button>
             </form>
             <p class="texto-menor">
-              <button id="voltar-recuperacao" class="link-botao" type="button">VOLTAR AO LOGIN</button>
+              <button id="voltar-recuperacao" class="link-botao" type="button">Voltar ao login</button>
             </p>
             <p id="erro-recuperacao" class="erro" aria-live="polite"></p>
           </div>
@@ -1899,14 +1908,14 @@
             <img class="logo" src="logo14bis.png" alt="LOGO CLUBE 14 BIS" />
           </div>
           <div class="cartao">
-            <h1>CONFIRME SEU E-MAIL</h1>
+            <h1>Confirme seu e-mail</h1>
             <p class="subtitulo">INFORME UM E-MAIL PARA RECUPERAR SUA SENHA NO FUTURO</p>
             <form id="form-atualizar-email">
-              <label for="atualizar-email">SEU E-MAIL</label>
+              <label for="atualizar-email">Seu e-mail</label>
               <input id="atualizar-email" type="email" autocomplete="email" placeholder="SEU E-MAIL" required maxlength="120" />
-              <button class="primario" type="submit">SALVAR E-MAIL</button>
+              <button class="primario" type="submit">Salvar e-mail</button>
             </form>
-            <p class="texto-menor"><button id="sair-atualizar-email" class="link-botao" type="button">VOLTAR AO LOGIN</button></p>
+            <p class="texto-menor"><button id="sair-atualizar-email" class="link-botao" type="button">Voltar ao login</button></p>
             <p id="erro-atualizar-email" class="erro" aria-live="polite"></p>
           </div>
         </div>
@@ -1915,19 +1924,19 @@
         <div>
           <header class="cabecalho">
             <div>
-              <h1>ESCOLHA SUAS BEBIDAS</h1>
+              <h1>Escolha suas bebidas</h1>
               <small>ADICIONE UMA OU MAIS OPÇÕES AO CARRINHO</small>
             </div>
-            <button id="botao-sair" class="sair" type="button">SAIR</button>
-            <button id="botao-historico" class="sair" type="button">HISTÓRICO</button>
+            <button id="botao-sair" class="sair" type="button">Sair</button>
+            <button id="botao-historico" class="sair" type="button">Histórico</button>
           </header>
           <div class="carrinho-barra">
             <div class="carrinho-info">
-              <strong id="resumo-carrinho">CARRINHO VAZIO</strong
+              <strong id="resumo-carrinho">Carrinho vazio</strong
               ><span>TOQUE PARA REVISAR E FINALIZAR</span>
             </div>
             <button id="botao-concluir" class="concluir" type="button" disabled>
-              VER CARRINHO
+              Ver carrinho
             </button>
           </div>
           <div id="lista-bebidas"></div>
@@ -1936,8 +1945,8 @@
       <section id="tela-historico" class="tela">
         <div class="historico-painel">
           <header class="historico-cabecalho">
-            <h1>HISTÓRICO DE CONSUMO</h1>
-            <button id="voltar-historico" class="voltar-historico" type="button">VOLTAR</button>
+            <h1>Histórico de consumo</h1>
+            <button id="voltar-historico" class="voltar-historico" type="button">Voltar</button>
           </header>
           <div class="navegacao-mes">
             <button id="mes-anterior" class="navegar-mes" type="button" aria-label="MÊS ANTERIOR">‹</button>
@@ -1956,7 +1965,7 @@
       <div id="carrinho" class="carrinho" aria-hidden="true">
         <div class="carrinho-conteudo">
           <div class="carrinho-topo">
-            <h2>SEU CARRINHO</h2>
+            <h2>Seu carrinho</h2>
             <button
               id="fechar-carrinho"
               class="fechar-carrinho"
@@ -1972,13 +1981,13 @@
           </div>
           <div class="carrinho-acoes">
             <button id="limpar-carrinho" class="limpar" type="button">
-              LIMPAR CARRINHO</button
+              Limpar carrinho</button
             ><button
               id="confirmar-carrinho"
               class="confirmar-carrinho"
               type="button"
             >
-              CONFIRMAR SELEÇÃO
+              Confirmar seleção
             </button>
           </div>
         </div>
@@ -1993,23 +2002,23 @@
     >
       <div class="obrigado-conteudo">
         <div class="check">✓</div>
-        <h2>OBRIGADO!</h2>
+        <h2>Obrigado!</h2>
         <p>A GELADEIRA VAI SER ABERTA. SUA ESCOLHA FOI REGISTRADA.</p>
         <div id="contador" class="contador">6</div>
         <div class="pagamento-pix">
-          <span>VALOR TOTAL</span
+          <span>Valor total</span
           ><strong id="valor-final" class="valor-final">R$ 0,00</strong
           ><button
             id="copiar-pix"
             class="botao-pix"
             type="button"
             aria-label="COPIAR CHAVE PIX"
-          >COPIAR CHAVE PIX
+          >Copiar chave Pix
           </button>
         </div>
-        <p class="toque-voltar">TOQUE NA TELA PARA VOLTAR AO LOGIN</p>
+        <p class="toque-voltar">Toque na tela para voltar ao login</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.5.5"></script>
+    <script type="module" src="app.js?v=1.5.6"></script>
   </body>
 </html>
