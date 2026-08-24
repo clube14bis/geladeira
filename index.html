@@ -1910,8 +1910,8 @@
       /* LAYOUT ÚNICO DO CATÁLOGO: imagem | informações | adicionar. */
       .produto {
         display: grid !important;
-        grid-template-columns: clamp(112px, 15vw, 142px) minmax(0, 1fr) 104px;
-        min-height: 176px !important;
+        grid-template-columns: clamp(126px, 17vw, 160px) minmax(0, 1fr) 104px;
+        min-height: 184px !important;
         align-items: stretch;
       }
       .produto-imagem {
@@ -1928,6 +1928,7 @@
         display: flex !important;
         flex-direction: column;
         justify-content: center;
+        gap: 12px;
         min-width: 0;
         padding: 18px 10px !important;
         text-align: center;
@@ -1982,11 +1983,11 @@
       }
       @media (max-width: 600px) {
         .produto {
-          grid-template-columns: 100px minmax(0, 1fr) 72px;
-          min-height: 142px !important;
+          grid-template-columns: 116px minmax(0, 1fr) 72px;
+          min-height: 154px !important;
         }
         .produto-imagem { padding: 8px !important; }
-        .produto-corpo { padding: 14px 4px !important; }
+        .produto-corpo { padding: 14px 4px !important; gap: 10px; }
         .produto-nome { font-size: clamp(.78rem, 3.25vw, .94rem) !important; }
         .produto-preco { font-size: clamp(1.44rem, 6.24vw, 1.79rem) !important; }
         .produto-add { width: 68px !important; min-width: 68px !important; height: 48px !important; }
