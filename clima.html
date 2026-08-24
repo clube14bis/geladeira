@@ -49,6 +49,16 @@
       .conforto h2 { color: #172434; font-size: 1.35rem; }
       .conforto p { margin-top: 14px; color: #4f5967; font-size: 1.05rem; line-height: 1.55; }
       .conforto b { color: #1976d2; }
+      .noticias { padding: 24px; border: 1px solid #d3d9e4; border-radius: 26px; background: #fff; }
+      .noticias header { margin-bottom: 14px; }
+      .noticias h2 { font-size: 1.35rem; }
+      .noticias a { color: #0071e3; font-size: .88rem; font-weight: 700; text-decoration: none; }
+      .lista-noticias { display: grid; gap: 10px; }
+      .noticia { display: block; padding: 14px; border-radius: 16px; background: #f2f5fa; color: #1d1d1f !important; text-decoration: none; transition: transform .2s, background .2s; }
+      .noticia:hover { background: #e8f3ff; transform: translateY(-1px); }
+      .noticia strong { display: block; font-size: .96rem; line-height: 1.35; }
+      .noticia small { display: block; margin-top: 5px; color: #6e6e73; }
+      .noticias-vazio { color: #6e6e73; font-size: .92rem; }
       .carregando { padding: 34px; color: #6e6e73; text-align: center; }
       @media (max-width: 560px) { .pagina { width: min(100% - 24px, 920px); padding-top: 18px; } .topo { align-items: flex-start; } .marca img { width: 103px; height: 103px; } .voltar { min-height: 38px; padding: 0 11px; font-size: .77rem; } .hero { padding: 21px; border-radius: 24px; } .icone-tempo { width: 78px; height: 78px; font-size: 3.2rem; } .grade { gap: 10px; } .cartao { min-height: 103px; padding: 15px; border-radius: 19px; } .direcao { gap: 12px; padding: 15px; } .rosa { flex-basis: 62px; width: 62px; height: 62px; font-size: 1.5rem; } section { margin-top: 30px; } }
     </style>
@@ -67,11 +77,27 @@
       const direcao = (graus) => ["Norte","Nordeste","Leste","Sudeste","Sul","Sudoeste","Oeste","Noroeste"][Math.round(graus / 45) % 8];
       const dia = (data) => new Intl.DateTimeFormat("pt-BR", { weekday:"short", day:"2-digit" }).format(new Date(data + "T12:00:00"));
       const status = (vento, chuva) => vento <= 15 && chuva < 30 ? ["Bom", "bom"] : vento <= 25 && chuva < 60 ? ["Atenção", "atencao"] : ["Evite voar", "ruim"];
-      function conforto(temp, uv) {
-        if (uv >= 7) return `Protetor solar e boné — <b>UV alto</b> no horário mais quente.`;
-        if (temp >= 30) return `Dia quente: leve água e faça pausas à sombra.`;
-        if (temp <= 17) return `Temperatura mais baixa: leve uma camada extra.`;
+      function conforto(temp, uv, codigo, chanceChuva) {
+        if (chanceChuva >= 40 || codigo >= 51) return `Não esqueça o <b>guarda-chuva</b> — há possibilidade de chuva nas condições atuais.`;
+        if (uv >= 6) return `Use <b>protetor solar e boné</b> — o índice UV ficará alto hoje.`;
+        if (temp >= 30) return `Leve água e procure sombra nos períodos mais quentes do dia.`;
+        if (temp <= 17) return `Leve uma camada extra de roupa para ficar confortável no campo.`;
         return `Condições agradáveis para aproveitar o campo.`;
+      }
+      function textoSeguro(texto) { const caixa = document.createElement("span"); caixa.textContent = texto || ""; return caixa.innerHTML; }
+      async function carregarNoticias() {
+        const lista = document.querySelector("#lista-noticias");
+        if (!lista) return;
+        const busca = "https://news.google.com/rss/search?q=clima+Brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419";
+        try {
+          const endpoint = "https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent(busca);
+          const resposta = await fetch(endpoint);
+          const dados = await resposta.json();
+          if (dados.status !== "ok" || !dados.items?.length) throw Error("Sem notícias");
+          lista.innerHTML = dados.items.slice(0, 3).map((item) => `<a class="noticia" href="${textoSeguro(item.link)}" target="_blank" rel="noopener noreferrer"><strong>${textoSeguro(item.title)}</strong><small>${textoSeguro(item.pubDate || "Notícia recente")}</small></a>`).join("");
+        } catch {
+          lista.innerHTML = `<p class="noticias-vazio">Não foi possível carregar as manchetes agora. <a href="${busca}" target="_blank" rel="noopener noreferrer">Ver notícias recentes</a></p>`;
+        }
       }
       async function carregar() {
         try {
@@ -79,7 +105,8 @@
           const dados = await (await fetch(url)).json();
           const c = dados.current, d = dados.daily, chuva = d.precipitation_probability_max[0], s = status(c.wind_speed_10m, chuva), agora = new Intl.DateTimeFormat("pt-BR", {hour:"2-digit",minute:"2-digit"}).format(new Date());
           const dias = d.time.map((data, i) => { const st = status(d.wind_speed_10m_max[i], d.precipitation_probability_max[i]); return `<article class="dia"><strong>${dia(data)}</strong><span class="tempo">${icone(d.weather_code[i])}</span><small>${Math.round(d.temperature_2m_min[i])}° / ${Math.round(d.temperature_2m_max[i])}°</small><small>💨 ${Math.round(d.wind_speed_10m_max[i])} km/h · 🌧️ ${d.precipitation_probability_max[i]}%</small><span class="status ${st[1]}">${st[0]}</span></article>`; }).join("");
-          document.querySelector("#conteudo").outerHTML = `<div id="conteudo"><section class="hero"><div><p class="condicao">${descricao(c.weather_code).toUpperCase()}</p><p class="temperatura">${Math.round(c.temperature_2m)}°</p><p class="sensacao">Sensação térmica de ${Math.round(c.apparent_temperature)}°C</p></div><div class="icone-tempo">${icone(c.weather_code)}</div></section><div class="grade"><article class="cartao"><p class="numero"><span class="simbolo">≋</span>${Math.round(c.wind_speed_10m)} km/h</p><p class="rotulo">Vento</p></article><article class="cartao"><p class="numero"><span class="simbolo">≋</span>${Math.round(c.wind_gusts_10m)} km/h</p><p class="rotulo">Rajada</p></article><article class="cartao"><p class="numero"><span class="simbolo">☔</span>${chuva}%</p><p class="rotulo">Chuva (prob. hoje)</p></article><article class="cartao"><p class="numero"><span class="simbolo">◉</span>${(c.visibility / 1000).toFixed(1)} km</p><p class="rotulo">Visibilidade</p></article><article class="cartao largo"><p class="numero"><span class="simbolo">▲</span>${Math.round(dados.elevation || 587)} m</p><p class="rotulo">Altitude aproximada do campo</p></article></div><article class="direcao"><div class="rosa" style="--vento:${c.wind_direction_10m}deg">➤</div><div><strong>Vento vindo do ${direcao(c.wind_direction_10m)}</strong><p>${Math.round(c.wind_direction_10m)}° · velocidade atual de ${Math.round(c.wind_speed_10m)} km/h</p></div></article><section><header><h2>Próximos dias</h2><span class="atualizado">Atualizado às ${agora}</span></header><div class="dias">${dias}</div></section><section class="conforto"><h2>☀️ Conforto de campo</h2><p>${Math.round(c.temperature_2m)}°C · sensação ${Math.round(c.apparent_temperature)}°C</p><p>${conforto(c.temperature_2m, d.uv_index_max[0])}</p></section></div>`;
+          document.querySelector("#conteudo").outerHTML = `<div id="conteudo"><section class="hero"><div><p class="condicao">${descricao(c.weather_code).toUpperCase()}</p><p class="temperatura">${Math.round(c.temperature_2m)}°</p><p class="sensacao">Sensação térmica de ${Math.round(c.apparent_temperature)}°C</p></div><div class="icone-tempo">${icone(c.weather_code)}</div></section><div class="grade"><article class="cartao"><p class="numero"><span class="simbolo">≋</span>${Math.round(c.wind_speed_10m)} km/h</p><p class="rotulo">Vento</p></article><article class="cartao"><p class="numero"><span class="simbolo">≋</span>${Math.round(c.wind_gusts_10m)} km/h</p><p class="rotulo">Rajada</p></article><article class="cartao"><p class="numero"><span class="simbolo">☔</span>${chuva}%</p><p class="rotulo">Chuva (prob. hoje)</p></article><article class="cartao"><p class="numero"><span class="simbolo">◉</span>${(c.visibility / 1000).toFixed(1)} km</p><p class="rotulo">Visibilidade</p></article><article class="cartao largo"><p class="numero"><span class="simbolo">▲</span>${Math.round(dados.elevation || 587)} m</p><p class="rotulo">Altitude aproximada do campo</p></article></div><article class="direcao"><div class="rosa" style="--vento:${c.wind_direction_10m}deg">➤</div><div><strong>Vento vindo do ${direcao(c.wind_direction_10m)}</strong><p>${Math.round(c.wind_direction_10m)}° · velocidade atual de ${Math.round(c.wind_speed_10m)} km/h</p></div></article><section><header><h2>Próximos dias</h2><span class="atualizado">Atualizado às ${agora}</span></header><div class="dias">${dias}</div></section><section class="conforto"><h2>☀️ Conforto de campo</h2><p>${Math.round(c.temperature_2m)}°C · sensação ${Math.round(c.apparent_temperature)}°C</p><p>${conforto(c.temperature_2m, d.uv_index_max[0], c.weather_code, chuva)}</p></section><section class="noticias"><header><h2>Notícias do clima</h2><a href="https://news.google.com/search?q=clima%20Brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419" target="_blank" rel="noopener noreferrer">Ver todas</a></header><div id="lista-noticias" class="lista-noticias"><p class="noticias-vazio">Carregando notícias recentes...</p></div></section></div>`;
+          carregarNoticias();
         } catch (erro) { document.querySelector("#conteudo").innerHTML = "Não foi possível atualizar o clima agora. Verifique a conexão e tente novamente."; }
       }
       carregar();
