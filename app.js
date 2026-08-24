@@ -32,7 +32,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.5.5",
+  VERSAO_APP = "V1.5.6",
   PIX = "00020126580014BR.GOV.BCB.PIX0136c9cb7e85-240b-46e5-b500-3278442092475204000053039865802BR5912Clube 14 Bis6011Mirassol SP62160512Bebidas14Bis63045F94",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -118,26 +118,26 @@ async function registrarNomeUsuario(username, user) {
 function tela(id) {
   telas.forEach((x) => x.classList.toggle("ativa", x.id === id));
 }
-function load(a, t = "CARREGANDO...") {
+function load(a, t = "Carregando...") {
   textoCarregando.textContent = t;
   carregando.classList.toggle("visivel", a);
 }
 function erro(e) {
   return (
     {
-      "auth/invalid-credential": "USUÁRIO OU SENHA INCORRETOS.",
-      "auth/email-already-in-use": "ESTE E-MAIL JÁ ESTÁ CADASTRADO.",
-      "auth/weak-password": "A SENHA PRECISA TER AO MENOS 6 CARACTERES.",
-      "auth/invalid-email": "INFORME UM E-MAIL VÁLIDO.",
-      "auth/user-not-found": "NÃO ENCONTRAMOS UMA CONTA COM ESTE E-MAIL.",
-      "auth/too-many-requests": "MUITAS TENTATIVAS. AGUARDE ALGUNS MINUTOS.",
-      "auth/network-request-failed": "VERIFIQUE SUA CONEXÃO COM A INTERNET.",
-      USERNAME_TAKEN: "ESTE NOME DE USUÁRIO JÁ ESTÁ EM USO.",
-      FIREBASE_AUTH_FAILED: "NÃO FOI POSSÍVEL VALIDAR O CADASTRO. TENTE NOVAMENTE.",
-      INVALID_TOKEN: "A SESSÃO EXPIROU. TENTE CRIAR O CADASTRO NOVAMENTE.",
+      "auth/invalid-credential": "Usuário ou senha incorretos.",
+      "auth/email-already-in-use": "Este e-mail já está cadastrado.",
+      "auth/weak-password": "A senha precisa ter ao menos 6 caracteres.",
+      "auth/invalid-email": "Informe um e-mail válido.",
+      "auth/user-not-found": "Não encontramos uma conta com este e-mail.",
+      "auth/too-many-requests": "Muitas tentativas. Aguarde alguns minutos.",
+      "auth/network-request-failed": "Verifique sua conexão com a internet.",
+      USERNAME_TAKEN: "Este nome de usuário já está em uso.",
+      FIREBASE_AUTH_FAILED: "Não foi possível validar o cadastro. Tente novamente.",
+      INVALID_TOKEN: "A sessão expirou. Tente criar o cadastro novamente.",
     }[e.code] ||
     e.message ||
-    "NÃO FOI POSSÍVEL CONCLUIR A OPERAÇÃO."
+    "Não foi possível concluir a operação."
   );
 }
 async function clima() {
@@ -199,7 +199,7 @@ function itens(cat) {
   );
 }
 async function bebidas() {
-  load(true, "CARREGANDO BEBIDAS...");
+  load(true, "Carregando bebidas...");
   try {
     await catalogo();
     let out = ordemCategorias
@@ -212,7 +212,7 @@ async function bebidas() {
       .join("");
     $("#lista-bebidas").innerHTML =
       out ||
-      "<p class='carrinho-vazio'>NENHUM PRODUTO DISPONÍVEL NO MOMENTO.</p>";
+      "<p class='carrinho-vazio'>Nenhum produto disponível no momento.</p>";
     carrinho = {};
     atualizar();
     tela("tela-bebidas");
@@ -275,7 +275,7 @@ function renderDetalhesHistorico() {
   $("#total-dia-historico").textContent = fmt(pedidosDia.reduce((s, p) => s + (+p.totalCents || 0), 0));
 }
 async function abrirHistorico() {
-  load(true, "CARREGANDO HISTÓRICO...");
+  load(true, "Carregando histórico...");
   try {
     let dados = demo ? {} : (await get(ref(db, `userOrders/${usuarioAtual.uid}`))).val() || {};
     historicoPedidos = Object.values(dados).filter((p) => p && Number.isFinite(+p.createdAt) && dentroDosTresMeses(new Date(+p.createdAt)));
@@ -333,7 +333,7 @@ function atualizar() {
   barraCarrinho.classList.toggle("tem-itens", n > 0);
   resumoCarrinho.textContent = n
     ? `${n} ITEN${n > 1 ? "S" : ""} • ${fmt(v)}`
-    : "CARRINHO VAZIO";
+    : "Carrinho vazio";
   botaoCarrinho.disabled = !n;
   listaCarrinho.innerHTML = n
     ? Object.entries(carrinho)
@@ -366,14 +366,14 @@ async function sair() {
 function obrigadoTela(v) {
   const p = obrigado.querySelector(".obrigado-conteudo p");
   p.textContent =
-    "SUA ESCOLHA FOI REGISTRADA. A GELADEIRA SERÁ ABERTA EM INSTANTES.";
+    "Sua escolha foi registrada. A geladeira será aberta em instantes.";
   p.classList.remove("geladeira-aberta", "geladeira-trancada");
   $("#valor-final").textContent = fmt(v);
   $("#contador").classList.add("oculto");
   obrigado.classList.add("visivel");
   retornoLogin = setTimeout(() => {
     let restante = 10;
-    p.textContent = "GELADEIRA ABERTA. DESTRAVADA POR 10 SEGUNDOS.";
+    p.textContent = "Geladeira aberta. Destravada por 10 segundos.";
     p.classList.add("geladeira-aberta");
     $("#contador").textContent = restante;
     $("#contador").classList.remove("oculto");
@@ -382,7 +382,7 @@ function obrigadoTela(v) {
       if (restante <= 0) {
         clearInterval(intervaloObrigado);
         $("#contador").classList.add("oculto");
-        p.textContent = "GELADEIRA TRANCADA.";
+        p.textContent = "Geladeira trancada.";
         p.classList.remove("geladeira-aberta");
         p.classList.add("geladeira-trancada");
         return;
@@ -410,7 +410,7 @@ async function sheets(orderId, items, totalCents) {
 async function enviar(b) {
   if (!usuarioAtual || !qtd()) return;
   b.disabled = true;
-  load(true, "REGISTRANDO PEDIDO...");
+  load(true, "Registrando pedido...");
   try {
     let items = Object.entries(carrinho).map(([id, quantity]) => ({
         id,
@@ -465,7 +465,7 @@ $("#form-login").addEventListener("submit", async (e) => {
     bebidas();
     return;
   }
-  load(true, "ENTRANDO...");
+  load(true, "Entrando...");
   try {
     let c;
     try {
@@ -511,14 +511,14 @@ $("#form-atualizar-email").addEventListener("submit", async (e) => {
   erroAtualizarEmail.textContent = "";
   try {
     const endereco = emailValido($("#atualizar-email").value);
-    load(true, "ATUALIZANDO E-MAIL...");
+    load(true, "Atualizando e-mail...");
     auth.languageCode = "pt-BR";
     await verifyBeforeUpdateEmail(usuarioAtual, endereco, {
       url: `${location.origin}${location.pathname.replace(/index\\.html$/, "")}reset.html`,
       handleCodeInApp: true,
     });
     erroAtualizarEmail.classList.add("sucesso");
-    erroAtualizarEmail.textContent = "ENVIAMOS UM LINK PARA CONFIRMAR O E-MAIL. ABRA-O PARA CONCLUIR.";
+    erroAtualizarEmail.textContent = "Enviamos um link para confirmar o e-mail. Abra-o para concluir.";
     tela("tela-login");
   } catch (e) {
     erroAtualizarEmail.classList.remove("sucesso");
@@ -532,11 +532,11 @@ $("#form-recuperacao").addEventListener("submit", async (e) => {
   erroRecuperacao.textContent = "";
   try {
     const endereco = emailValido($("#rec-email").value);
-    load(true, "ENVIANDO E-MAIL...");
+    load(true, "Enviando e-mail...");
     auth.languageCode = "pt-BR";
     await sendPasswordResetEmail(auth, endereco);
     erroRecuperacao.classList.add("sucesso");
-    erroRecuperacao.textContent = "SE O E-MAIL ESTIVER CADASTRADO, O LINK DE RECUPERAÇÃO FOI ENVIADO.";
+    erroRecuperacao.textContent = "Se o e-mail estiver cadastrado, o link de recuperação foi enviado.";
   } catch (e) {
     erroRecuperacao.classList.remove("sucesso");
     erroRecuperacao.textContent = erro(e);
@@ -557,11 +557,11 @@ $("#form-cadastro").addEventListener("submit", async (e) => {
       cpf = $("#cad-cpf").value.replace(/\D/g, ""),
       contactEmail = emailValido($("#cad-email").value),
       senha = $("#cad-senha").value;
-    if (fullName.length < 3) throw Error("INFORME O NOME COMPLETO.");
-    if (phone.length < 10) throw Error("INFORME O CELULAR COM DDD.");
-    if (!cpfOk(cpf)) throw Error("INFORME UM CPF VÁLIDO.");
+    if (fullName.length < 3) throw Error("Informe o nome completo.");
+    if (phone.length < 10) throw Error("Informe o celular com DDD.");
+    if (!cpfOk(cpf)) throw Error("Informe um CPF válido.");
     if (senha.length < 6)
-      throw Error("A SENHA PRECISA TER AO MENOS 6 CARACTERES.");
+      throw Error("A senha precisa ter ao menos 6 caracteres.");
     let c,
       perfilGravado = false,
       nomeRegistrado = false;
