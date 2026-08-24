@@ -60,6 +60,12 @@ function paraCentavos(valor) {
   const centavos = Math.round(reais * 100);
   return Number.isSafeInteger(centavos) ? centavos : null;
 }
+function paraEstoque(valor) {
+  const estoque = Number(String(valor ?? "").trim());
+  return Number.isSafeInteger(estoque) && estoque >= 0 && estoque <= 1000000
+    ? estoque
+    : null;
+}
 function mostrarPainel(ativo) {
   $("#login-admin").hidden = ativo;
   $("#painel-admin").hidden = !ativo;
@@ -73,7 +79,7 @@ function render() {
     .map((cat) =>
       !grupos[cat]
         ? ""
-        : `<section class="grupo-admin"><h2>${cat}</h2>${grupos[cat].map((p) => `<article class="linha-produto" data-id="${p.id}"><img src="${encodeURI(imagemProduto(p.image))}" alt=""><div class="nome-produto">${p.name}</div><label class="chave"><input class="ativo" type="checkbox" ${p.enabled ? "checked" : ""}><span>EXIBIR</span></label><label class="preco-campo">PREÇO<input class="preco" inputmode="decimal" value="${((p.priceCents || 0) / 100).toFixed(2).replace(".", ",")}" aria-label="PREÇO ${p.name}"></label><button class="remover-produto" type="button" data-remover="${p.id}" aria-label="REMOVER ${p.name}">×</button></article>`).join("")}</section>`,
+        : `<section class="grupo-admin"><h2>${cat}</h2>${grupos[cat].map((p) => `<article class="linha-produto" data-id="${p.id}"><img src="${encodeURI(imagemProduto(p.image))}" alt=""><div class="nome-produto">${p.name}</div><label class="chave"><input class="ativo" type="checkbox" ${p.enabled ? "checked" : ""}><span>EXIBIR</span></label><label class="preco-campo">PREÇO<input class="preco" inputmode="decimal" value="${((p.priceCents || 0) / 100).toFixed(2).replace(".", ",")}" aria-label="PREÇO ${p.name}"></label><label class="preco-campo">ESTOQUE<input class="estoque" type="number" min="0" step="1" inputmode="numeric" value="${Number.isSafeInteger(+p.stock) && +p.stock >= 0 ? +p.stock : 0}" aria-label="ESTOQUE ${p.name}"></label><button class="remover-produto" type="button" data-remover="${p.id}" aria-label="REMOVER ${p.name}">×</button></article>`).join("")}</section>`,
     )
     .join("");
 }
@@ -98,14 +104,20 @@ async function salvar() {
   document.querySelectorAll(".linha-produto").forEach((l) => {
     const id = l.dataset.id;
     const cents = paraCentavos(l.querySelector(".preco").value);
+    const stock = paraEstoque(l.querySelector(".estoque").value);
     if (cents === null) {
       erroPreco = `PREÇO INVÁLIDO PARA ${catalogo[id].name}.`;
+      return;
+    }
+    if (stock === null) {
+      erroPreco = `ESTOQUE INVÁLIDO PARA ${catalogo[id].name}.`;
       return;
     }
     catalogo[id] = {
       ...catalogo[id],
       enabled: l.querySelector(".ativo").checked,
       priceCents: cents,
+      stock,
     };
     const { id: campoTecnico, ...produtoParaSalvar } = catalogo[id];
     atualizacoes[`catalog/${id}`] = produtoParaSalvar;
@@ -177,6 +189,7 @@ $("#adicionar-produto").addEventListener("click", () => {
     category = $("#novo-categoria").value,
     image = $("#nova-imagem").value.trim() || "agua.png",
     priceCents = paraCentavos($("#novo-preco").value),
+    stock = paraEstoque($("#novo-estoque").value),
     id = slugProduto(name);
   if (!name) {
     $("#mensagem-admin").textContent = "INFORME O NOME DO NOVO PRODUTO.";
@@ -184,6 +197,10 @@ $("#adicionar-produto").addEventListener("click", () => {
   }
   if (priceCents === null) {
     $("#mensagem-admin").textContent = "INFORME UM PREÇO VÁLIDO.";
+    return;
+  }
+  if (stock === null) {
+    $("#mensagem-admin").textContent = "INFORME UMA QUANTIDADE VÁLIDA.";
     return;
   }
   if (catalogo[id]) {
@@ -197,11 +214,12 @@ $("#adicionar-produto").addEventListener("click", () => {
     image,
     enabled: true,
     priceCents,
-    stock: 999,
+    stock,
   };
   ["#novo-nome", "#nova-imagem", "#novo-preco"].forEach(
     (s) => ($(s).value = ""),
   );
+  $("#novo-estoque").value = "0";
   $("#mensagem-admin").textContent =
     "PRODUTO ADICIONADO. CLIQUE EM SALVAR ALTERAÇÕES PARA GRAVAR.";
   render();
