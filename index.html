@@ -1993,7 +1993,29 @@
         .produto-add { width: 68px !important; min-width: 68px !important; height: 48px !important; }
         .produto-add .icone-adicionar { width: 46px; height: 46px; }
         .produto-add .quantidade { width: 68px; height: 48px; }
-        .produto-add .quantidade button { flex: 0 0 22px !important; width: 22px !important; height: 28px !important; }
+      .produto-add .quantidade button { flex: 0 0 22px !important; width: 22px !important; height: 28px !important; }
+      }
+
+      .estoque-produto {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 4;
+        display: grid;
+        place-items: center;
+        min-width: 28px;
+        height: 28px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: #e5484d;
+        color: #fff;
+        font-size: .76rem;
+        font-weight: 800;
+        line-height: 1;
+        box-shadow: 0 3px 10px rgba(229, 72, 77, .32);
+      }
+      @media (max-width: 600px) {
+        .estoque-produto { top: 8px; right: 8px; min-width: 24px; height: 24px; font-size: .68rem; }
       }
     </style>
   </head>
@@ -2288,6 +2310,6 @@
         <p class="toque-voltar">Toque na tela para voltar ao login</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.5.17"></script>
+    <script type="module" src="app.js?v=1.5.18"></script>
   </body>
 </html>
