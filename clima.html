@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f2f2f7" />
+    <title>Clube 14 BIS | Clima</title>
+    <style>
+      :root { font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; color: #1d1d1f; background: #f2f2f7; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-width: 320px; background: #f2f2f7; }
+      button, a { font: inherit; }
+      .pagina { width: min(100% - 32px, 920px); margin: 0 auto; padding: 26px 0 54px; }
+      .topo { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+      .marca { display: flex; align-items: center; gap: 12px; }
+      .marca img { width: 56px; height: 56px; object-fit: contain; filter: drop-shadow(0 7px 10px rgba(0,0,0,.12)); }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(1.42rem, 4vw, 2rem); letter-spacing: -.035em; }
+      .local { color: #6e6e73; font-size: .88rem; margin-top: 3px; }
+      .voltar { display: inline-flex; align-items: center; min-height: 42px; padding: 0 15px; border: 1px solid rgba(0,113,227,.25); border-radius: 14px; color: #0071e3; background: rgba(255,255,255,.72); text-decoration: none; font-weight: 700; transition: transform .2s, box-shadow .2s; }
+      .voltar:hover { transform: translateY(-1px); box-shadow: 0 7px 16px rgba(0,113,227,.14); }
+      .hero { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; padding: 25px; border: 1px solid rgba(60,60,67,.15); border-radius: 28px; background: rgba(255,255,255,.9); box-shadow: 0 14px 34px rgba(20,25,35,.08); }
+      .condicao { color: #0071e3; font-size: 1rem; font-weight: 800; letter-spacing: .02em; }
+      .temperatura { margin-top: 3px; font-size: clamp(3.2rem, 12vw, 5.3rem); font-weight: 800; letter-spacing: -.075em; line-height: .95; }
+      .sensacao { margin-top: 9px; color: #6e6e73; font-size: 1.02rem; }
+      .icone-tempo { width: 104px; height: 104px; display: grid; place-items: center; border-radius: 50%; background: #e8f3ff; color: #0071e3; font-size: 4.3rem; }
+      .grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+      .cartao { min-height: 116px; padding: 19px; border-radius: 23px; background: #e9edf5; }
+      .cartao.largo { grid-column: span 2; min-height: 104px; }
+      .rotulo { color: #6e6e73; font-size: .9rem; margin-top: 5px; }
+      .numero { color: #172434; font-size: clamp(1.45rem, 4vw, 2rem); font-weight: 800; letter-spacing: -.035em; }
+      .simbolo { color: #1976d2; font-size: 1.45rem; margin-right: 7px; vertical-align: -2px; }
+      .direcao { display: flex; align-items: center; gap: 16px; margin-top: 14px; padding: 18px; border-radius: 23px; background: #e9edf5; }
+      .rosa { display: grid; place-items: center; flex: 0 0 82px; width: 82px; height: 82px; border: 2px solid #d0d7e3; border-radius: 50%; color: #0071e3; font-size: 2rem; transform: rotate(var(--vento, 0deg)); }
+      .direcao strong { display: block; font-size: 1.25rem; }
+      .direcao p { color: #6e6e73; line-height: 1.4; margin-top: 4px; }
+      section { margin-top: 38px; }
+      section > header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+      h2 { font-size: clamp(1.45rem, 5vw, 2rem); letter-spacing: -.03em; }
+      .atualizado { color: #6e6e73; font-size: .82rem; }
+      .dias { display: grid; grid-template-columns: repeat(7, minmax(125px, 1fr)); gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+      .dia { min-height: 178px; padding: 17px 14px; border: 1px solid #d3d9e4; border-radius: 22px; background: #fff; text-align: center; }
+      .dia strong { display: block; font-size: 1rem; }
+      .dia .tempo { display: block; margin: 13px 0 11px; font-size: 1.7rem; }
+      .dia small { display: block; color: #6e6e73; font-size: .84rem; line-height: 1.55; }
+      .status { display: inline-flex; align-items: center; justify-content: center; width: 100%; margin-top: 12px; padding: 7px 9px; border-radius: 999px; color: #fff; font-size: .8rem; font-weight: 800; }
+      .bom { background: #16804b; } .atencao { background: #c97a00; } .ruim { background: #d94b4b; }
+      .conforto { padding: 24px; border: 1px solid #d3d9e4; border-radius: 26px; background: #fff; }
+      .conforto h2 { color: #172434; font-size: 1.35rem; }
+      .conforto p { margin-top: 14px; color: #4f5967; font-size: 1.05rem; line-height: 1.55; }
+      .conforto b { color: #1976d2; }
+      .carregando { padding: 34px; color: #6e6e73; text-align: center; }
+      @media (max-width: 560px) { .pagina { width: min(100% - 24px, 920px); padding-top: 18px; } .topo { align-items: flex-start; } .marca img { width: 47px; height: 47px; } .voltar { min-height: 38px; padding: 0 11px; font-size: .77rem; } .hero { padding: 21px; border-radius: 24px; } .icone-tempo { width: 78px; height: 78px; font-size: 3.2rem; } .grade { gap: 10px; } .cartao { min-height: 103px; padding: 15px; border-radius: 19px; } .direcao { gap: 12px; padding: 15px; } .rosa { flex-basis: 62px; width: 62px; height: 62px; font-size: 1.5rem; } section { margin-top: 30px; } }
+    </style>
+  </head>
+  <body>
+    <main class="pagina">
+      <header class="topo">
+        <div class="marca"><img src="logo14bis.png" alt="Clube 14 BIS"><div><h1>Clube 14 BIS</h1><p class="local">Condições de campo</p></div></div>
+        <a class="voltar" href="index.html">Voltar à geladeira</a>
+      </header>
+      <div id="conteudo" class="carregando">Atualizando condições do campo...</div>
+    </main>
+    <script>
+      const cidade = "Mirassol";
+      const icone = (codigo) => ({0:"☀️",1:"🌤️",2:"⛅",3:"☁️",45:"🌫️",48:"🌫️",51:"🌦️",53:"🌦️",55:"🌧️",61:"🌧️",63:"🌧️",65:"🌧️",71:"❄️",80:"🌦️",81:"🌧️",82:"⛈️",95:"⛈️"}[codigo] || "🌤️");
+      const descricao = (codigo) => ({0:"Céu limpo",1:"Predominantemente limpo",2:"Parcialmente nublado",3:"Nublado",45:"Neblina",48:"Neblina",51:"Garoa",53:"Garoa",55:"Garoa",61:"Chuva fraca",63:"Chuva",65:"Chuva forte",80:"Pancadas de chuva",81:"Pancadas de chuva",82:"Pancadas fortes",95:"Trovoadas"}[codigo] || "Condições do campo");
+      const direcao = (graus) => ["Norte","Nordeste","Leste","Sudeste","Sul","Sudoeste","Oeste","Noroeste"][Math.round(graus / 45) % 8];
+      const dia = (data) => new Intl.DateTimeFormat("pt-BR", { weekday:"short", day:"2-digit" }).format(new Date(data + "T12:00:00"));
+      const status = (vento, chuva) => vento <= 15 && chuva < 30 ? ["Bom", "bom"] : vento <= 25 && chuva < 60 ? ["Atenção", "atencao"] : ["Evite voar", "ruim"];
+      function conforto(temp, uv) {
+        if (uv >= 7) return `Protetor solar e boné — <b>UV alto</b> no horário mais quente.`;
+        if (temp >= 30) return `Dia quente: leve água e faça pausas à sombra.`;
+        if (temp <= 17) return `Temperatura mais baixa: leve uma camada extra.`;
+        return `Condições agradáveis para aproveitar o campo.`;
+      }
+      async function carregar() {
+        try {
+          const url = "https://api.open-meteo.com/v1/forecast?latitude=-20.816&longitude=-49.52&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,uv_index_max&timezone=America%2FSao_Paulo&forecast_days=7";
+          const dados = await (await fetch(url)).json();
+          const c = dados.current, d = dados.daily, chuva = d.precipitation_probability_max[0], s = status(c.wind_speed_10m, chuva), agora = new Intl.DateTimeFormat("pt-BR", {hour:"2-digit",minute:"2-digit"}).format(new Date());
+          const dias = d.time.map((data, i) => { const st = status(d.wind_speed_10m_max[i], d.precipitation_probability_max[i]); return `<article class="dia"><strong>${dia(data)}</strong><span class="tempo">${icone(d.weather_code[i])}</span><small>${Math.round(d.temperature_2m_min[i])}° / ${Math.round(d.temperature_2m_max[i])}°</small><small>💨 ${Math.round(d.wind_speed_10m_max[i])} km/h · 🌧️ ${d.precipitation_probability_max[i]}%</small><span class="status ${st[1]}">${st[0]}</span></article>`; }).join("");
+          document.querySelector("#conteudo").outerHTML = `<div id="conteudo"><section class="hero"><div><p class="condicao">${cidade.toUpperCase()} · ${descricao(c.weather_code).toUpperCase()}</p><p class="temperatura">${Math.round(c.temperature_2m)}°</p><p class="sensacao">Sensação térmica de ${Math.round(c.apparent_temperature)}°C</p></div><div class="icone-tempo">${icone(c.weather_code)}</div></section><div class="grade"><article class="cartao"><p class="numero"><span class="simbolo">≋</span>${Math.round(c.wind_speed_10m)} km/h</p><p class="rotulo">Vento</p></article><article class="cartao"><p class="numero"><span class="simbolo">≋</span>${Math.round(c.wind_gusts_10m)} km/h</p><p class="rotulo">Rajada</p></article><article class="cartao"><p class="numero"><span class="simbolo">☔</span>${chuva}%</p><p class="rotulo">Chuva (prob. hoje)</p></article><article class="cartao"><p class="numero"><span class="simbolo">◉</span>${(c.visibility / 1000).toFixed(1)} km</p><p class="rotulo">Visibilidade</p></article><article class="cartao largo"><p class="numero"><span class="simbolo">▲</span>${Math.round(dados.elevation || 587)} m</p><p class="rotulo">Altitude aproximada do campo</p></article></div><article class="direcao"><div class="rosa" style="--vento:${c.wind_direction_10m}deg">➤</div><div><strong>Vento vindo do ${direcao(c.wind_direction_10m)}</strong><p>${Math.round(c.wind_direction_10m)}° · velocidade atual de ${Math.round(c.wind_speed_10m)} km/h</p></div></article><section><header><h2>Próximos dias</h2><span class="atualizado">Atualizado às ${agora}</span></header><div class="dias">${dias}</div></section><section class="conforto"><h2>☀️ Conforto de campo</h2><p>${Math.round(c.temperature_2m)}°C · sensação ${Math.round(c.apparent_temperature)}°C</p><p>${conforto(c.temperature_2m, d.uv_index_max[0])}</p></section></div>`;
+        } catch (erro) { document.querySelector("#conteudo").innerHTML = "Não foi possível atualizar o clima agora. Verifique a conexão e tente novamente."; }
+      }
+      carregar();
+    </script>
+  </body>
+</html>
