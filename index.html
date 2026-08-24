@@ -271,8 +271,10 @@
         display: block;
         width: 100%;
         margin: 17px auto 0;
-        border: 0;
-        font-size: 0.74rem;
+        height: 48px;
+        border: 1px solid rgba(0, 113, 227, 0.36);
+        border-radius: 14px;
+        font-size: 0.8rem;
         letter-spacing: 0.08em;
         text-decoration: none;
       }
@@ -1730,7 +1732,7 @@
         .consumo-historico > b { grid-column: 2; }
       }
       /* Sistema visual inspirado no SF Pro / Apple. */
-      :root { font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; font-size: clamp(17px, 1vw + 13px, 19px); --bg: #f2f2f7; --panel: rgba(255,255,255,.92); --soft: #f5f5f7; --line: rgba(60,60,67,.18); --text: #1d1d1f; --muted: #6e6e73; --blue: #0071e3; --brand: #0071e3; }
+      :root { font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; font-size: 16px; --bg: #f2f2f7; --panel: rgba(255,255,255,.92); --soft: #f5f5f7; --line: rgba(60,60,67,.18); --text: #1d1d1f; --muted: #6e6e73; --blue: #0071e3; --brand: #0071e3; }
       body, button, input, select, textarea, h1, h2, h3, label, small, .subtitulo, .texto-menor, .erro, .status-clube, .toque-voltar, .carrinho-info, .resumo-historico { text-transform: uppercase !important; letter-spacing: .045em !important; }
       body { background: #f2f2f7; background-image: radial-gradient(circle at 0 0, rgba(0,113,227,.10), transparent 30rem); }
       .cartao { border-radius: 30px; border-color: rgba(255,255,255,.9); background: rgba(255,255,255,.88); box-shadow: 0 20px 55px rgba(0,0,0,.12); backdrop-filter: blur(20px); }
@@ -1746,11 +1748,11 @@
       @media (max-width: 600px) {
         main { padding-inline: 14px; }
         .cartao { padding: 30px 22px; }
-        .cartao h1 { font-size: clamp(1.9rem, 9vw, 2.35rem); }
-        label, #form-login label { font-size: 1rem; }
-        input { height: 60px; font-size: 1.05rem; }
-        .primario, .cadastro-btn { min-height: 58px; font-size: 1rem; }
-        .cabecalho h1, .historico-cabecalho h1 { font-size: 1.55rem; }
+        .cartao h1 { font-size: clamp(1.7rem, 8vw, 2.05rem); }
+        label, #form-login label { font-size: .82rem; }
+        input { height: 54px; font-size: 1rem; }
+        .primario, .cadastro-btn { min-height: 54px; font-size: .85rem; }
+        .cabecalho h1, .historico-cabecalho h1 { font-size: 1.35rem; }
       }
     </style>
   </head>
@@ -2047,6 +2049,6 @@
         <p class="toque-voltar">Toque na tela para voltar ao login</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.5.10"></script>
+    <script type="module" src="app.js?v=1.5.11"></script>
   </body>
 </html>
