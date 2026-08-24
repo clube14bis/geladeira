@@ -9,3 +9,4 @@ export const firebaseConfig = {
 };
 
 export const loginDomain = "SEU_PROJETO.local";
+export const authServiceUrl = "https://SEU-WORKER.workers.dev";

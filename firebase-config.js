@@ -11,6 +11,10 @@ export const firebaseConfig = {
 // O usuário vê somente o nome de usuário. Este domínio é interno e não recebe e-mail.
 export const loginDomain = 'usuarios.clube14bis.com';
 
+// Serviço que associa o nome de usuário ao e-mail do Firebase sem expor
+// endereços de e-mail na tela de login.
+export const authServiceUrl = 'https://geladeira-14bis-auth.clubedeaeromodelismo14bis.workers.dev';
+
 // Endpoint público do Apps Script. A autorização é feita com o token Firebase
 // do usuário conectado, que é enviado no momento da confirmação do pedido.
 export const sheetsEndpoint = 'https://script.google.com/macros/s/AKfycby4CO3iwOjnoSAZnPA0ZP9genQT38bPpXb8_ZkOzPWlys5ejRgkZKCDLbzqo6EhcnnR/exec';

@@ -19,9 +19,10 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
 import {
   firebaseConfig,
+  authServiceUrl,
   loginDomain,
   sheetsEndpoint,
-} from "./firebase-config.js?v=1.2.4";
+} from "./firebase-config.js?v=1.5.1";
 import {
   ordemCategorias,
   imagemProduto,
@@ -29,7 +30,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.5.0",
+  VERSAO_APP = "V1.5.1",
   PIX = "00020126580014BR.GOV.BCB.PIX0136c9cb7e85-240b-46e5-b500-3278442092475204000053039865802BR5912Clube 14 Bis6011Mirassol SP62160512Bebidas14Bis63045F94",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -90,6 +91,27 @@ function emailValido(valor) {
 function identificadorLogin(valor) {
   let v = valor.trim().toLowerCase();
   return v.includes("@") ? emailValido(v) : email(v);
+}
+async function servicoAuth(caminho, dados) {
+  if (!authServiceUrl) throw Error("SERVIÇO DE LOGIN NÃO CONFIGURADO.");
+  const resposta = await fetch(`${authServiceUrl}${caminho}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
+  const corpo = await resposta.json().catch(() => ({}));
+  if (!resposta.ok) {
+    const falha = Error(corpo.error || "USUÁRIO OU SENHA INCORRETOS.");
+    falha.code = corpo.error;
+    throw falha;
+  }
+  return corpo;
+}
+async function registrarNomeUsuario(username, user) {
+  await servicoAuth("/register", {
+    username: normalizarUsuario(username),
+    idToken: await user.getIdToken(),
+  });
 }
 function tela(id) {
   telas.forEach((x) => x.classList.toggle("ativa", x.id === id));
@@ -446,7 +468,17 @@ $("#form-login").addEventListener("submit", async (e) => {
   }
   load(true, "ENTRANDO...");
   try {
-    let c = await signInWithEmailAndPassword(auth, identificadorLogin(u), s);
+    let c;
+    try {
+      const conta = await servicoAuth("/login", {
+        username: normalizarUsuario(u),
+        password: s,
+      });
+      c = await signInWithEmailAndPassword(auth, conta.email, s);
+    } catch (falhaServico) {
+      // Compatibilidade temporária com contas antigas, que ainda usavam e-mail interno.
+      c = await signInWithEmailAndPassword(auth, identificadorLogin(u), s);
+    }
     usuarioAtual = c.user;
     perfilAtual = await perfil(c.user.uid);
     $("#form-login").reset();
@@ -484,6 +516,7 @@ $("#form-atualizar-email").addEventListener("submit", async (e) => {
     await updateEmail(usuarioAtual, endereco);
     await set(ref(db, `users/${usuarioAtual.uid}/email`), endereco);
     perfilAtual.email = endereco;
+    await registrarNomeUsuario(perfilAtual.username, usuarioAtual);
     await sendEmailVerification(usuarioAtual);
     await bebidas();
   } catch (e) {
@@ -528,6 +561,7 @@ $("#form-cadastro").addEventListener("submit", async (e) => {
     if (senha.length < 6)
       throw Error("A SENHA PRECISA TER AO MENOS 6 CARACTERES.");
     let c = await createUserWithEmailAndPassword(auth, contactEmail, senha);
+    await registrarNomeUsuario(username, c.user);
     await set(ref(db, `users/${c.user.uid}`), {
       username,
       fullName,
