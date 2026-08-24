@@ -1823,39 +1823,79 @@
       }
       /* No celular, a descrição pode encolher; o controle conserva sua própria coluna. */
       @media (max-width: 600px) {
-        .produto-corpo {
-          display: flex;
+        /* Grade de três colunas: imagem | informações | ação.
+           Nenhuma coluna pode empurrar ou esconder as outras. */
+        .produto {
+          display: grid !important;
+          grid-template-columns: 108px minmax(0, 1fr) 76px;
+          min-height: 142px !important;
           align-items: stretch;
-          min-width: 0;
-          width: auto;
-          padding-right: 10px !important;
         }
+        .produto-imagem {
+          grid-column: 1;
+          grid-row: 1;
+          width: 108px !important;
+          height: 142px !important;
+          min-width: 0;
+          padding: 8px !important;
+        }
+        .produto-corpo { display: contents !important; }
         .produto-corpo > span:first-child {
+          grid-column: 2;
+          grid-row: 1;
           display: flex;
-          flex: 1 1 auto;
           flex-direction: column;
           justify-content: center;
           min-width: 0;
-          max-width: none;
+          padding: 14px 6px 14px 12px;
+        }
+        .produto-nome {
+          display: block;
+          width: auto;
+          margin: 0 !important;
+          font-size: clamp(.78rem, 3.25vw, .94rem) !important;
+          line-height: 1.2 !important;
+          white-space: normal !important;
+          overflow: visible !important;
+          text-overflow: clip !important;
+          overflow-wrap: anywhere;
+        }
+        .produto-preco {
+          display: block;
+          margin: 8px 0 0 !important;
+          transform: none !important;
+          font-size: clamp(1.25rem, 5.4vw, 1.55rem) !important;
+          line-height: 1 !important;
+          white-space: nowrap;
         }
         .produto-add {
+          grid-column: 3;
+          grid-row: 1;
           position: static;
-          flex: 0 0 78px !important;
-          width: 78px !important;
-          height: 46px !important;
-          margin: 0 0 1px 8px !important;
-          align-self: flex-end;
+          align-self: center;
+          justify-self: center;
+          flex: none !important;
+          width: 68px !important;
+          height: 48px !important;
+          min-width: 68px !important;
+          margin: 0 !important;
+          overflow: visible;
         }
         .produto-add .icone-adicionar {
           width: 46px;
           height: 46px;
-          margin-left: auto;
+          margin: 0 auto;
         }
         .produto-add .quantidade {
-          width: 100%;
-          height: 46px;
+          width: 68px;
+          height: 48px;
+          gap: 1px !important;
         }
-        .produto-preco { white-space: nowrap; }
+        .produto-add .quantidade button {
+          flex: 0 0 22px !important;
+          width: 22px !important;
+          height: 28px !important;
+        }
       }
       @media (max-width: 600px) {
         main { padding-inline: 14px; }
