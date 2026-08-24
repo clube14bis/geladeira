@@ -154,7 +154,7 @@
       }
       .linha-produto {
         display: grid;
-        grid-template-columns: 64px minmax(150px, 1fr) 84px 120px 42px;
+        grid-template-columns: 64px minmax(150px, 1fr) 82px minmax(96px, 112px) minmax(96px, 112px) 42px;
         align-items: center;
         gap: 12px;
         margin: 8px 0;
@@ -234,20 +234,30 @@
         .linha-produto {
           grid-template-columns: 58px 1fr 42px;
           gap: 8px;
+          align-items: center;
+          padding: 12px 10px;
         }
+        .linha-produto img { grid-column: 1; grid-row: 1 / span 4; }
         .nome-produto {
           font-size: 0.9rem;
+          grid-column: 2;
+          grid-row: 1;
+          min-width: 0;
+          overflow-wrap: anywhere;
         }
         .linha-produto .chave {
           grid-column: 2;
+          grid-row: 2;
         }
         .linha-produto .preco-campo {
           grid-column: 2;
-          grid-row: 2;
+          width: 100%;
         }
         .remover-produto {
           grid-column: 3;
           grid-row: 1;
+          align-self: start;
+          justify-self: end;
         }
         .topo h1 {
           font-size: 1.15rem;
@@ -391,6 +401,6 @@
         <p id="mensagem-admin" class="mensagem"></p>
       </section>
     </main>
-    <script type="module" src="admin.js?v=1.4.0"></script>
+    <script type="module" src="admin.js?v=1.4.1"></script>
   </body>
 </html>
