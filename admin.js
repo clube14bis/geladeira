@@ -11,7 +11,7 @@ import {
   update,
   set,
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
-import { firebaseConfig, loginDomain } from "./firebase-config.js?v=1.2.3";
+import { firebaseConfig, loginDomain, authServiceUrl } from "./firebase-config.js?v=1.5.2";
 import {
   produtosIniciais,
   ordemCategorias,
@@ -26,6 +26,27 @@ let auth,
   catalogo = {};
 function email(usuario) {
   return `${usuario.trim().toLowerCase()}@${loginDomain}`;
+}
+function normalizarUsuario(usuario) {
+  const nome = usuario.trim().toLowerCase();
+  if (!/^[a-z0-9._-]{3,24}$/.test(nome)) throw Error("INFORME UM NOME DE USUÁRIO VÁLIDO.");
+  return nome;
+}
+async function entrarComUsuario(usuario, senha) {
+  const nome = normalizarUsuario(usuario);
+  try {
+    const resposta = await fetch(`${authServiceUrl}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: nome, password: senha }),
+    });
+    const dados = await resposta.json().catch(() => ({}));
+    if (!resposta.ok) throw Error(dados.error || "INVALID_CREDENTIALS");
+    return await signInWithEmailAndPassword(auth, dados.email, senha);
+  } catch {
+    // Mantém compatibilidade até o Admin confirmar o novo e-mail.
+    return await signInWithEmailAndPassword(auth, email(nome), senha);
+  }
 }
 // Aceita valores brasileiros com separadores de milhar, por exemplo:
 // 550.000.000.000,00. O valor em centavos permanece seguro no JavaScript.
@@ -112,11 +133,7 @@ $("#form-admin").addEventListener("submit", async (e) => {
   e.preventDefault();
   $("#erro-admin").textContent = "";
   try {
-    const c = await signInWithEmailAndPassword(
-      auth,
-      email($("#admin-usuario").value),
-      $("#admin-senha").value,
-    );
+    const c = await entrarComUsuario($("#admin-usuario").value, $("#admin-senha").value);
     let acesso = await get(ref(db, `admins/${c.user.uid}`));
     if (!acesso.exists() && c.user.uid === ADMIN_UID) {
       await set(ref(db, `admins/${c.user.uid}`), true);
