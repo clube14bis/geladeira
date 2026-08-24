@@ -1821,41 +1821,41 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
-      /* No celular a ação fica ancorada no cartão: textos longos nunca a empurram para fora. */
+      /* No celular, a descrição pode encolher; o controle conserva sua própria coluna. */
       @media (max-width: 600px) {
         .produto-corpo {
-          position: relative;
-          display: block;
+          display: flex;
+          align-items: stretch;
           min-width: 0;
-          width: 100%;
-          padding-right: 104px !important;
+          width: auto;
+          padding-right: 10px !important;
         }
         .produto-corpo > span:first-child {
-          display: block;
+          display: flex;
+          flex: 1 1 auto;
+          flex-direction: column;
+          justify-content: center;
           min-width: 0;
-          max-width: 100%;
+          max-width: none;
         }
         .produto-add {
-          position: absolute;
-          right: 10px;
-          bottom: 12px;
-          flex: none !important;
-          width: 84px !important;
+          position: static;
+          flex: 0 0 78px !important;
+          width: 78px !important;
           height: 46px !important;
-          margin: 0 !important;
+          margin: 0 0 1px 8px !important;
+          align-self: flex-end;
         }
         .produto-add .icone-adicionar {
           width: 46px;
           height: 46px;
-          margin: 0 0 0 auto;
+          margin-left: auto;
         }
         .produto-add .quantidade {
+          width: 100%;
           height: 46px;
-          width: 84px;
         }
-        .produto-preco {
-          white-space: nowrap;
-        }
+        .produto-preco { white-space: nowrap; }
       }
       @media (max-width: 600px) {
         main { padding-inline: 14px; }
