@@ -17,6 +17,7 @@ import {
   get,
   push,
   update,
+  runTransaction,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
 import {
@@ -32,7 +33,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.5.17",
+  VERSAO_APP = "V1.5.18",
   PIX = "00020126580014BR.GOV.BCB.PIX0136c9cb7e85-240b-46e5-b500-3278442092475204000053039865802BR5912Clube 14 Bis6011Mirassol SP62160512Bebidas14Bis63045F94",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -208,7 +209,7 @@ async function bebidas() {
         let ps = itens(cat);
         return !ps.length
           ? ""
-          : `<section class="categoria"><h2>${cat}</h2><div class="produtos">${ps.map((p) => `<button class="produto" type="button" data-bebida="${p.id}"><img class="produto-imagem" src="${encodeURI(imagemProduto(p.image))}" alt="${p.name}"><span class="produto-corpo"><span class="produto-nome">${p.name}</span><small class="produto-preco">${fmt(p.priceCents)}</small></span><span class="produto-add"><span class="icone-adicionar">+</span></span></button>`).join("")}</div></section>`;
+          : `<section class="categoria"><h2>${cat}</h2><div class="produtos">${ps.map((p) => `<button class="produto" type="button" data-bebida="${p.id}"><span class="estoque-produto" aria-label="${Number.isSafeInteger(+p.stock) && +p.stock >= 0 ? +p.stock : 0} unidades disponíveis">${Number.isSafeInteger(+p.stock) && +p.stock >= 0 ? +p.stock : 0}</span><img class="produto-imagem" src="${encodeURI(imagemProduto(p.image))}" alt="${p.name}"><span class="produto-corpo"><span class="produto-nome">${p.name}</span><small class="produto-preco">${fmt(p.priceCents)}</small></span><span class="produto-add"><span class="icone-adicionar">+</span></span></button>`).join("")}</div></section>`;
       })
       .join("");
     $("#lista-bebidas").innerHTML =
@@ -416,6 +417,21 @@ async function sheets(orderId, items, totalCents) {
     }),
   });
 }
+async function reduzirEstoque(items) {
+  await Promise.all(
+    items.map(async ({ id, quantity }) => {
+      try {
+        const resultado = await runTransaction(ref(db, `catalog/${id}/stock`), (atual) =>
+          Math.max(0, (Number(atual) || 0) - quantity),
+        );
+        if (resultado.committed && produtos[id]) produtos[id].stock = resultado.snapshot.val();
+      } catch (e) {
+        // O estoque é informativo: uma falha aqui não cancela o pedido já registrado.
+        console.warn("Não foi possível atualizar o estoque", e);
+      }
+    }),
+  );
+}
 async function enviar(b) {
   if (!usuarioAtual || !qtd()) return;
   b.disabled = true;
@@ -453,6 +469,7 @@ async function enviar(b) {
           createdAt: serverTimestamp(),
         },
       });
+      await reduzirEstoque(items);
     }
     fechar();
     obrigadoTela(v);
