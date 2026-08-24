@@ -1787,6 +1787,23 @@
       .limpar { background: #e9eaee !important; }
       .confirmar-carrinho { background: #16804b !important; }
       #abrir-recuperacao { color: #e5484d !important; }
+      body.carrinho-aberto { overflow: hidden; overscroll-behavior: none; }
+      .produto-add {
+        flex: 0 0 112px !important;
+        width: 112px !important;
+        background: transparent !important;
+      }
+      .produto-add .icone-adicionar {
+        display: grid;
+        place-items: center;
+        width: 54px;
+        height: 54px;
+        margin-left: auto;
+        border-radius: 12px;
+        background: var(--brand);
+        color: #fff;
+      }
+      .produto-add.tem-quantidade { background: var(--green) !important; }
       @media (max-width: 600px) {
         main { padding-inline: 14px; }
         .cartao { padding: 30px 22px; }
@@ -2089,6 +2106,6 @@
         <p class="toque-voltar">Toque na tela para voltar ao login</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.5.13"></script>
+    <script type="module" src="app.js?v=1.5.14"></script>
   </body>
 </html>
