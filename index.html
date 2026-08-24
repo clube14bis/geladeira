@@ -1625,6 +1625,13 @@
         .carrinho-barra.tem-itens { width: calc(100% - 16px) !important; }
         .carrinho-barra .concluir { min-width: 154px !important; font-size: 0.76rem !important; }
       }
+      @keyframes aparecerCarrinho {
+        from { opacity: 0; transform: translateY(22px) scale(.96); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .carrinho-barra.aparecer-carrinho {
+        animation: aparecerCarrinho .42s cubic-bezier(.2,.85,.25,1) both;
+      }
       /* ESCALA MAIS EQUILIBRADA PARA A LISTA DE PRODUTOS NO CELULAR */
       @media (max-width: 600px) {
         :root { font-size: 16px; }
@@ -2054,6 +2061,6 @@
         <p class="toque-voltar">Toque na tela para voltar ao login</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.5.11"></script>
+    <script type="module" src="app.js?v=1.5.12"></script>
   </body>
 </html>
