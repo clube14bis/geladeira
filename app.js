@@ -13,6 +13,7 @@ import {
   getDatabase,
   ref,
   set,
+  remove,
   get,
   push,
   update,
@@ -31,7 +32,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.5.4",
+  VERSAO_APP = "V1.5.5",
   PIX = "00020126580014BR.GOV.BCB.PIX0136c9cb7e85-240b-46e5-b500-3278442092475204000053039865802BR5912Clube 14 Bis6011Mirassol SP62160512Bebidas14Bis63045F94",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -561,10 +562,11 @@ $("#form-cadastro").addEventListener("submit", async (e) => {
     if (!cpfOk(cpf)) throw Error("INFORME UM CPF VÁLIDO.");
     if (senha.length < 6)
       throw Error("A SENHA PRECISA TER AO MENOS 6 CARACTERES.");
-    let c;
+    let c,
+      perfilGravado = false,
+      nomeRegistrado = false;
     try {
       c = await createUserWithEmailAndPassword(auth, contactEmail, senha);
-      await registrarNomeUsuario(username, c.user);
       await set(ref(db, `users/${c.user.uid}`), {
         username,
         fullName,
@@ -573,9 +575,16 @@ $("#form-cadastro").addEventListener("submit", async (e) => {
         email: contactEmail,
         createdAt: serverTimestamp(),
       });
+      perfilGravado = true;
+      await registrarNomeUsuario(username, c.user);
+      nomeRegistrado = true;
     } catch (falha) {
       if (c?.user) {
-        await servicoAuth("/unregister", { username, idToken: await c.user.getIdToken() }).catch(() => {});
+        const idToken = await c.user.getIdToken().catch(() => null);
+        if (nomeRegistrado && idToken)
+          await servicoAuth("/unregister", { username, idToken }).catch(() => {});
+        if (perfilGravado)
+          await remove(ref(db, `users/${c.user.uid}`)).catch(() => {});
         await deleteUser(c.user).catch(() => {});
       }
       throw falha;
