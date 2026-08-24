@@ -361,6 +361,13 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
+      .acoes-cabecalho {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      #botao-sair { background: #e5484d; color: #fff; }
+      #botao-historico { background: #1f9d55; color: #fff; }
       .categoria {
         margin: 0 0 32px;
       }
@@ -1969,8 +1976,10 @@
             <div>
               <h1>ESCOLHA SUAS BEBIDAS</h1>
             </div>
-            <button id="botao-sair" class="sair" type="button">Sair</button>
-            <button id="botao-historico" class="sair" type="button">Histórico</button>
+            <div class="acoes-cabecalho">
+              <button id="botao-sair" class="sair" type="button">Sair</button>
+              <button id="botao-historico" class="sair" type="button">Histórico</button>
+            </div>
           </header>
           <div class="carrinho-barra">
             <div class="carrinho-info">
