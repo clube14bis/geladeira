@@ -7,6 +7,7 @@ import {
   sendEmailVerification,
   verifyBeforeUpdateEmail,
   signOut,
+  deleteUser,
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
 import {
   getDatabase,
@@ -22,7 +23,7 @@ import {
   authServiceUrl,
   loginDomain,
   sheetsEndpoint,
-} from "./firebase-config.js?v=1.5.1";
+} from "./firebase-config.js?v=1.5.4";
 import {
   ordemCategorias,
   imagemProduto,
@@ -30,7 +31,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.5.3",
+  VERSAO_APP = "V1.5.4",
   PIX = "00020126580014BR.GOV.BCB.PIX0136c9cb7e85-240b-46e5-b500-3278442092475204000053039865802BR5912Clube 14 Bis6011Mirassol SP62160512Bebidas14Bis63045F94",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -124,12 +125,15 @@ function erro(e) {
   return (
     {
       "auth/invalid-credential": "USUÁRIO OU SENHA INCORRETOS.",
-      "auth/email-already-in-use": "ESTE NOME DE USUÁRIO JÁ EXISTE.",
+      "auth/email-already-in-use": "ESTE E-MAIL JÁ ESTÁ CADASTRADO.",
       "auth/weak-password": "A SENHA PRECISA TER AO MENOS 6 CARACTERES.",
       "auth/invalid-email": "INFORME UM E-MAIL VÁLIDO.",
       "auth/user-not-found": "NÃO ENCONTRAMOS UMA CONTA COM ESTE E-MAIL.",
       "auth/too-many-requests": "MUITAS TENTATIVAS. AGUARDE ALGUNS MINUTOS.",
       "auth/network-request-failed": "VERIFIQUE SUA CONEXÃO COM A INTERNET.",
+      USERNAME_TAKEN: "ESTE NOME DE USUÁRIO JÁ ESTÁ EM USO.",
+      FIREBASE_AUTH_FAILED: "NÃO FOI POSSÍVEL VALIDAR O CADASTRO. TENTE NOVAMENTE.",
+      INVALID_TOKEN: "A SESSÃO EXPIROU. TENTE CRIAR O CADASTRO NOVAMENTE.",
     }[e.code] ||
     e.message ||
     "NÃO FOI POSSÍVEL CONCLUIR A OPERAÇÃO."
@@ -557,16 +561,25 @@ $("#form-cadastro").addEventListener("submit", async (e) => {
     if (!cpfOk(cpf)) throw Error("INFORME UM CPF VÁLIDO.");
     if (senha.length < 6)
       throw Error("A SENHA PRECISA TER AO MENOS 6 CARACTERES.");
-    let c = await createUserWithEmailAndPassword(auth, contactEmail, senha);
-    await registrarNomeUsuario(username, c.user);
-    await set(ref(db, `users/${c.user.uid}`), {
-      username,
-      fullName,
-      phone,
-      cpf,
-      email: contactEmail,
-      createdAt: serverTimestamp(),
-    });
+    let c;
+    try {
+      c = await createUserWithEmailAndPassword(auth, contactEmail, senha);
+      await registrarNomeUsuario(username, c.user);
+      await set(ref(db, `users/${c.user.uid}`), {
+        username,
+        fullName,
+        phone,
+        cpf,
+        email: contactEmail,
+        createdAt: serverTimestamp(),
+      });
+    } catch (falha) {
+      if (c?.user) {
+        await servicoAuth("/unregister", { username, idToken: await c.user.getIdToken() }).catch(() => {});
+        await deleteUser(c.user).catch(() => {});
+      }
+      throw falha;
+    }
     usuarioAtual = c.user;
     perfilAtual = { username, fullName, email: contactEmail };
     $("#form-cadastro").reset();
