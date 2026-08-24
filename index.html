@@ -1907,6 +1907,93 @@
         .primario, .cadastro-btn { min-height: 54px; font-size: .85rem; }
         .cabecalho h1, .historico-cabecalho h1 { font-size: 1.35rem; }
       }
+      /* LAYOUT ÚNICO DO CATÁLOGO: imagem | informações | adicionar. */
+      .produto {
+        display: grid !important;
+        grid-template-columns: clamp(112px, 15vw, 142px) minmax(0, 1fr) 104px;
+        min-height: 176px !important;
+        align-items: stretch;
+      }
+      .produto-imagem {
+        grid-column: 1;
+        grid-row: 1;
+        width: 100% !important;
+        height: 100% !important;
+        min-width: 0;
+        padding: 10px !important;
+      }
+      .produto-corpo {
+        grid-column: 2;
+        grid-row: 1;
+        display: flex !important;
+        flex-direction: column;
+        justify-content: center;
+        min-width: 0;
+        padding: 18px 10px !important;
+        text-align: center;
+      }
+      .produto-nome {
+        display: block !important;
+        flex: none !important;
+        width: auto !important;
+        margin: 0 !important;
+        font-size: clamp(.95rem, 2.15vw, 1.16rem) !important;
+        line-height: 1.2 !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        overflow-wrap: anywhere;
+        transform: translateY(20%);
+      }
+      .produto-preco {
+        display: block !important;
+        margin: 0 !important;
+        transform: translateY(-20%) !important;
+        font-size: clamp(1.58rem, 3.7vw, 2rem) !important;
+        line-height: 1 !important;
+        white-space: nowrap;
+      }
+      .produto-add {
+        grid-column: 3;
+        grid-row: 1;
+        position: static !important;
+        align-self: center;
+        justify-self: center;
+        display: grid !important;
+        place-items: center;
+        flex: none !important;
+        width: 84px !important;
+        height: 52px !important;
+        min-width: 84px !important;
+        margin: 0 !important;
+        overflow: visible;
+      }
+      .produto-add .icone-adicionar {
+        display: grid;
+        place-items: center;
+        width: 52px;
+        height: 52px;
+        margin: 0;
+      }
+      .produto-add .quantidade {
+        width: 84px;
+        height: 52px;
+        gap: 2px !important;
+      }
+      @media (max-width: 600px) {
+        .produto {
+          grid-template-columns: 100px minmax(0, 1fr) 72px;
+          min-height: 142px !important;
+        }
+        .produto-imagem { padding: 8px !important; }
+        .produto-corpo { padding: 14px 4px !important; }
+        .produto-nome { font-size: clamp(.78rem, 3.25vw, .94rem) !important; }
+        .produto-preco { font-size: clamp(1.44rem, 6.24vw, 1.79rem) !important; }
+        .produto-add { width: 68px !important; min-width: 68px !important; height: 48px !important; }
+        .produto-add .icone-adicionar { width: 46px; height: 46px; }
+        .produto-add .quantidade { width: 68px; height: 48px; }
+        .produto-add .quantidade button { flex: 0 0 22px !important; width: 22px !important; height: 28px !important; }
+      }
     </style>
   </head>
   <body>
