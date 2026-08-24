@@ -1313,6 +1313,26 @@
       }
       .login .cartao {
         max-width: 460px;
+        position: relative;
+      }
+      .acesso-admin {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        color: #1976d2;
+        background: #eef6ff;
+        transition: transform .2s ease, background .2s ease;
+      }
+      .acesso-admin:hover, .acesso-admin:focus-visible {
+        background: #dcecff;
+        transform: rotate(25deg);
+      }
+      .acesso-admin svg { width: 22px; height: 22px; }
       }
       /* CATÁLOGO CENTRALIZADO E CARRINHO FLUTUANTE NO RODAPÉ */
       .categoria {
@@ -2060,6 +2080,12 @@
             <img class="logo" src="logo14bis.png" alt="LOGO CLUBE 14 BIS" />
           </div>
           <div class="cartao">
+            <a class="acesso-admin" href="admin.html" aria-label="ABRIR ADMINISTRAÇÃO" title="Administração">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+                <circle cx="12" cy="12" r="3.1" />
+                <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.04 1.56V20.3h-3v-.08A1.7 1.7 0 0 0 10.66 18.66a1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7 15a1.7 1.7 0 0 0-1.56-1.04H5.3v-3h.14A1.7 1.7 0 0 0 7 9.92a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 11.7 4.7v-.08h3v.08a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.12 2.12-.06.06A1.7 1.7 0 0 0 19.4 9.92a1.7 1.7 0 0 0 1.56 1.04h.14v3h-.14A1.7 1.7 0 0 0 19.4 15Z" />
+              </svg>
+            </a>
             <h1>GELADEIRA</h1>
             <form id="form-login">
               <label for="usuario">Nome de usuário</label
@@ -2310,6 +2336,6 @@
         <p class="toque-voltar">Toque na tela para voltar ao login</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.5.18"></script>
+    <script type="module" src="app.js?v=1.5.19"></script>
   </body>
 </html>
