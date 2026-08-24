@@ -42,17 +42,25 @@
     </main>
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
-      import { getAuth, verifyPasswordResetCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
+      import { getAuth, verifyPasswordResetCode, confirmPasswordReset, applyActionCode } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
       import { firebaseConfig } from "./firebase-config.js?v=1.5.0";
 
       const $ = (s) => document.querySelector(s);
-      const codigo = new URLSearchParams(location.search).get("oobCode");
+      const parametros = new URLSearchParams(location.search);
+      const codigo = parametros.get("oobCode"), modo = parametros.get("mode");
       const mensagem = $("#mensagem"), form = $("#form-reset");
       const mostrarErro = (texto) => { mensagem.textContent = texto; };
       let auth;
       try {
         auth = getAuth(initializeApp(firebaseConfig));
         if (!codigo) throw Error("LINK DE RECUPERAÇÃO INVÁLIDO OU EXPIRADO.");
+        if (modo === "verifyEmail") {
+          await applyActionCode(auth, codigo);
+          $("#descricao").textContent = "E-MAIL CONFIRMADO COM SUCESSO. VOCÊ JÁ PODE USAR A GELADEIRA.";
+          mensagem.classList.add("ok");
+          mensagem.textContent = "CONTA CONFIRMADA.";
+          return;
+        }
         const endereco = await verifyPasswordResetCode(auth, codigo);
         $("#descricao").textContent = `CRIE UMA NOVA SENHA PARA ${endereco.toUpperCase()}.`;
         form.hidden = false;
