@@ -21,23 +21,24 @@
       .voltar { display: grid; place-items: center; margin-top: 14px; color: #16804b; background: transparent; border: 1px solid #b7d6c3; }
       .mensagem { min-height: 22px; margin: 15px 0 0; color: #b42318; font-weight: 800; font-size: .78rem; } .ok { color: #16804b; }
       [hidden] { display: none !important; }
+      body, button, input { text-transform: none !important; }
     </style>
   </head>
   <body>
     <main>
       <img class="logo" src="logo14bis.png" alt="Clube 14 BIS" />
       <section class="cartao">
-        <h1>NOVA SENHA</h1>
-        <p id="descricao">CONFIRA O LINK RECEBIDO NO SEU E-MAIL PARA CONTINUAR.</p>
+        <h1>Nova senha</h1>
+        <p id="descricao">Confira o link recebido no seu e-mail para continuar.</p>
         <form id="form-reset" hidden>
-          <label for="nova-senha">NOVA SENHA</label>
+          <label for="nova-senha">Nova senha</label>
           <input id="nova-senha" type="password" autocomplete="new-password" minlength="6" required />
-          <label for="confirmar-senha">CONFIRME A NOVA SENHA</label>
+          <label for="confirmar-senha">Confirme a nova senha</label>
           <input id="confirmar-senha" type="password" autocomplete="new-password" minlength="6" required />
-          <button type="submit">SALVAR NOVA SENHA</button>
+          <button type="submit">Salvar nova senha</button>
         </form>
         <p id="mensagem" class="mensagem" aria-live="polite"></p>
-        <a class="voltar" href="./">VOLTAR AO LOGIN</a>
+        <a class="voltar" href="./">Voltar ao login</a>
       </section>
     </main>
     <script type="module">
