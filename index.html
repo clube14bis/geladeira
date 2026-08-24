@@ -1105,6 +1105,7 @@
         stroke-linecap: round;
         stroke-linejoin: round;
       }
+      #mostrar-senha[aria-pressed="true"] .olho-fechado { display: none; }
       .carrinho-barra.tem-itens {
         left: auto !important;
         right: 16px !important;
@@ -1849,6 +1850,7 @@
                       d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"
                     />
                     <circle cx="12" cy="12" r="2.7" />
+                    <path class="olho-fechado" d="M4 4l16 16" />
                   </svg></button></span
               ><button class="primario" type="submit">Entrar</button>
             </form>
@@ -2079,6 +2081,6 @@
         <p class="toque-voltar">Toque na tela para voltar ao login</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.5.12"></script>
+    <script type="module" src="app.js?v=1.5.13"></script>
   </body>
 </html>
