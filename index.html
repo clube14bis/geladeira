@@ -1815,9 +1815,47 @@
       .produto-corpo > span:first-child { min-width: 0; }
       .produto-nome {
         font-size: clamp(.78rem, 3.1vw, .92rem) !important;
+        display: block;
+        width: 100%;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+      }
+      /* No celular a ação fica ancorada no cartão: textos longos nunca a empurram para fora. */
+      @media (max-width: 600px) {
+        .produto-corpo {
+          position: relative;
+          display: block;
+          min-width: 0;
+          width: 100%;
+          padding-right: 104px !important;
+        }
+        .produto-corpo > span:first-child {
+          display: block;
+          min-width: 0;
+          max-width: 100%;
+        }
+        .produto-add {
+          position: absolute;
+          right: 10px;
+          bottom: 12px;
+          flex: none !important;
+          width: 84px !important;
+          height: 46px !important;
+          margin: 0 !important;
+        }
+        .produto-add .icone-adicionar {
+          width: 46px;
+          height: 46px;
+          margin: 0 0 0 auto;
+        }
+        .produto-add .quantidade {
+          height: 46px;
+          width: 84px;
+        }
+        .produto-preco {
+          white-space: nowrap;
+        }
       }
       @media (max-width: 600px) {
         main { padding-inline: 14px; }
