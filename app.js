@@ -3,6 +3,9 @@ import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  updateEmail,
   signOut,
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
 import {
@@ -26,8 +29,8 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.4.0",
-  PIX = "c9cb7e85-240b-46e5-b500-327844209247",
+  VERSAO_APP = "V1.5.0",
+  PIX = "00020126580014BR.GOV.BCB.PIX0136c9cb7e85-240b-46e5-b500-3278442092475204000053039865802BR5912Clube 14 Bis6011Mirassol SP62160512Bebidas14Bis63045F94",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -48,6 +51,8 @@ let auth,
   diaHistorico = "";
 const erroLogin = $("#erro-login"),
   erroCadastro = $("#erro-cadastro"),
+  erroRecuperacao = $("#erro-recuperacao"),
+  erroAtualizarEmail = $("#erro-atualizar-email"),
   carrinhoModal = $("#carrinho"),
   listaCarrinho = $("#lista-carrinho"),
   botaoCarrinho = $("#botao-concluir"),
@@ -62,6 +67,7 @@ $("#cad-senha").minLength = 6;
   "#cad-usuario",
   "#cad-telefone",
   "#cad-cpf",
+  "#cad-email",
   "#cad-senha",
 ].forEach((s) => ($(s).placeholder = ""));
 function normalizarUsuario(v) {
@@ -74,6 +80,16 @@ function normalizarUsuario(v) {
 }
 function email(u) {
   return `${normalizarUsuario(u)}@${loginDomain}`;
+}
+function emailValido(valor) {
+  let e = valor.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))
+    throw Error("INFORME UM E-MAIL VÁLIDO.");
+  return e;
+}
+function identificadorLogin(valor) {
+  let v = valor.trim().toLowerCase();
+  return v.includes("@") ? emailValido(v) : email(v);
 }
 function tela(id) {
   telas.forEach((x) => x.classList.toggle("ativa", x.id === id));
@@ -88,6 +104,9 @@ function erro(e) {
       "auth/invalid-credential": "USUÁRIO OU SENHA INCORRETOS.",
       "auth/email-already-in-use": "ESTE NOME DE USUÁRIO JÁ EXISTE.",
       "auth/weak-password": "A SENHA PRECISA TER AO MENOS 6 CARACTERES.",
+      "auth/invalid-email": "INFORME UM E-MAIL VÁLIDO.",
+      "auth/user-not-found": "NÃO ENCONTRAMOS UMA CONTA COM ESTE E-MAIL.",
+      "auth/too-many-requests": "MUITAS TENTATIVAS. AGUARDE ALGUNS MINUTOS.",
       "auth/network-request-failed": "VERIFIQUE SUA CONEXÃO COM A INTERNET.",
     }[e.code] ||
     e.message ||
@@ -112,6 +131,15 @@ async function perfil(uid) {
   let s = await get(ref(db, `users/${uid}`));
   if (!s.exists()) throw Error("CADASTRO NÃO ENCONTRADO.");
   return s.val();
+}
+async function prosseguirAposLogin() {
+  if (!perfilAtual.email) {
+    $("#atualizar-email").value = "";
+    erroAtualizarEmail.textContent = "";
+    tela("tela-atualizar-email");
+    return;
+  }
+  await bebidas();
 }
 function cpfMask() {
   let d = $("#cad-cpf").value.replace(/\D/g, "").slice(0, 11);
@@ -418,11 +446,11 @@ $("#form-login").addEventListener("submit", async (e) => {
   }
   load(true, "ENTRANDO...");
   try {
-    let c = await signInWithEmailAndPassword(auth, email(u), s);
+    let c = await signInWithEmailAndPassword(auth, identificadorLogin(u), s);
     usuarioAtual = c.user;
     perfilAtual = await perfil(c.user.uid);
     $("#form-login").reset();
-    await bebidas();
+    await prosseguirAposLogin();
   } catch (e) {
     erroLogin.textContent = erro(e);
   } finally {
@@ -436,6 +464,51 @@ $("#mostrar-senha").onclick = () => {
 };
 $("#abrir-cadastro").onclick = () => tela("tela-cadastro");
 $("#voltar-login").onclick = () => tela("tela-login");
+$("#abrir-recuperacao").onclick = () => {
+  erroRecuperacao.textContent = "";
+  erroRecuperacao.classList.remove("sucesso");
+  $("#form-recuperacao").reset();
+  tela("tela-recuperacao");
+};
+$("#voltar-recuperacao").onclick = () => tela("tela-login");
+$("#sair-atualizar-email").onclick = async () => {
+  await signOut(auth);
+  tela("tela-login");
+};
+$("#form-atualizar-email").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  erroAtualizarEmail.textContent = "";
+  try {
+    const endereco = emailValido($("#atualizar-email").value);
+    load(true, "ATUALIZANDO E-MAIL...");
+    await updateEmail(usuarioAtual, endereco);
+    await set(ref(db, `users/${usuarioAtual.uid}/email`), endereco);
+    perfilAtual.email = endereco;
+    await sendEmailVerification(usuarioAtual);
+    await bebidas();
+  } catch (e) {
+    erroAtualizarEmail.textContent = erro(e);
+  } finally {
+    load(false);
+  }
+});
+$("#form-recuperacao").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  erroRecuperacao.textContent = "";
+  try {
+    const endereco = emailValido($("#rec-email").value);
+    load(true, "ENVIANDO E-MAIL...");
+    auth.languageCode = "pt-BR";
+    await sendPasswordResetEmail(auth, endereco);
+    erroRecuperacao.classList.add("sucesso");
+    erroRecuperacao.textContent = "SE O E-MAIL ESTIVER CADASTRADO, O LINK DE RECUPERAÇÃO FOI ENVIADO.";
+  } catch (e) {
+    erroRecuperacao.classList.remove("sucesso");
+    erroRecuperacao.textContent = erro(e);
+  } finally {
+    load(false);
+  }
+});
 $("#cad-telefone").oninput = (e) =>
   (e.target.value = e.target.value.replace(/\D/g, "").slice(0, 11));
 $("#cad-cpf").oninput = cpfMask;
@@ -447,22 +520,24 @@ $("#form-cadastro").addEventListener("submit", async (e) => {
       username = normalizarUsuario($("#cad-usuario").value),
       phone = $("#cad-telefone").value.replace(/\D/g, ""),
       cpf = $("#cad-cpf").value.replace(/\D/g, ""),
+      contactEmail = emailValido($("#cad-email").value),
       senha = $("#cad-senha").value;
     if (fullName.length < 3) throw Error("INFORME O NOME COMPLETO.");
     if (phone.length < 10) throw Error("INFORME O CELULAR COM DDD.");
     if (!cpfOk(cpf)) throw Error("INFORME UM CPF VÁLIDO.");
     if (senha.length < 6)
       throw Error("A SENHA PRECISA TER AO MENOS 6 CARACTERES.");
-    let c = await createUserWithEmailAndPassword(auth, email(username), senha);
+    let c = await createUserWithEmailAndPassword(auth, contactEmail, senha);
     await set(ref(db, `users/${c.user.uid}`), {
       username,
       fullName,
       phone,
       cpf,
+      email: contactEmail,
       createdAt: serverTimestamp(),
     });
     usuarioAtual = c.user;
-    perfilAtual = { username, fullName };
+    perfilAtual = { username, fullName, email: contactEmail };
     $("#form-cadastro").reset();
     await bebidas();
   } catch (e) {

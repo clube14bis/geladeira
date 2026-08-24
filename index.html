@@ -265,6 +265,14 @@
         background: transparent;
         border: 1px solid rgba(229, 107, 50, 0.42);
       }
+      .recuperar-btn {
+        display: block;
+        width: 100%;
+        margin: 17px auto 0;
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        text-decoration: none;
+      }
       .texto-menor,
       .erro {
         text-align: center;
@@ -274,6 +282,12 @@
       .texto-menor {
         margin: 19px 0 0;
         color: var(--muted);
+      }
+      .login-legado {
+        max-width: 310px;
+        margin: 13px auto 0;
+        font-size: 0.62rem;
+        line-height: 1.45;
       }
       .link-botao {
         padding: 0;
@@ -287,6 +301,10 @@
         margin: 11px 0 0;
         color: var(--danger);
         line-height: 1.4;
+      }
+      .erro.sucesso {
+        color: #16804b;
+        font-weight: 800;
       }
       .cabecalho {
         display: flex;
@@ -1744,11 +1762,11 @@
           <div class="cartao">
             <h1>ACESSE A GELADEIRA</h1>
             <form id="form-login">
-              <label for="usuario">NOME DE USUÁRIO</label
+              <label for="usuario">E-MAIL</label
               ><input
                 id="usuario"
                 autocomplete="username"
-                placeholder="DIGITE SEU USUÁRIO"
+                placeholder="DIGITE SEU E-MAIL"
                 required
               /><label for="senha">SENHA</label
               ><span class="senha-campo"
@@ -1774,6 +1792,10 @@
             <button id="abrir-cadastro" class="cadastro-btn" type="button">
               CRIAR CADASTRO
             </button>
+            <button id="abrir-recuperacao" class="link-botao recuperar-btn" type="button">
+              ESQUECI MINHA SENHA
+            </button>
+            <p class="texto-menor login-legado">CADASTRO ANTIGO? ENTRE UMA ÚLTIMA VEZ COM SEU NOME DE USUÁRIO PARA CADASTRAR O E-MAIL.</p>
             <p id="erro-login" class="erro" aria-live="polite"></p>
           </div>
           <a
@@ -1784,7 +1806,7 @@
           >REGISTRO DE USO DA GELADEIRA</a>
           <p id="status-clube" class="status-clube">
             <span>CLUBE 14 BIS</span><span> MIRASSOL: --°C</span
-            ><span>V1.0.7</span>
+            ><span>V1.5.0</span>
           </p>
         </div>
       </section>
@@ -1832,6 +1854,14 @@
                 placeholder="000.000.000-00"
                 required
                 maxlength="14"
+              /><label for="cad-email">E-MAIL</label
+              ><input
+                id="cad-email"
+                type="email"
+                autocomplete="email"
+                placeholder="SEU E-MAIL"
+                required
+                maxlength="120"
               /><label for="cad-senha">SENHA</label
               ><input
                 id="cad-senha"
@@ -1848,6 +1878,44 @@
               </button>
             </p>
             <p id="erro-cadastro" class="erro" aria-live="polite"></p>
+          </div>
+        </div>
+      </section>
+      <section id="tela-recuperacao" class="tela cadastro">
+        <div class="acesso-grid">
+          <div class="marca">
+            <img class="logo" src="logo14bis.png" alt="LOGO CLUBE 14 BIS" />
+          </div>
+          <div class="cartao">
+            <h1>RECUPERAR SENHA</h1>
+            <p class="subtitulo">ENVIAREMOS UM LINK SEGURO PARA O SEU E-MAIL</p>
+            <form id="form-recuperacao">
+              <label for="rec-email">DIGITE SEU E-MAIL</label>
+              <input id="rec-email" type="email" autocomplete="email" placeholder="SEU E-MAIL" required maxlength="120" />
+              <button class="primario" type="submit">ENVIAR LINK DE RECUPERAÇÃO</button>
+            </form>
+            <p class="texto-menor">
+              <button id="voltar-recuperacao" class="link-botao" type="button">VOLTAR AO LOGIN</button>
+            </p>
+            <p id="erro-recuperacao" class="erro" aria-live="polite"></p>
+          </div>
+        </div>
+      </section>
+      <section id="tela-atualizar-email" class="tela cadastro">
+        <div class="acesso-grid">
+          <div class="marca">
+            <img class="logo" src="logo14bis.png" alt="LOGO CLUBE 14 BIS" />
+          </div>
+          <div class="cartao">
+            <h1>CONFIRME SEU E-MAIL</h1>
+            <p class="subtitulo">INFORME UM E-MAIL PARA RECUPERAR SUA SENHA NO FUTURO</p>
+            <form id="form-atualizar-email">
+              <label for="atualizar-email">SEU E-MAIL</label>
+              <input id="atualizar-email" type="email" autocomplete="email" placeholder="SEU E-MAIL" required maxlength="120" />
+              <button class="primario" type="submit">SALVAR E-MAIL</button>
+            </form>
+            <p class="texto-menor"><button id="sair-atualizar-email" class="link-botao" type="button">VOLTAR AO LOGIN</button></p>
+            <p id="erro-atualizar-email" class="erro" aria-live="polite"></p>
           </div>
         </div>
       </section>
@@ -1950,6 +2018,6 @@
         <p class="toque-voltar">TOQUE NA TELA PARA VOLTAR AO LOGIN</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.4.0"></script>
+    <script type="module" src="app.js?v=1.5.0"></script>
   </body>
 </html>

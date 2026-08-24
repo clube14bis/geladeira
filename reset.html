@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#F2F2F7" />
+    <title>Redefinir senha | Geladeira 14 BIS</title>
+    <link rel="icon" href="favicon.jpg" />
+    <style>
+      :root { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif; color: #17211c; background: #f2f2f7; }
+      * { box-sizing: border-box; } body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+      main { width: min(100%, 440px); text-align: center; }
+      .logo { width: min(220px, 72vw); height: 170px; object-fit: contain; filter: drop-shadow(0 16px 24px rgba(0,0,0,.14)); animation: flutuar 4s ease-in-out infinite; }
+      @keyframes flutuar { 50% { transform: translateY(-8px); } }
+      .cartao { margin-top: 20px; padding: 32px 28px; border-radius: 26px; background: #fff; box-shadow: 0 16px 44px rgba(20,32,25,.12); }
+      h1 { margin: 0; font-size: clamp(1.65rem, 8vw, 2.15rem); letter-spacing: -.05em; } p { color: #607066; line-height: 1.5; font-size: .86rem; text-transform: uppercase; letter-spacing: .04em; }
+      label { display: block; text-align: left; margin: 23px 0 7px; font-weight: 800; font-size: .73rem; letter-spacing: .1em; }
+      input, button, a { font: inherit; } input { width: 100%; height: 52px; border: 1px solid #d7ded8; border-radius: 13px; padding: 0 14px; font-size: 1rem; }
+      input:focus { outline: 0; border-color: #16804b; box-shadow: 0 0 0 4px rgba(22,128,75,.13); }
+      button, .voltar { display: block; width: 100%; min-height: 53px; margin-top: 22px; border: 0; border-radius: 13px; color: #fff; background: #16804b; font-weight: 850; font-size: .78rem; letter-spacing: .08em; text-decoration: none; cursor: pointer; }
+      .voltar { display: grid; place-items: center; margin-top: 14px; color: #16804b; background: transparent; border: 1px solid #b7d6c3; }
+      .mensagem { min-height: 22px; margin: 15px 0 0; color: #b42318; font-weight: 800; font-size: .78rem; } .ok { color: #16804b; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img class="logo" src="logo14bis.png" alt="Clube 14 BIS" />
+      <section class="cartao">
+        <h1>NOVA SENHA</h1>
+        <p id="descricao">CONFIRA O LINK RECEBIDO NO SEU E-MAIL PARA CONTINUAR.</p>
+        <form id="form-reset" hidden>
+          <label for="nova-senha">NOVA SENHA</label>
+          <input id="nova-senha" type="password" autocomplete="new-password" minlength="6" required />
+          <label for="confirmar-senha">CONFIRME A NOVA SENHA</label>
+          <input id="confirmar-senha" type="password" autocomplete="new-password" minlength="6" required />
+          <button type="submit">SALVAR NOVA SENHA</button>
+        </form>
+        <p id="mensagem" class="mensagem" aria-live="polite"></p>
+        <a class="voltar" href="./">VOLTAR AO LOGIN</a>
+      </section>
+    </main>
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
+      import { getAuth, verifyPasswordResetCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
+      import { firebaseConfig } from "./firebase-config.js?v=1.5.0";
+
+      const $ = (s) => document.querySelector(s);
+      const codigo = new URLSearchParams(location.search).get("oobCode");
+      const mensagem = $("#mensagem"), form = $("#form-reset");
+      const mostrarErro = (texto) => { mensagem.textContent = texto; };
+      let auth;
+      try {
+        auth = getAuth(initializeApp(firebaseConfig));
+        if (!codigo) throw Error("LINK DE RECUPERAÇÃO INVÁLIDO OU EXPIRADO.");
+        const endereco = await verifyPasswordResetCode(auth, codigo);
+        $("#descricao").textContent = `CRIE UMA NOVA SENHA PARA ${endereco.toUpperCase()}.`;
+        form.hidden = false;
+      } catch (e) {
+        mostrarErro("LINK DE RECUPERAÇÃO INVÁLIDO OU EXPIRADO. SOLICITE OUTRO E-MAIL.");
+      }
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const senha = $("#nova-senha").value;
+        if (senha.length < 6) return mostrarErro("A SENHA PRECISA TER AO MENOS 6 CARACTERES.");
+        if (senha !== $("#confirmar-senha").value) return mostrarErro("AS SENHAS NÃO SÃO IGUAIS.");
+        try {
+          await confirmPasswordReset(auth, codigo, senha);
+          form.hidden = true;
+          mensagem.classList.add("ok");
+          mensagem.textContent = "SENHA ATUALIZADA COM SUCESSO. VOCÊ JÁ PODE ENTRAR.";
+        } catch (e) {
+          mostrarErro("NÃO FOI POSSÍVEL ATUALIZAR. SOLICITE UM NOVO LINK.");
+        }
+      });
+    </script>
+  </body>
+</html>

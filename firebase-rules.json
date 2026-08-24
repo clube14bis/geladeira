@@ -5,11 +5,12 @@
     "users": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.hasChildren(['username', 'fullName', 'createdAt'])",
+        ".write": "auth != null && auth.uid === $uid && ((!data.exists() && newData.hasChildren(['username', 'fullName', 'phone', 'cpf', 'email', 'createdAt'])) || (data.exists() && newData.hasChildren(['username', 'fullName', 'phone', 'cpf', 'email', 'createdAt']) && newData.child('username').val() === data.child('username').val() && newData.child('fullName').val() === data.child('fullName').val() && newData.child('phone').val() === data.child('phone').val() && newData.child('cpf').val() === data.child('cpf').val() && newData.child('createdAt').val() === data.child('createdAt').val()))",
         "username": { ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9._-]{3,24}$/)" },
         "fullName": { ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 80" },
         "phone": { ".validate": "newData.isString() && newData.val().matches(/^[0-9]{10,11}$/)" },
         "cpf": { ".validate": "newData.isString() && newData.val().matches(/^[0-9]{11}$/)" },
+        "email": { ".validate": "newData.isString() && newData.val().matches(/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/) && newData.val().length <= 120" },
         "createdAt": { ".validate": "newData.isNumber() && newData.val() <= now" },
         "$other": { ".validate": false }
       }
