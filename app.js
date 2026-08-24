@@ -32,7 +32,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.5.12",
+  VERSAO_APP = "V1.5.13",
   PIX = "00020126580014BR.GOV.BCB.PIX0136c9cb7e85-240b-46e5-b500-3278442092475204000053039865802BR5912Clube 14 Bis6011Mirassol SP62160512Bebidas14Bis63045F94",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -497,6 +497,12 @@ $("#form-login").addEventListener("submit", async (e) => {
 $("#mostrar-senha").onclick = () => {
   let c = $("#senha");
   c.type = c.type === "text" ? "password" : "text";
+  const visivel = c.type === "text";
+  $("#mostrar-senha").setAttribute("aria-pressed", String(visivel));
+  $("#mostrar-senha").setAttribute(
+    "aria-label",
+    visivel ? "OCULTAR SENHA" : "MOSTRAR SENHA",
+  );
   c.focus();
 };
 $("#abrir-cadastro").onclick = () => tela("tela-cadastro");
