@@ -32,7 +32,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.5.16",
+  VERSAO_APP = "V1.5.17",
   PIX = "00020126580014BR.GOV.BCB.PIX0136c9cb7e85-240b-46e5-b500-3278442092475204000053039865802BR5912Clube 14 Bis6011Mirassol SP62160512Bebidas14Bis63045F94",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -149,10 +149,10 @@ async function clima() {
       )
     ).json();
     $("#status-clube").innerHTML =
-      `<span>CLUBE 14 BIS</span><span>MIRASSOL: ${Math.round(d.current.temperature_2m)}°C</span><span>${VERSAO_APP}</span>`;
+      `<span>CLUBE 14 BIS</span><span>${Math.round(d.current.temperature_2m)}°C</span><span>${VERSAO_APP}</span>`;
   } catch {
     $("#status-clube").innerHTML =
-      `<span>CLUBE 14 BIS</span><span>MIRASSOL</span><span>${VERSAO_APP}</span>`;
+      `<span>CLUBE 14 BIS</span><span>--°C</span><span>${VERSAO_APP}</span>`;
   }
 }
 async function perfil(uid) {
