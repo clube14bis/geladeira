@@ -1559,6 +1559,18 @@
         font-weight: 900;
         letter-spacing: 0.07em;
       }
+      .botao-pix:active, .pix-historico:active {
+        transform: scale(.95);
+        filter: brightness(.92);
+      }
+      .botao-pix.copiado, .pix-historico.copiado {
+        animation: pix-copiado .42s ease;
+      }
+      @keyframes pix-copiado {
+        0% { transform: scale(1); }
+        45% { transform: scale(.93); filter: brightness(.86); }
+        100% { transform: scale(1); }
+      }
       .obrigado .pagamento-pix {
         color: #fff;
       }
@@ -2036,6 +2048,29 @@
       @media (max-width: 600px) {
         .estoque-produto { top: 8px; right: 8px; min-width: 24px; height: 24px; font-size: .68rem; }
       }
+      /* Moldura quadrada: imagens de qualquer proporção são exibidas por inteiro. */
+      .produto-imagem-moldura {
+        grid-column: 1;
+        grid-row: 1;
+        place-self: center;
+        display: grid;
+        place-items: center;
+        width: min(84%, 140px);
+        aspect-ratio: 1;
+        overflow: hidden;
+        border-radius: 18px;
+        background: #fff;
+      }
+      .produto-imagem-moldura .produto-imagem {
+        width: 100% !important;
+        height: 100% !important;
+        padding: 8px !important;
+        object-fit: contain;
+        background: #fff;
+      }
+      @media (max-width: 600px) {
+        .produto-imagem-moldura { width: 96px; border-radius: 15px; }
+      }
     </style>
   </head>
   <body>
@@ -2332,6 +2367,6 @@
         <p class="toque-voltar">Toque na tela para voltar ao login</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.5.19"></script>
+    <script type="module" src="app.js?v=1.5.20"></script>
   </body>
 </html>
