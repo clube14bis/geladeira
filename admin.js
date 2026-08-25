@@ -72,9 +72,32 @@ function mostrarPainel(ativo) {
   $("#login-admin").hidden = ativo;
   $("#painel-admin").hidden = !ativo;
 }
-function ordenarCategorias(ordenacao = []) {
-  return [...new Set([...ordenacao, ...ordemCategorias, ...Object.values(catalogo).map((p) => p.category)])]
+function ordenarCategorias(ordenacao = [], configuracaoSalva = false) {
+  return [...new Set([
+    ...ordenacao,
+    ...(configuracaoSalva ? [] : ordemCategorias),
+    ...Object.values(catalogo).map((p) => p.category),
+  ])]
     .filter(Boolean);
+}
+function escaparHtml(valor) {
+  return String(valor)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+function normalizarCategoria(valor) {
+  const categoria = String(valor ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+  if (!/^[A-ZÀ-Ú0-9][A-ZÀ-Ú0-9 &/.-]{1,49}$/.test(categoria)) {
+    throw Error("INFORME UMA CATEGORIA VÁLIDA, COM 2 A 50 CARACTERES.");
+  }
+  return categoria;
+}
+function opcoesCategorias(selecionada) {
+  return categoriasOrdenadas
+    .map((categoria) => `<option value="${escaparHtml(categoria)}" ${categoria === selecionada ? "selected" : ""}>${escaparHtml(categoria)}</option>`)
+    .join("");
 }
 function produtosDaCategoria(categoria) {
   return Object.values(catalogo)
@@ -84,12 +107,19 @@ function produtosDaCategoria(categoria) {
 function botoesOrdem(atributo, valor) {
   return `<span class="ordem-controles"><button type="button" data-${atributo}="${valor}" data-direcao="-1" aria-label="MOVER PARA CIMA">↑</button><button type="button" data-${atributo}="${valor}" data-direcao="1" aria-label="MOVER PARA BAIXO">↓</button></span>`;
 }
+function renderCategorias() {
+  $("#novo-categoria").innerHTML = opcoesCategorias($("#novo-categoria").value);
+  $("#lista-categorias").innerHTML = categoriasOrdenadas
+    .map((categoria) => `<div class="categoria-admin"><span>${escaparHtml(categoria)}</span><div>${botoesOrdem("mover-categoria", categoria)}<button type="button" class="remover-categoria" data-remover-categoria="${categoria}" aria-label="REMOVER CATEGORIA ${categoria}">×</button></div></div>`)
+    .join("");
+}
 function render() {
+  renderCategorias();
   $("#produtos-admin").innerHTML = categoriasOrdenadas
     .map((cat) =>
       !produtosDaCategoria(cat).length
         ? ""
-        : `<section class="grupo-admin"><h2><span>${cat}</span>${botoesOrdem("mover-categoria", cat)}</h2>${produtosDaCategoria(cat).map((p) => `<article class="linha-produto" data-id="${p.id}"><img src="${encodeURI(imagemProduto(p.image))}" alt=""><div class="nome-produto"><span>${p.name}</span>${botoesOrdem("mover-produto", p.id)}</div><label class="chave"><input class="ativo" type="checkbox" ${p.enabled ? "checked" : ""}><span>EXIBIR</span></label><label class="preco-campo">PREÇO<input class="preco" inputmode="decimal" value="${((p.priceCents || 0) / 100).toFixed(2).replace(".", ",")}" aria-label="PREÇO ${p.name}"></label><label class="preco-campo">ESTOQUE<input class="estoque" type="number" min="0" step="1" inputmode="numeric" value="${Number.isSafeInteger(+p.stock) && +p.stock >= 0 ? +p.stock : 0}" aria-label="ESTOQUE ${p.name}"></label><button class="remover-produto" type="button" data-remover="${p.id}" aria-label="REMOVER ${p.name}">×</button></article>`).join("")}</section>`,
+        : `<section class="grupo-admin"><h2><span>${cat}</span>${botoesOrdem("mover-categoria", cat)}</h2>${produtosDaCategoria(cat).map((p) => `<article class="linha-produto" data-id="${p.id}"><img src="${encodeURI(imagemProduto(p.image))}" alt=""><div class="nome-produto"><span>${escaparHtml(p.name)}</span>${botoesOrdem("mover-produto", p.id)}</div><label class="chave"><input class="ativo" type="checkbox" ${p.enabled ? "checked" : ""}><span>EXIBIR</span></label><label class="categoria-campo">CATEGORIA<select class="categoria-produto" aria-label="CATEGORIA ${escaparHtml(p.name)}">${opcoesCategorias(p.category)}</select></label><label class="preco-campo preco-venda">PREÇO<input class="preco" inputmode="decimal" value="${((p.priceCents || 0) / 100).toFixed(2).replace(".", ",")}" aria-label="PREÇO ${escaparHtml(p.name)}"></label><label class="preco-campo estoque-campo">ESTOQUE<input class="estoque" type="number" min="0" step="1" inputmode="numeric" value="${Number.isSafeInteger(+p.stock) && +p.stock >= 0 ? +p.stock : 0}" aria-label="ESTOQUE ${escaparHtml(p.name)}"></label><button class="remover-produto" type="button" data-remover="${p.id}" aria-label="REMOVER ${escaparHtml(p.name)}">×</button></article>`).join("")}</section>`,
     )
     .join("");
 }
@@ -115,7 +145,11 @@ async function carregar() {
       },
     ]),
   );
-  categoriasOrdenadas = ordenarCategorias(configuracao.val()?.categoryOrder);
+  const configuracaoCatalogo = configuracao.val() || {};
+  categoriasOrdenadas = ordenarCategorias(
+    configuracaoCatalogo.categoryOrder,
+    Array.isArray(configuracaoCatalogo.categoryOrder),
+  );
   categoriasOrdenadas.forEach((cat) =>
     produtosDaCategoria(cat).forEach((p, indice) => (p.sortOrder = indice)),
   );
@@ -139,6 +173,7 @@ async function salvar() {
     catalogo[id] = {
       ...catalogo[id],
       enabled: l.querySelector(".ativo").checked,
+      category: l.querySelector(".categoria-produto").value,
       priceCents: cents,
       stock,
     };
@@ -149,6 +184,9 @@ async function salvar() {
     $("#mensagem-admin").textContent = erroPreco;
     return;
   }
+  categoriasOrdenadas.forEach((categoria) =>
+    produtosDaCategoria(categoria).forEach((produto, indice) => (produto.sortOrder = indice)),
+  );
   atualizacoes["catalogConfig/categoryOrder"] = categoriasOrdenadas;
   $("#salvar").disabled = true;
   try {
@@ -189,16 +227,45 @@ $("#form-admin").addEventListener("submit", async (e) => {
   }
 });
 $("#salvar").addEventListener("click", salvar);
+function moverCategoria(categoria, direcao) {
+  const indice = categoriasOrdenadas.indexOf(categoria);
+  const destino = indice + direcao;
+  if (indice < 0 || destino < 0 || destino >= categoriasOrdenadas.length) return;
+  [categoriasOrdenadas[indice], categoriasOrdenadas[destino]] = [categoriasOrdenadas[destino], categoriasOrdenadas[indice]];
+  $("#mensagem-admin").textContent = "ORDEM ALTERADA. CLIQUE EM SALVAR ALTERAÇÕES.";
+  render();
+}
+$("#lista-categorias").addEventListener("click", (e) => {
+  const mover = e.target.closest("[data-mover-categoria]");
+  if (mover) return moverCategoria(mover.dataset.moverCategoria, Number(mover.dataset.direcao));
+  const botao = e.target.closest("[data-remover-categoria]");
+  if (!botao) return;
+  const categoria = botao.dataset.removerCategoria;
+  if (produtosDaCategoria(categoria).length) {
+    $("#mensagem-admin").textContent = "MOVA OU REMOVA OS PRODUTOS DESTA CATEGORIA ANTES DE EXCLUÍ-LA.";
+    return;
+  }
+  if (!confirm(`REMOVER A CATEGORIA ${categoria}?`)) return;
+  categoriasOrdenadas = categoriasOrdenadas.filter((item) => item !== categoria);
+  $("#mensagem-admin").textContent = "CATEGORIA REMOVIDA. CLIQUE EM SALVAR ALTERAÇÕES PARA GRAVAR.";
+  render();
+});
+$("#adicionar-categoria").addEventListener("click", () => {
+  try {
+    const categoria = normalizarCategoria($("#nome-categoria").value);
+    if (categoriasOrdenadas.includes(categoria)) throw Error("ESTA CATEGORIA JÁ EXISTE.");
+    categoriasOrdenadas.push(categoria);
+    $("#nome-categoria").value = "";
+    $("#mensagem-admin").textContent = "CATEGORIA ADICIONADA. CLIQUE EM SALVAR ALTERAÇÕES PARA GRAVAR.";
+    render();
+  } catch (erro) {
+    $("#mensagem-admin").textContent = erro.message;
+  }
+});
 $("#produtos-admin").addEventListener("click", async (e) => {
   const moverCategoria = e.target.closest("[data-mover-categoria]");
   if (moverCategoria) {
-    const indice = categoriasOrdenadas.indexOf(moverCategoria.dataset.moverCategoria);
-    const destino = indice + Number(moverCategoria.dataset.direcao);
-    if (indice >= 0 && destino >= 0 && destino < categoriasOrdenadas.length) {
-      [categoriasOrdenadas[indice], categoriasOrdenadas[destino]] = [categoriasOrdenadas[destino], categoriasOrdenadas[indice]];
-      $("#mensagem-admin").textContent = "ORDEM ALTERADA. CLIQUE EM SALVAR ALTERAÇÕES.";
-      render();
-    }
+    moverCategoria(moverCategoria.dataset.moverCategoria, Number(moverCategoria.dataset.direcao));
     return;
   }
   const moverProduto = e.target.closest("[data-mover-produto]");
