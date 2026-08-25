@@ -23,7 +23,8 @@ const $ = (s) => document.querySelector(s);
 const ADMIN_UID = "IxZWx1TMk8VsTdEdCVUltFd96a93";
 let auth,
   db,
-  catalogo = {};
+  catalogo = {},
+  categoriasOrdenadas = [...ordemCategorias];
 function email(usuario) {
   return `${usuario.trim().toLowerCase()}@${loginDomain}`;
 }
@@ -70,31 +71,52 @@ function mostrarPainel(ativo) {
   $("#login-admin").hidden = ativo;
   $("#painel-admin").hidden = !ativo;
 }
+function ordenarCategorias(ordenacao = []) {
+  return [...new Set([...ordenacao, ...ordemCategorias, ...Object.values(catalogo).map((p) => p.category)])]
+    .filter(Boolean);
+}
+function produtosDaCategoria(categoria) {
+  return Object.values(catalogo)
+    .filter((p) => p.category === categoria)
+    .sort((a, b) => (+a.sortOrder || 0) - (+b.sortOrder || 0) || a.name.localeCompare(b.name));
+}
+function botoesOrdem(atributo, valor) {
+  return `<span class="ordem-controles"><button type="button" data-${atributo}="${valor}" data-direcao="-1" aria-label="MOVER PARA CIMA">↑</button><button type="button" data-${atributo}="${valor}" data-direcao="1" aria-label="MOVER PARA BAIXO">↓</button></span>`;
+}
 function render() {
-  const grupos = Object.values(catalogo).reduce(
-    (acc, p) => ((acc[p.category] ??= []).push(p), acc),
-    {},
-  );
-  $("#produtos-admin").innerHTML = ordemCategorias
+  $("#produtos-admin").innerHTML = categoriasOrdenadas
     .map((cat) =>
-      !grupos[cat]
+      !produtosDaCategoria(cat).length
         ? ""
-        : `<section class="grupo-admin"><h2>${cat}</h2>${grupos[cat].map((p) => `<article class="linha-produto" data-id="${p.id}"><img src="${encodeURI(imagemProduto(p.image))}" alt=""><div class="nome-produto">${p.name}</div><label class="chave"><input class="ativo" type="checkbox" ${p.enabled ? "checked" : ""}><span>EXIBIR</span></label><label class="preco-campo">PREÇO<input class="preco" inputmode="decimal" value="${((p.priceCents || 0) / 100).toFixed(2).replace(".", ",")}" aria-label="PREÇO ${p.name}"></label><label class="preco-campo">ESTOQUE<input class="estoque" type="number" min="0" step="1" inputmode="numeric" value="${Number.isSafeInteger(+p.stock) && +p.stock >= 0 ? +p.stock : 0}" aria-label="ESTOQUE ${p.name}"></label><button class="remover-produto" type="button" data-remover="${p.id}" aria-label="REMOVER ${p.name}">×</button></article>`).join("")}</section>`,
+        : `<section class="grupo-admin"><h2><span>${cat}</span>${botoesOrdem("mover-categoria", cat)}</h2>${produtosDaCategoria(cat).map((p) => `<article class="linha-produto" data-id="${p.id}"><img src="${encodeURI(imagemProduto(p.image))}" alt=""><div class="nome-produto"><span>${p.name}</span>${botoesOrdem("mover-produto", p.id)}</div><label class="chave"><input class="ativo" type="checkbox" ${p.enabled ? "checked" : ""}><span>EXIBIR</span></label><label class="preco-campo">PREÇO<input class="preco" inputmode="decimal" value="${((p.priceCents || 0) / 100).toFixed(2).replace(".", ",")}" aria-label="PREÇO ${p.name}"></label><label class="preco-campo">ESTOQUE<input class="estoque" type="number" min="0" step="1" inputmode="numeric" value="${Number.isSafeInteger(+p.stock) && +p.stock >= 0 ? +p.stock : 0}" aria-label="ESTOQUE ${p.name}"></label><button class="remover-produto" type="button" data-remover="${p.id}" aria-label="REMOVER ${p.name}">×</button></article>`).join("")}</section>`,
     )
     .join("");
 }
 async function carregar() {
-  let atual = (await get(ref(db, "catalog"))).val();
+  let [catalogoAtual, configuracao] = await Promise.all([
+    get(ref(db, "catalog")),
+    get(ref(db, "catalogConfig")),
+  ]);
+  let atual = catalogoAtual.val();
   const base = produtosIniciais();
   if (!atual) {
     await update(ref(db, "catalog"), base);
     atual = base;
   }
   catalogo = Object.fromEntries(
-    Object.entries({ ...base, ...atual }).map(([id, p]) => [
+    Object.entries({ ...base, ...atual }).map(([id, p], indice) => [
       id,
-      { ...base[id], ...p, id },
+      {
+        ...base[id],
+        ...p,
+        id,
+        sortOrder: Number.isFinite(+p.sortOrder) ? +p.sortOrder : indice,
+      },
     ]),
+  );
+  categoriasOrdenadas = ordenarCategorias(configuracao.val()?.categoryOrder);
+  categoriasOrdenadas.forEach((cat) =>
+    produtosDaCategoria(cat).forEach((p, indice) => (p.sortOrder = indice)),
   );
   render();
 }
@@ -126,6 +148,7 @@ async function salvar() {
     $("#mensagem-admin").textContent = erroPreco;
     return;
   }
+  atualizacoes["catalogConfig/categoryOrder"] = categoriasOrdenadas;
   $("#salvar").disabled = true;
   try {
     await update(ref(db), atualizacoes);
@@ -166,6 +189,31 @@ $("#form-admin").addEventListener("submit", async (e) => {
 });
 $("#salvar").addEventListener("click", salvar);
 $("#produtos-admin").addEventListener("click", async (e) => {
+  const moverCategoria = e.target.closest("[data-mover-categoria]");
+  if (moverCategoria) {
+    const indice = categoriasOrdenadas.indexOf(moverCategoria.dataset.moverCategoria);
+    const destino = indice + Number(moverCategoria.dataset.direcao);
+    if (indice >= 0 && destino >= 0 && destino < categoriasOrdenadas.length) {
+      [categoriasOrdenadas[indice], categoriasOrdenadas[destino]] = [categoriasOrdenadas[destino], categoriasOrdenadas[indice]];
+      $("#mensagem-admin").textContent = "ORDEM ALTERADA. CLIQUE EM SALVAR ALTERAÇÕES.";
+      render();
+    }
+    return;
+  }
+  const moverProduto = e.target.closest("[data-mover-produto]");
+  if (moverProduto) {
+    const produto = catalogo[moverProduto.dataset.moverProduto];
+    const lista = produtosDaCategoria(produto?.category);
+    const indice = lista.findIndex((p) => p.id === produto?.id);
+    const destino = indice + Number(moverProduto.dataset.direcao);
+    if (indice >= 0 && destino >= 0 && destino < lista.length) {
+      [lista[indice], lista[destino]] = [lista[destino], lista[indice]];
+      lista.forEach((p, posicao) => (catalogo[p.id].sortOrder = posicao));
+      $("#mensagem-admin").textContent = "ORDEM ALTERADA. CLIQUE EM SALVAR ALTERAÇÕES.";
+      render();
+    }
+    return;
+  }
   const botao = e.target.closest("[data-remover]");
   if (!botao) return;
   const id = botao.dataset.remover;
@@ -215,6 +263,7 @@ $("#adicionar-produto").addEventListener("click", () => {
     enabled: true,
     priceCents,
     stock,
+    sortOrder: produtosDaCategoria(category).length,
   };
   ["#novo-nome", "#nova-imagem", "#novo-preco"].forEach(
     (s) => ($(s).value = ""),
