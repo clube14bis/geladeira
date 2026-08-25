@@ -153,6 +153,9 @@
         margin: 22px 0;
       }
       .grupo-admin h2 {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         margin: 0 0 10px;
         font-size: 1rem;
         letter-spacing: 0.13em;
@@ -175,8 +178,16 @@
         background: #fff;
       }
       .nome-produto {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
         font-size: 1rem;
         font-weight: 900;
+      }
+      .nome-produto > span:first-child {
+        min-width: 0;
+        overflow-wrap: anywhere;
       }
       .linha-produto label {
         margin: 0;
@@ -208,11 +219,29 @@
         font-size: 1.35rem;
         line-height: 1;
       }
+      .ordem-controles {
+        display: inline-flex;
+        flex: 0 0 auto;
+        gap: 4px;
+      }
+      .ordem-controles button {
+        display: grid;
+        place-items: center;
+        width: 29px;
+        height: 29px;
+        padding: 0;
+        border-radius: 9px;
+        color: #1769b0;
+        background: #e8f2ff;
+        font-size: 1rem;
+        line-height: 1;
+      }
       .acoes {
         position: sticky;
         bottom: 12px;
         display: flex;
-        justify-content: flex-end;
+        align-items: center;
+        justify-content: space-between;
         gap: 12px;
         margin-top: 26px;
         padding: 14px;
@@ -231,6 +260,11 @@
       .mensagem {
         margin: 8px 0;
         color: #168757;
+      }
+      .acoes .mensagem {
+        min-height: 0;
+        margin: 0;
+        text-align: left;
       }
       @media (max-width: 720px) {
         main {
@@ -273,6 +307,8 @@
         .acoes button {
           width: 100%;
         }
+        .acoes { flex-direction: column; align-items: stretch; }
+        .acoes .mensagem { text-align: center; }
       }
       .novo-produto {
         margin: 0 0 24px;
@@ -398,10 +434,9 @@
           </div>
         </section>
         <div id="produtos-admin"></div>
-        <div class="acoes"><button id="salvar">Salvar alterações</button></div>
-        <p id="mensagem-admin" class="mensagem"></p>
+        <div class="acoes"><p id="mensagem-admin" class="mensagem"></p><button id="salvar">Salvar alterações</button></div>
       </section>
     </main>
-    <script type="module" src="admin.js?v=1.4.1"></script>
+    <script type="module" src="admin.js?v=1.5.0"></script>
   </body>
 </html>
