@@ -10,6 +10,7 @@ import {
   get,
   update,
   set,
+  remove,
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
 import { firebaseConfig, loginDomain, authServiceUrl } from "./firebase-config.js?v=1.5.2";
 import {
@@ -220,7 +221,7 @@ $("#produtos-admin").addEventListener("click", async (e) => {
   const produto = catalogo[id];
   if (!produto || !confirm(`REMOVER ${produto.name}?`)) return;
   try {
-    await update(ref(db), { [`catalog/${id}`]: null });
+    await remove(ref(db, `catalog/${id}`));
     delete catalogo[id];
     render();
     $("#mensagem-admin").textContent = "PRODUTO REMOVIDO DO CATÁLOGO.";
