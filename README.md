@@ -291,8 +291,3 @@ Antes de conectar fechadura, teste COM/NC com multímetro. Se o módulo tiver l�
 | Pedido não entra no Sheets | Confira URL /exec, propriedades e autorização do Apps Script. |
 | Admin não salva catálogo | Confira permissão administrativa e regras Firebase. |
 
-## Publicação e segurança
-
-O site é publicado pela branch main no GitHub Pages. Mudanças no site exigem commit e alguns minutos de publicação. Mudanças no ESP32 exigem nova gravação por Arduino IDE.
-
-Nunca publique esp32/secrets.h, senhas Wi-Fi, senhas de usuários, tokens Cloudflare ou segredos do Apps Script. Mantenha regras Firebase restritivas e faça backup antes de excluir dados relevantes.
