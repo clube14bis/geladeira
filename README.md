@@ -177,10 +177,10 @@ REDE AC (127/220 V)
         └── Fonte 12 Vcc certificada ──────────────────────────────────────┐
               +12 V ── fusível ── COM do relé                              │
                                      NC ─────────── + da trava eletromã    │
-              GND  ──────────────────────────────── - da trava eletromã   │
-                                                                            │
+              GND  ──────────────────────────────── - da trava eletromã    │
+                                                                           │
               +12 V/GND ── entrada do buck LM2596                          │
-                         buck ajustado em 5,0 V                             │
+                         buck ajustado em 5,0 V                            │
                          OUT+ ── 5V/VIN do ESP32 e VCC do relé             │
                          OUT- ── GND ESP32 e GND do relé ──────────────────┘
 
