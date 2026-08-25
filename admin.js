@@ -110,7 +110,7 @@ function botoesOrdem(atributo, valor) {
 function renderCategorias() {
   $("#novo-categoria").innerHTML = opcoesCategorias($("#novo-categoria").value);
   $("#lista-categorias").innerHTML = categoriasOrdenadas
-    .map((categoria) => `<div class="categoria-admin"><span>${escaparHtml(categoria)}</span><div>${botoesOrdem("mover-categoria", categoria)}<button type="button" class="remover-categoria" data-remover-categoria="${categoria}" aria-label="REMOVER CATEGORIA ${categoria}">×</button></div></div>`)
+    .map((categoria) => `<div class="categoria-admin"><span>${escaparHtml(categoria)}</span><div><button type="button" class="remover-categoria" data-remover-categoria="${categoria}" aria-label="REMOVER CATEGORIA ${categoria}">×</button></div></div>`)
     .join("");
 }
 function render() {
@@ -236,8 +236,6 @@ function moverCategoria(categoria, direcao) {
   render();
 }
 $("#lista-categorias").addEventListener("click", (e) => {
-  const mover = e.target.closest("[data-mover-categoria]");
-  if (mover) return moverCategoria(mover.dataset.moverCategoria, Number(mover.dataset.direcao));
   const botao = e.target.closest("[data-remover-categoria]");
   if (!botao) return;
   const categoria = botao.dataset.removerCategoria;
