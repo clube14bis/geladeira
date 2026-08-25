@@ -1941,8 +1941,8 @@
       /* LAYOUT ÚNICO DO CATÁLOGO: imagem | informações | adicionar. */
       .produto {
         display: grid !important;
-        grid-template-columns: clamp(126px, 17vw, 160px) minmax(0, 1fr) 104px;
-        min-height: 184px !important;
+        grid-template-columns: clamp(164px, 22vw, 208px) minmax(0, 1fr) 104px;
+        min-height: 208px !important;
         align-items: stretch;
       }
       .produto-imagem {
@@ -2014,8 +2014,8 @@
       }
       @media (max-width: 600px) {
         .produto {
-          grid-template-columns: 116px minmax(0, 1fr) 72px;
-          min-height: 154px !important;
+          grid-template-columns: 132px minmax(0, 1fr) 64px;
+          min-height: 170px !important;
         }
         .produto-imagem { padding: 8px !important; }
         .produto-corpo { padding: 14px 4px !important; gap: 35px; }
@@ -2055,7 +2055,7 @@
         place-self: center;
         display: grid;
         place-items: center;
-        width: min(84%, 140px);
+        width: min(88%, 182px);
         aspect-ratio: 1;
         overflow: hidden;
         border-radius: 18px;
@@ -2069,7 +2069,7 @@
         background: #fff;
       }
       @media (max-width: 600px) {
-        .produto-imagem-moldura { width: 96px; border-radius: 15px; }
+        .produto-imagem-moldura { width: 125px; border-radius: 15px; }
       }
     </style>
   </head>
@@ -2367,6 +2367,6 @@
         <p class="toque-voltar">Toque na tela para voltar ao login</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.5.21"></script>
+    <script type="module" src="app.js?v=1.5.22"></script>
   </body>
 </html>
