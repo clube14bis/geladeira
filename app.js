@@ -33,7 +33,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.5.18",
+  VERSAO_APP = "V1.5.20",
   PIX = "00020126580014BR.GOV.BCB.PIX0136c9cb7e85-240b-46e5-b500-3278442092475204000053039865802BR5912Clube 14 Bis6011Mirassol SP62160512Bebidas14Bis63045F94",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -209,7 +209,7 @@ async function bebidas() {
         let ps = itens(cat);
         return !ps.length
           ? ""
-          : `<section class="categoria"><h2>${cat}</h2><div class="produtos">${ps.map((p) => `<button class="produto" type="button" data-bebida="${p.id}"><span class="estoque-produto" aria-label="${Number.isSafeInteger(+p.stock) && +p.stock >= 0 ? +p.stock : 0} unidades disponíveis">${Number.isSafeInteger(+p.stock) && +p.stock >= 0 ? +p.stock : 0}</span><img class="produto-imagem" src="${encodeURI(imagemProduto(p.image))}" alt="${p.name}"><span class="produto-corpo"><span class="produto-nome">${p.name}</span><small class="produto-preco">${fmt(p.priceCents)}</small></span><span class="produto-add"><span class="icone-adicionar">+</span></span></button>`).join("")}</div></section>`;
+          : `<section class="categoria"><h2>${cat}</h2><div class="produtos">${ps.map((p) => `<button class="produto" type="button" data-bebida="${p.id}"><span class="estoque-produto" aria-label="${Number.isSafeInteger(+p.stock) && +p.stock >= 0 ? +p.stock : 0} unidades disponíveis">${Number.isSafeInteger(+p.stock) && +p.stock >= 0 ? +p.stock : 0}</span><span class="produto-imagem-moldura"><img class="produto-imagem" src="${encodeURI(imagemProduto(p.image))}" alt="${p.name}"></span><span class="produto-corpo"><span class="produto-nome">${p.name}</span><small class="produto-preco">${fmt(p.priceCents)}</small></span><span class="produto-add"><span class="icone-adicionar">+</span></span></button>`).join("")}</div></section>`;
       })
       .join("");
     $("#lista-bebidas").innerHTML =
@@ -383,7 +383,7 @@ function obrigadoTela(v) {
   obrigado.classList.add("visivel");
   retornoLogin = setTimeout(() => {
     let restante = 10;
-    p.textContent = "Geladeira aberta. Destravada por 10 segundos.";
+    p.textContent = "Geladeira aberta";
     p.classList.add("geladeira-aberta");
     $("#contador").textContent = restante;
     $("#contador").classList.remove("oculto");
@@ -392,7 +392,7 @@ function obrigadoTela(v) {
       if (restante <= 0) {
         clearInterval(intervaloObrigado);
         $("#contador").classList.add("oculto");
-        p.textContent = "Geladeira trancada.";
+        p.textContent = "Geladeira fechada";
         p.classList.remove("geladeira-aberta");
         p.classList.add("geladeira-trancada");
         return;
@@ -669,12 +669,19 @@ $("#calendario-historico").onclick = (e) => {
   renderCalendarioHistorico();
   renderDetalhesHistorico();
 };
+function efeitoCopiarPix(botao) {
+  botao.classList.remove("copiado");
+  requestAnimationFrame(() => botao.classList.add("copiado"));
+  setTimeout(() => botao.classList.remove("copiado"), 420);
+}
 $("#copiar-pix").onclick = async () => {
+  efeitoCopiarPix($("#copiar-pix"));
   try {
     await navigator.clipboard.writeText(PIX);
   } catch {}
 };
 $("#copiar-pix-historico").onclick = async () => {
+  efeitoCopiarPix($("#copiar-pix-historico"));
   try {
     await navigator.clipboard.writeText(PIX);
   } catch {}
