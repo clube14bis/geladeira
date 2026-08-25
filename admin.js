@@ -261,9 +261,12 @@ $("#adicionar-categoria").addEventListener("click", () => {
   }
 });
 $("#produtos-admin").addEventListener("click", async (e) => {
-  const moverCategoria = e.target.closest("[data-mover-categoria]");
-  if (moverCategoria) {
-    moverCategoria(moverCategoria.dataset.moverCategoria, Number(moverCategoria.dataset.direcao));
+  const botaoMoverCategoria = e.target.closest("[data-mover-categoria]");
+  if (botaoMoverCategoria) {
+    moverCategoria(
+      botaoMoverCategoria.dataset.moverCategoria,
+      Number(botaoMoverCategoria.dataset.direcao),
+    );
     return;
   }
   const moverProduto = e.target.closest("[data-mover-produto]");
