@@ -78,7 +78,7 @@
     "admins": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid && auth.uid === 'IxZWx1TMk8VsTdEdCVUltFd96a93' && !data.exists() && newData.val() === true"
+        ".write": "auth != null && auth.uid === 'IxZWx1TMk8VsTdEdCVUltFd96a93' && newData.val() === true"
       }
     },
     "catalog": {
