@@ -237,6 +237,3 @@ O firmware atual considera relé **ativo em nível baixo**: GPIO 26 em `HIGH` ma
 | Relé invertido | Teste COM/NC/NO com multímetro e ajuste níveis no firmware. |
 | ESP32 reinicia com relé | Use fonte/buck adequados, GND comum e mantenha cabos da trava afastados dos sinais. |
 
-## Publicação
-
-O site é publicado da branch `main` pelo GitHub Pages. Após alterar arquivos, faça commit, aguarde alguns minutos e atualize o navegador. O projeto usa versão de arquivos e cabeçalhos para reduzir cache.
