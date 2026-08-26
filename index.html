@@ -299,6 +299,21 @@
       #form-login {
         margin-top: 28px;
       }
+      #form-login .senha-campo {
+        margin-bottom: 20px;
+      }
+      #form-login #erro-login {
+        display: none;
+        min-height: 0;
+        margin: 0;
+        color: #d44242;
+        font-size: .9rem;
+        font-weight: 900;
+      }
+      #form-login #erro-login:not(:empty) {
+        display: block;
+        margin: -7px 0 14px;
+      }
       .texto-menor,
       .erro {
         text-align: center;
@@ -1316,11 +1331,12 @@
       .login .cartao {
         max-width: 460px;
         position: relative;
+        padding-bottom: 76px;
       }
       .acesso-admin {
         position: absolute;
-        right: 14px;
-        bottom: 14px;
+        right: 18px;
+        bottom: 18px;
         display: grid;
         place-items: center;
         width: 34px;
@@ -2232,8 +2248,11 @@
                     />
                     <circle cx="12" cy="12" r="2.7" />
                     <path class="olho-fechado" d="M4 4l16 16" />
-                  </svg></button></span
-              ><button class="primario" type="submit">Entrar</button>
+                  </svg>
+                </button>
+              </span>
+              <p id="erro-login" class="erro" aria-live="polite"></p>
+              <button class="primario" type="submit">Entrar</button>
             </form>
             <button id="abrir-cadastro" class="cadastro-btn" type="button">
               Criar cadastro
@@ -2241,7 +2260,6 @@
             <button id="abrir-recuperacao" class="cadastro-btn recuperar-btn" type="button">
               Esqueci minha senha
             </button>
-            <p id="erro-login" class="erro" aria-live="polite"></p>
           </div>
           <a
             class="registro-uso"
@@ -2332,9 +2350,7 @@
               <input id="rec-email" type="email" autocomplete="email" required maxlength="120" />
               <button class="primario" type="submit">Enviar link de recuperação</button>
             </form>
-            <p class="texto-menor">
-              <button id="voltar-recuperacao" class="link-botao" type="button">Voltar ao login</button>
-            </p>
+            <button id="voltar-recuperacao" class="cadastro-btn" type="button">Voltar ao login</button>
             <p id="erro-recuperacao" class="erro" aria-live="polite"></p>
           </div>
         </div>
