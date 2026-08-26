@@ -2061,6 +2061,18 @@
       }
       /* Botão do carrinho com o verde sólido padrão do site. */
       .concluir { background: var(--green) !important; }
+      /* Resumo do carrinho em duas linhas para acomodar qualquer valor. */
+      .carrinho-barra .carrinho-info strong {
+        display: flex !important;
+        flex-direction: column;
+        gap: 4px;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+      }
+      .carrinho-itens,
+      .carrinho-valor { display: block; }
+      .carrinho-valor { color: var(--green); }
       /* Moldura quadrada: imagens de qualquer proporção são exibidas por inteiro. */
       .produto-imagem-moldura {
         grid-column: 1;
@@ -2379,6 +2391,6 @@
         <p class="toque-voltar">Toque na tela para voltar ao login</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=1.5.22"></script>
+    <script type="module" src="app.js?v=1.5.23"></script>
   </body>
 </html>
