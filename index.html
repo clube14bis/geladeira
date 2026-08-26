@@ -2051,6 +2051,14 @@
       @media (max-width: 600px) {
         .estoque-produto { top: 8px; right: 8px; min-width: 24px; height: 24px; font-size: .68rem; }
       }
+      /* Títulos das categorias 50% maiores, preservando a escala do celular. */
+      .categoria h2 { font-size: 1.23rem; }
+      @media (max-width: 720px) and (min-width: 601px) {
+        .categoria h2 { font-size: 1.32rem; }
+      }
+      @media (max-width: 600px) {
+        .categoria h2 { font-size: 1.2rem; }
+      }
       /* Moldura quadrada: imagens de qualquer proporção são exibidas por inteiro. */
       .produto-imagem-moldura {
         grid-column: 1;
