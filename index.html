@@ -2059,6 +2059,8 @@
       @media (max-width: 600px) {
         .categoria h2 { font-size: 1.2rem; }
       }
+      /* Botão do carrinho com o verde sólido padrão do site. */
+      .concluir { background: var(--green) !important; }
       /* Moldura quadrada: imagens de qualquer proporção são exibidas por inteiro. */
       .produto-imagem-moldura {
         grid-column: 1;
@@ -2291,8 +2293,7 @@
           </header>
           <div class="carrinho-barra">
             <div class="carrinho-info">
-              <strong id="resumo-carrinho">Carrinho vazio</strong
-              ><span>TOQUE PARA REVISAR E FINALIZAR</span>
+              <strong id="resumo-carrinho">Carrinho vazio</strong>
             </div>
             <button id="botao-concluir" class="concluir" type="button" disabled>
               Ver carrinho
