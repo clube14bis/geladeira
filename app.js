@@ -349,8 +349,8 @@ function atualizar() {
   let n = qtd(),
     v = total();
   barraCarrinho.classList.toggle("tem-itens", n > 0);
-  resumoCarrinho.textContent = n
-    ? `${n} ${n === 1 ? "Item" : "Itens"} • ${fmt(v)}`
+  resumoCarrinho.innerHTML = n
+    ? `<span class="carrinho-itens">${n} ${n === 1 ? "Item" : "Itens"}</span><span class="carrinho-valor">${fmt(v)}</span>`
     : "Carrinho vazio";
   if (n > 0 && ultimoTotalCarrinho === 0) {
     barraCarrinho.classList.remove("aparecer-carrinho");
