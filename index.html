@@ -2161,6 +2161,7 @@
         place-self: center;
         display: grid;
         place-items: center;
+        position: relative;
         width: min(88%, 182px);
         aspect-ratio: 1;
         overflow: hidden;
@@ -2168,10 +2169,16 @@
         background: #fff;
       }
       .produto-imagem-moldura .produto-imagem {
-        width: 100% !important;
-        height: 100% !important;
-        padding: 8px !important;
+        /* Preserva fotos altas ou largas: nunca corta o produto. */
+        position: absolute;
+        inset: 8px;
+        width: calc(100% - 16px) !important;
+        height: calc(100% - 16px) !important;
+        max-width: none !important;
+        max-height: none !important;
+        padding: 0 !important;
         object-fit: contain;
+        object-position: center;
         background: #fff;
       }
       @media (max-width: 600px) {
