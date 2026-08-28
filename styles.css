@@ -1133,6 +1133,36 @@
         margin: 0 4px;
         color: var(--brand);
       }
+      .status-clube .vento-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        white-space: nowrap;
+        color: var(--muted);
+      }
+      .status-clube .mini-bussola {
+        width: 17px;
+        height: 17px;
+        overflow: visible;
+        stroke: var(--muted);
+        fill: none;
+        stroke-width: 1.5;
+        vertical-align: middle;
+      }
+      .status-clube .mini-bussola text {
+        fill: var(--muted);
+        stroke: none;
+        font-family: inherit;
+        font-size: 6px;
+        font-weight: 900;
+        text-anchor: middle;
+      }
+      .status-clube .mini-bussola path {
+        fill: var(--muted);
+        stroke: var(--muted);
+        stroke-linejoin: round;
+      }
+      .status-clube .vento-status b { color: var(--muted); }
       .registro-uso {
         grid-column: 1/-1;
         display: inline-flex;
