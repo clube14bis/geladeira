@@ -2181,6 +2181,38 @@
         object-position: center;
         background: #fff;
       }
+      /* Ajustes exclusivos para telas maiores: catálogo centralizado e controles confortáveis. */
+      @media (min-width: 721px) {
+        .tela#tela-bebidas {
+          justify-content: center;
+        }
+        .tela#tela-bebidas > div {
+          width: min(100%, 760px);
+        }
+        .produto {
+          grid-template-columns: clamp(164px, 22vw, 208px) minmax(0, 1fr) 132px;
+          padding-right: 22px;
+        }
+        .produto-add .icone-adicionar {
+          width: 62px;
+          height: 62px;
+          font-size: 2rem;
+        }
+        .produto-add .quantidade {
+          width: 120px !important;
+          height: 62px !important;
+          gap: 8px !important;
+        }
+        .produto-add .quantidade button {
+          flex: 0 0 42px !important;
+          width: 42px !important;
+          height: 46px !important;
+          font-size: 1.45rem !important;
+        }
+        .produto-add .quantidade span {
+          font-size: 1.1rem !important;
+        }
+      }
       @media (max-width: 600px) {
         .produto-imagem-moldura { width: 125px; border-radius: 15px; }
       }
