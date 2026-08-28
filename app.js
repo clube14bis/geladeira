@@ -33,7 +33,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V1.5.22",
+  VERSAO_APP = "V1.5.24",
   PIX = "00020126580014BR.GOV.BCB.PIX0136c9cb7e85-240b-46e5-b500-3278442092475204000053039865802BR5912Clube 14 Bis6011Mirassol SP62160512Bebidas14Bis63045F94",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -147,14 +147,17 @@ async function clima() {
   try {
     let d = await (
       await fetch(
-        "https://api.open-meteo.com/v1/forecast?latitude=-20.816&longitude=-49.52&current=temperature_2m&timezone=America%2FSao_Paulo",
+        "https://api.open-meteo.com/v1/forecast?latitude=-20.816&longitude=-49.52&current=temperature_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&timezone=America%2FSao_Paulo",
       )
     ).json();
+    const vento = Math.round(d.current.wind_speed_10m);
+    // A direção meteorológica informa de onde o vento vem: 0° = Norte.
+    const direcao = Math.round(d.current.wind_direction_10m);
     $("#status-clube").innerHTML =
-      `<span>CLUBE 14 BIS</span><span>${Math.round(d.current.temperature_2m)}°C</span><span>${VERSAO_APP}</span>`;
+      `<span>CLUBE 14 BIS</span><span>${Math.round(d.current.temperature_2m)}°C</span><span class="vento-status" title="Vento vindo de ${direcao}°, ${vento} km/h" aria-label="Vento vindo de ${direcao} graus, ${vento} quilômetros por hora"><svg class="mini-bussola" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="17"/><text x="22" y="10">N</text><text x="36" y="25">L</text><text x="22" y="39">S</text><text x="8" y="25">O</text><g transform="rotate(${direcao} 22 22)"><path d="M22 12 25 24 22 22 19 24Z"/></g></svg><b>${vento} km/h</b></span><span>${VERSAO_APP}</span>`;
   } catch {
     $("#status-clube").innerHTML =
-      `<span>CLUBE 14 BIS</span><span>--°C</span><span>${VERSAO_APP}</span>`;
+      `<span>CLUBE 14 BIS</span><span>--°C</span><span class="vento-status"><svg class="mini-bussola" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="17"/><text x="22" y="10">N</text><text x="36" y="25">L</text><text x="22" y="39">S</text><text x="8" y="25">O</text></svg><b>-- km/h</b></span><span>${VERSAO_APP}</span>`;
   }
 }
 async function perfil(uid) {
