@@ -162,6 +162,72 @@
         font-weight: 650;
         line-height: 1.5;
       }
+      .status-esp {
+        margin: 0 0 18px;
+        padding: 18px;
+        border: 1px solid #cfe0f3;
+        border-radius: 18px;
+        background: #fff;
+      }
+      .status-esp-cabecalho {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .status-esp h2 {
+        font-size: 1rem;
+        letter-spacing: .1em;
+      }
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        font-size: .72rem;
+        font-weight: 900;
+      }
+      .status-pill::before {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: currentColor;
+        content: "";
+      }
+      .status-pill.online { color: #128553; background: #e4f7ed; }
+      .status-pill.offline { color: #b23335; background: #ffe9e9; }
+      .status-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin: 16px 0 8px;
+      }
+      .status-grid div {
+        min-width: 0;
+        padding: 10px;
+        border-radius: 12px;
+        background: #f6f8f8;
+      }
+      .status-grid dt {
+        margin-bottom: 4px;
+        color: #63777c;
+        font-size: .66rem;
+        font-weight: 850;
+      }
+      .status-grid dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+        font-size: .83rem;
+        font-weight: 850;
+      }
+      .status-detalhe {
+        min-height: 1.2em;
+        margin: 10px 0 0;
+        color: #63777c;
+        font-size: .75rem;
+        font-weight: 700;
+      }
       .grupo-admin {
         margin: 22px 0;
       }
@@ -339,6 +405,7 @@
         }
         .acoes { flex-direction: column; align-items: stretch; }
         .acoes .mensagem { text-align: center; }
+        .status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
       .novo-produto {
         margin: 0 0 24px;
@@ -496,6 +563,21 @@
           </div>
           <button id="sair-admin" class="sair">Sair</button>
         </header>
+        <section class="status-esp" aria-live="polite">
+          <div class="status-esp-cabecalho">
+            <h2>ESP32 STATUS</h2>
+            <span id="esp-status-pill" class="status-pill offline">Sem sinal</span>
+          </div>
+          <dl class="status-grid">
+            <div><dt>Último sinal</dt><dd id="esp-ultimo-sinal">—</dd></div>
+            <div><dt>Estado</dt><dd id="esp-estado">—</dd></div>
+            <div><dt>Wi-Fi</dt><dd id="esp-wifi">—</dd></div>
+            <div><dt>Firebase</dt><dd id="esp-firebase">—</dd></div>
+            <div><dt>Monitoramento</dt><dd id="esp-stream">—</dd></div>
+            <div><dt>Firmware</dt><dd id="esp-firmware">—</dd></div>
+          </dl>
+          <p id="esp-status-detalhe" class="status-detalhe">Aguardando o primeiro sinal do ESP32.</p>
+        </section>
         <section class="gerenciador-categorias">
           <h2>Categorias</h2>
           <div class="nova-categoria">

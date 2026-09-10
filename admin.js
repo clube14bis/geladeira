@@ -11,6 +11,7 @@ import {
   update,
   set,
   remove,
+  onValue,
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
 import { firebaseConfig, loginDomain, authServiceUrl } from "./firebase-config.js?v=1.5.2";
 import {
@@ -26,6 +27,8 @@ let auth,
   db,
   catalogo = {},
   categoriasOrdenadas = [...ordemCategorias];
+let pararMonitoramentoESP = null;
+let estadoESP = null;
 function email(usuario) {
   return `${usuario.trim().toLowerCase()}@${loginDomain}`;
 }
@@ -71,6 +74,54 @@ function paraEstoque(valor) {
 function mostrarPainel(ativo) {
   $("#login-admin").hidden = ativo;
   $("#painel-admin").hidden = !ativo;
+}
+function textoEstadoESP(estado) {
+  return {
+    locked: "TRANCADA",
+    open: "ABERTA",
+    waiting_to_open: "AGUARDANDO ABERTURA",
+  }[estado] || "—";
+}
+function textoTempoRelativo(data) {
+  const timestamp = Number(data?.lastSeen);
+  if (!timestamp) return "SEM SINAL";
+  const segundos = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (segundos < 10) return "AGORA";
+  if (segundos < 60) return `HÁ ${segundos} S`;
+  const minutos = Math.floor(segundos / 60);
+  if (minutos < 60) return `HÁ ${minutos} MIN`;
+  return `HÁ ${Math.floor(minutos / 60)} H`;
+}
+function atualizarStatusESP(dados = estadoESP) {
+  estadoESP = dados || null;
+  const timestamp = Number(dados?.lastSeen);
+  const segundosSemSinal = timestamp ? (Date.now() - timestamp) / 1000 : Infinity;
+  const online = Boolean(dados?.online) && segundosSemSinal <= 90;
+  const pill = $("#esp-status-pill");
+  pill.className = `status-pill ${online ? "online" : "offline"}`;
+  pill.textContent = online ? "ONLINE" : "OFFLINE";
+  $("#esp-ultimo-sinal").textContent = textoTempoRelativo(dados);
+  $("#esp-estado").textContent = textoEstadoESP(dados?.state);
+  const wifi = dados?.wifi;
+  $("#esp-wifi").textContent = wifi?.connected
+    ? `${wifi.ssid || "CONECTADO"}${Number.isFinite(wifi.rssi) ? ` (${wifi.rssi} dBm)` : ""}`
+    : "DESCONECTADO";
+  $("#esp-firebase").textContent = dados?.firebaseConnected ? "CONECTADO" : "SEM CONEXÃO";
+  $("#esp-stream").textContent = dados?.streamActive ? "ATIVO" : "INATIVO";
+  $("#esp-firmware").textContent = dados?.firmware || "—";
+  $("#esp-status-detalhe").textContent = online
+    ? `SINAL RECEBIDO. INICIALIZAÇÕES: ${dados.bootCount ?? "—"}.`
+    : timestamp
+      ? "O ÚLTIMO SINAL PASSOU DE 90 SEGUNDOS. CONFIRA ENERGIA, WI-FI E FIREBASE."
+      : "AGUARDANDO O PRIMEIRO SINAL DO ESP32.";
+}
+function monitorarESP() {
+  pararMonitoramentoESP?.();
+  pararMonitoramentoESP = onValue(
+    ref(db, "devices/geladeira"),
+    (snapshot) => atualizarStatusESP(snapshot.val()),
+    () => atualizarStatusESP(null),
+  );
 }
 function ordenarCategorias(ordenacao = [], configuracaoSalva = false) {
   return [...new Set([
@@ -219,6 +270,7 @@ $("#form-admin").addEventListener("submit", async (e) => {
     }
     mostrarPainel(true);
     await carregar();
+    monitorarESP();
   } catch (err) {
     $("#erro-admin").textContent =
       err.code === "auth/invalid-credential"
@@ -298,9 +350,15 @@ $("#produtos-admin").addEventListener("click", async (e) => {
   }
 });
 $("#sair-admin").addEventListener("click", async () => {
+  pararMonitoramentoESP?.();
+  pararMonitoramentoESP = null;
+  estadoESP = null;
   await signOut(auth);
   mostrarPainel(false);
 });
+setInterval(() => {
+  if (pararMonitoramentoESP) atualizarStatusESP();
+}, 15000);
 $("#adicionar-produto").addEventListener("click", () => {
   const name = $("#novo-nome").value.trim().toUpperCase(),
     category = $("#novo-categoria").value,

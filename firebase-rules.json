@@ -81,6 +81,30 @@
         ".write": "auth != null && auth.uid === 'IxZWx1TMk8VsTdEdCVUltFd96a93' && newData.val() === true"
       }
     },
+    "devices": {
+      "geladeira": {
+        ".read": "auth != null && (auth.uid === 'IxZWx1TMk8VsTdEdCVUltFd96a93' || auth.uid === 'rS8DvYaBHnfPcueDePKr02SFTLE2' || root.child('admins').child(auth.uid).val() === true)",
+        ".write": "auth != null && auth.uid === 'rS8DvYaBHnfPcueDePKr02SFTLE2'",
+        ".validate": "newData.hasChildren(['online', 'state', 'firmware', 'uptimeSeconds', 'bootCount', 'firebaseConnected', 'streamActive', 'wifi', 'lastSeen'])",
+        "online": { ".validate": "newData.isBoolean()" },
+        "state": { ".validate": "newData.val() === 'locked' || newData.val() === 'open' || newData.val() === 'waiting_to_open'" },
+        "firmware": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "uptimeSeconds": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "bootCount": { ".validate": "newData.isNumber() && newData.val() >= 1" },
+        "firebaseConnected": { ".validate": "newData.isBoolean()" },
+        "streamActive": { ".validate": "newData.isBoolean()" },
+        "lastOrderId": { ".validate": "newData.isString() && newData.val().length <= 100" },
+        "lastSeen": { ".validate": "newData.isNumber() && newData.val() <= now" },
+        "wifi": {
+          ".validate": "newData.hasChildren(['connected', 'ssid', 'rssi'])",
+          "connected": { ".validate": "newData.isBoolean()" },
+          "ssid": { ".validate": "newData.isString() && newData.val().length <= 32" },
+          "rssi": { ".validate": "newData.isNumber() && newData.val() >= -120 && newData.val() <= 0" },
+          "$other": { ".validate": false }
+        },
+        "$other": { ".validate": false }
+      }
+    },
     "catalog": {
       ".read": "auth != null",
       "$productId": {
@@ -90,6 +114,10 @@
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
         }
       }
+    },
+    "catalogConfig": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.uid === 'IxZWx1TMk8VsTdEdCVUltFd96a93' || root.child('admins').child(auth.uid).val() === true)"
     }
   }
 }

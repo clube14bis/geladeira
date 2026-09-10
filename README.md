@@ -37,6 +37,7 @@ Sistema de autosserviço para a geladeira do Clube 14 BIS. Pelo QR Code, o clien
 - Criar categorias e remover categorias vazias.
 - Mudar a ordem de categorias e produtos; o site público reflete a ordem depois de salvar.
 - Estoque informativo: diminui a cada pedido, mas produto com estoque zero continua selecionável por decisão do projeto.
+- Quadro de status do ESP32: mostra presença, último sinal, Wi-Fi, Firebase, stream de pedidos e versão do firmware.
 
 ## Fluxo de um pedido
 
@@ -53,6 +54,8 @@ Sistema de autosserviço para a geladeira do Clube 14 BIS. Pelo QR Code, o clien
 O ESP32 mantém um stream contínuo para a área de pedidos do Firebase. Antes ele precisava consultar o banco repetidamente; agora recebe uma notificação assim que surge pedido novo. Isso reduz consumo de consultas, diminui atrasos e torna o comando do relé/LED mais confiável.
 
 O stream só é iniciado após a autenticação do Firebase ser concluída. No boot, a placa sincroniza pedidos antigos e não abre a porta por histórico. Para testar, faça sempre pedido novo depois que o ESP32 estiver pronto.
+
+O firmware 2.1.0 também usa um watchdog de 60 segundos, tenta recuperar a conexão de Wi-Fi e recria o stream caso o Firebase o encerre. A cada 30 segundos ele grava um sinal de vida em `devices/geladeira`; o painel usa esse sinal para considerar a placa online por até 90 segundos. Isso melhora a recuperação após quedas de rede, mas não substitui alimentação elétrica estável, sinal Wi-Fi adequado ou instalação correta do relé.
 
 ## Endereços e arquivos
 
@@ -125,6 +128,7 @@ Ao confirmar pedido, o site executa transação no Firebase e reduz o estoque se
     orders/<id>                 pedido recebido pelo ESP32
     userOrders/<uid>/<id>       histórico individual
     admins/<uid>                permissão do painel
+    devices/geladeira           sinal de vida e estado técnico do ESP32
 
 Firebase Authentication usa e-mail internamente. O Cloudflare Worker converte o nome de usuário digitado para o e-mail associado, permitindo que o cliente use somente nome de usuário no login. Não publique tokens, segredos do Worker, senhas ou chaves administrativas.
 
@@ -166,6 +170,7 @@ O Apps Script valida token Firebase, evita fórmulas maliciosas na planilha e gr
 5. Destrava durante 10 segundos.
 6. Pisca LED azul integrado durante a abertura.
 7. Trava novamente e registra os estados no Firebase.
+8. Envia um sinal de vida a cada 30 segundos para o painel administrativo.
 
 | Evento | LED azul no GPIO 2 |
 | --- | --- |
@@ -173,6 +178,8 @@ O Apps Script valida token Firebase, evita fórmulas maliciosas na planilha e gr
 | Firebase conectado | 5 piscas |
 | Porta liberada | Pisca continuamente por 10 segundos |
 | Porta trancada | Apaga |
+
+Se o painel mostrar **offline**, confira primeiro se o último sinal tem mais de 90 segundos. Em seguida verifique energia da fonte, intensidade do Wi-Fi, credenciais em `secrets.h` e se as regras do Firebase foram publicadas antes de concluir que há defeito na fechadura.
 
 O firmware procura automaticamente as redes cadastradas do clube, casa, extensão, fórum e Secretaria. Senhas ficam somente em esp32/secrets.h, que não deve ser publicado.
 
@@ -291,3 +298,12 @@ Antes de conectar fechadura, teste COM/NC com multímetro. Se o módulo tiver l�
 | Pedido não entra no Sheets | Confira URL /exec, propriedades e autorização do Apps Script. |
 | Admin não salva catálogo | Confira permissão administrativa e regras Firebase. |
 
+## Publicação e segurança
+
+O site é publicado pela branch main no GitHub Pages. Mudanças no site exigem commit e alguns minutos de publicação. Mudanças no ESP32 exigem nova gravação por Arduino IDE.
+
+### Atualização em outro computador
+
+Para instalar uma nova versão na casa do responsável, conecte o ESP32 por USB a um computador com Arduino IDE, baixe o repositório atualizado, mantenha o arquivo local `esp32/secrets.h` com as credenciais já configuradas e siga a seção Arduino IDE. A publicação no GitHub **não atualiza a placa automaticamente**: ela só recebe o firmware após o Upload via USB. Atualização OTA poderá ser adicionada numa etapa posterior, com senha exclusiva e conexão protegida; não use uma OTA aberta na internet.
+
+Nunca publique esp32/secrets.h, senhas Wi-Fi, senhas de usuários, tokens Cloudflare ou segredos do Apps Script. Mantenha regras Firebase restritivas e faça backup antes de excluir dados relevantes.
