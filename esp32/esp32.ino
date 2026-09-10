@@ -14,6 +14,7 @@
 #include <FirebaseClient.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <esp_task_wdt.h>
 #include "secrets.h"
 
 // O LED azul integrado costuma usar GPIO 2. O vermelho é apenas de alimentação.
@@ -23,6 +24,10 @@ constexpr uint8_t RELE_TRAVADO = HIGH; // confirme no módulo relé antes de lig
 constexpr uint8_t RELE_DESTRAVADO = LOW;
 constexpr unsigned long ESPERA_ANTES_DE_ABRIR_MS = 6000;
 constexpr unsigned long TEMPO_DESTRAVADO_MS = 10000;
+constexpr unsigned long INTERVALO_HEARTBEAT_MS = 30000;
+constexpr unsigned long INTERVALO_RECONEXAO_STREAM_MS = 3000;
+constexpr uint32_t WATCHDOG_TIMEOUT_MS = 60000;
+constexpr char VERSAO_FIRMWARE[] = "2.1.0";
 
 struct Rede { const char *ssid; const char *senha; };
 Rede redes[] = {
@@ -53,12 +58,33 @@ bool firebaseConfirmado = false;
 bool streamIniciado = false;
 bool sincronizacaoSolicitada = false;
 unsigned long proximaTentativaSincronizacao = 0;
+unsigned long proximaTentativaStream = 0;
+unsigned long ultimoHeartbeat = 0;
+uint32_t totalInicializacoes = 0;
 
 void apagarLeds() { digitalWrite(LED_INDICADOR, LOW); }
 void acenderIndicador() { digitalWrite(LED_INDICADOR, HIGH); }
 
 void iniciarPedido(const String &id);
 void processarSincronizacaoInicial(AsyncResult &resultado);
+
+void alimentarWatchdog() { esp_task_wdt_reset(); }
+
+void configurarWatchdog() {
+  esp_task_wdt_config_t config = {
+    .timeout_ms = WATCHDOG_TIMEOUT_MS,
+    .idle_core_mask = (1UL << portNUM_PROCESSORS) - 1,
+    .trigger_panic = true
+  };
+  esp_err_t resultado = esp_task_wdt_init(&config);
+  if (resultado == ESP_ERR_INVALID_STATE) resultado = esp_task_wdt_reconfigure(&config);
+  if (resultado == ESP_OK || resultado == ESP_ERR_INVALID_STATE) {
+    esp_task_wdt_add(NULL);
+    Serial.println("Watchdog de 60 segundos ativado.");
+  } else {
+    Serial.printf("Watchdog não pôde ser ativado: %d\n", resultado);
+  }
+}
 
 void piscarIndicador(uint8_t vezes) {
   for (uint8_t i = 0; i < vezes; i++) {
@@ -67,49 +93,88 @@ void piscarIndicador(uint8_t vezes) {
   }
 }
 
-void conectarWiFi() {
-  while (WiFi.status() != WL_CONNECTED) {
-    // Procura as redes conhecidas antes de tentar conectar. Assim, no clube,
-    // na Secretaria ou em casa o ESP32 não precisa aguardar as outras redes.
-    int totalRedes = WiFi.scanNetworks();
-    for (auto &rede : redes) {
-      if (!strlen(rede.ssid)) continue;
-      bool redeEncontrada = false;
-      for (int i = 0; i < totalRedes; i++) {
-        if (WiFi.SSID(i) == rede.ssid) { redeEncontrada = true; break; }
-      }
-      if (!redeEncontrada) continue;
-      Serial.printf("Tentando Wi-Fi: %s\n", rede.ssid);
-      WiFi.begin(rede.ssid, rede.senha);
-      unsigned long inicio = millis();
-      while (WiFi.status() != WL_CONNECTED && millis() - inicio < 15000) delay(250);
-      if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf("Wi-Fi conectado: %s\n", WiFi.localIP().toString().c_str());
-        piscarIndicador(3); // confirma que conectou ao Wi-Fi
-        acenderIndicador(); // permanece aceso enquanto o Firebase sincroniza
-        return;
-      }
-      WiFi.disconnect(true);
+bool aguardarWiFi(unsigned long timeoutMs) {
+  unsigned long inicio = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - inicio < timeoutMs) {
+    alimentarWatchdog();
+    delay(250);
+  }
+  return WiFi.status() == WL_CONNECTED;
+}
+
+bool conectarWiFi() {
+  if (WiFi.status() == WL_CONNECTED) return true;
+  // Uma passagem por vez: assim a trava e o watchdog continuam responsivos
+  // se o roteador cair enquanto a geladeira está em uso.
+  int totalRedes = WiFi.scanNetworks();
+  for (auto &rede : redes) {
+    if (!strlen(rede.ssid)) continue;
+    bool redeEncontrada = false;
+    for (int i = 0; i < totalRedes; i++) {
+      if (WiFi.SSID(i) == rede.ssid) { redeEncontrada = true; break; }
     }
-    WiFi.scanDelete();
-    // Mantém uma tentativa de reserva para redes ocultas que não aparecem no scan.
-    if (totalRedes == 0) {
-      for (auto &rede : redes) {
-        if (!strlen(rede.ssid)) continue;
-        Serial.printf("Tentando Wi-Fi oculto: %s\n", rede.ssid);
-        WiFi.begin(rede.ssid, rede.senha);
-        unsigned long inicio = millis();
-        while (WiFi.status() != WL_CONNECTED && millis() - inicio < 7000) delay(250);
-        if (WiFi.status() == WL_CONNECTED) {
-          Serial.printf("Wi-Fi conectado: %s\n", WiFi.localIP().toString().c_str());
-          piscarIndicador(3);
-          acenderIndicador();
-          return;
-        }
-        WiFi.disconnect(true);
-      }
+    if (!redeEncontrada) continue;
+    Serial.printf("Tentando Wi-Fi: %s\n", rede.ssid);
+    WiFi.begin(rede.ssid, rede.senha);
+    if (aguardarWiFi(8000)) {
+      WiFi.scanDelete();
+      Serial.printf("Wi-Fi conectado: %s\n", WiFi.localIP().toString().c_str());
+      piscarIndicador(3);
+      acenderIndicador();
+      return true;
     }
-    delay(1000);
+    WiFi.disconnect(true);
+  }
+  WiFi.scanDelete();
+  // Reserva para redes ocultas: tenta somente uma rede por ciclo, sem travar o loop.
+  static uint8_t proximaRedeOculta = 0;
+  for (uint8_t tentativa = 0; tentativa < sizeof(redes) / sizeof(redes[0]); tentativa++) {
+    Rede &rede = redes[proximaRedeOculta++ % (sizeof(redes) / sizeof(redes[0]))];
+    if (!strlen(rede.ssid)) continue;
+    Serial.printf("Tentando Wi-Fi oculto: %s\n", rede.ssid);
+    WiFi.begin(rede.ssid, rede.senha);
+    if (aguardarWiFi(5000)) {
+      Serial.printf("Wi-Fi conectado: %s\n", WiFi.localIP().toString().c_str());
+      piscarIndicador(3);
+      acenderIndicador();
+      return true;
+    }
+    WiFi.disconnect(true);
+    break;
+  }
+  return false;
+}
+
+const char *estadoDispositivo() {
+  if (estado == DESTRAVADA) return "open";
+  if (pedidoAtual.length()) return "waiting_to_open";
+  return "locked";
+}
+
+void enviarHeartbeat(bool imediato = false) {
+  if (!firebase.ready() || !baselineFeito) return;
+  unsigned long agora = millis();
+  if (!imediato && agora - ultimoHeartbeat < INTERVALO_HEARTBEAT_MS) return;
+  ultimoHeartbeat = agora;
+  JsonDocument doc;
+  doc["online"] = true;
+  doc["state"] = estadoDispositivo();
+  doc["firmware"] = VERSAO_FIRMWARE;
+  doc["uptimeSeconds"] = agora / 1000;
+  doc["bootCount"] = totalInicializacoes;
+  doc["firebaseConnected"] = firebase.ready();
+  doc["streamActive"] = streamIniciado;
+  doc["lastOrderId"] = ultimoPedido;
+  JsonObject wifi = doc["wifi"].to<JsonObject>();
+  wifi["connected"] = WiFi.status() == WL_CONNECTED;
+  wifi["ssid"] = WiFi.SSID();
+  wifi["rssi"] = WiFi.RSSI();
+  JsonObject ultimoSinal = doc["lastSeen"].to<JsonObject>();
+  ultimoSinal[".sv"] = "timestamp";
+  String json;
+  serializeJson(doc, json);
+  if (!banco.set<object_t>(cliente, "/devices/geladeira", object_t(json))) {
+    Serial.printf("Falha no heartbeat: %s\n", cliente.lastError().message().c_str());
   }
 }
 
@@ -130,6 +195,7 @@ void abrirTrava() {
   estado = DESTRAVADA;
   proximaAcao = millis() + TEMPO_DESTRAVADO_MS;
   ultimaTrocaLed = 0;
+  enviarHeartbeat(true);
 }
 
 void trancarGeladeira() {
@@ -141,6 +207,7 @@ void trancarGeladeira() {
   pedidoAtual = "";
   apagarLeds();
   estado = AGUARDANDO;
+  enviarHeartbeat(true);
   if (pedidoNaFila.length()) {
     String proximo = pedidoNaFila;
     pedidoNaFila = "";
@@ -233,6 +300,8 @@ void processarStream(AsyncResult &resultado) {
   if (!resultado.isResult()) return;
   if (resultado.isError()) {
     Serial.printf("Stream Firebase: %s\n", resultado.error().message().c_str());
+    streamIniciado = false;
+    proximaTentativaStream = millis() + INTERVALO_RECONEXAO_STREAM_MS;
     return;
   }
   if (!resultado.available()) return;
@@ -269,8 +338,15 @@ void setup() {
   pinMode(RELE_TRAVA, OUTPUT); digitalWrite(RELE_TRAVA, RELE_TRAVADO);
   memoria.begin("geladeira", false);
   ultimoPedido = memoria.getString("ultimoPedido", "");
+  totalInicializacoes = memoria.getUInt("bootCount", 0) + 1;
+  memoria.putUInt("bootCount", totalInicializacoes);
+  configurarWatchdog();
   WiFi.mode(WIFI_STA);
-  conectarWiFi();
+  while (!conectarWiFi()) {
+    Serial.println("Nenhuma rede disponível; nova tentativa em 2 segundos.");
+    alimentarWatchdog();
+    delay(2000);
+  }
   ssl.setInsecure();
   sslStream.setInsecure();
   ssl.setConnectionTimeout(1000); ssl.setHandshakeTimeout(5);
@@ -282,7 +358,21 @@ void setup() {
 }
 
 void loop() {
-  if (WiFi.status() != WL_CONNECTED) conectarWiFi();
+  alimentarWatchdog();
+  unsigned long agora = millis();
+  // O tempo de abertura nunca depende da internet: a porta volta a travar
+  // mesmo durante uma reconexão de Wi-Fi/Firebase.
+  if (estado == DESTRAVADA && agora >= proximaAcao) trancarGeladeira();
+  alternarLeds();
+
+  if (WiFi.status() != WL_CONNECTED) {
+    streamIniciado = false;
+    firebaseConfirmado = false;
+    if (!conectarWiFi()) {
+      delay(1000);
+      return;
+    }
+  }
   firebase.loop();
   if (firebase.ready() && !firebaseConfirmado) {
     firebaseConfirmado = true;
@@ -295,15 +385,14 @@ void loop() {
     banco.get(cliente, "/orders", processarSincronizacaoInicial, false, "sincronizacaoInicial");
     Serial.println("Sincronizando pedidos iniciais.");
   }
-  if (firebase.ready() && baselineFeito && !streamIniciado) {
+  if (firebase.ready() && baselineFeito && !streamIniciado && millis() >= proximaTentativaStream) {
     // O stream só é aberto depois da autenticação: assim todo pedido novo é recebido.
     clienteStream.setSSEFilters("get,put,patch,keep-alive,cancel,auth_revoked");
     banco.get(clienteStream, "/orders", processarStream, true /* stream SSE */, "pedidosStream");
     streamIniciado = true;
     Serial.println("Monitoramento de pedidos ativado.");
+    enviarHeartbeat(true);
   }
-  unsigned long agora = millis();
   if (estado == AGUARDANDO && pedidoAtual.length() && agora >= proximaAcao) abrirTrava();
-  if (estado == DESTRAVADA && agora >= proximaAcao) trancarGeladeira();
-  alternarLeds();
+  enviarHeartbeat();
 }
