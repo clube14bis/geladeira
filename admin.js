@@ -82,6 +82,41 @@ function textoEstadoESP(estado) {
     waiting_to_open: "AGUARDANDO ABERTURA",
   }[estado] || "—";
 }
+function atualizarEstadoESP(estado) {
+  const campo = $("#esp-estado");
+  const caixa = campo.parentElement;
+  caixa.classList.remove("estado-locked", "estado-open", "estado-waiting");
+  const configuracao = {
+    locked: { classe: "locked", texto: "TRANCADA", aberta: false },
+    open: { classe: "open", texto: "ABERTA", aberta: true },
+    waiting_to_open: { classe: "waiting", texto: "AGUARDANDO", aberta: false },
+  }[estado];
+  campo.replaceChildren();
+  if (!configuracao) {
+    campo.textContent = "—";
+    return;
+  }
+  caixa.classList.add(`estado-${configuracao.classe}`);
+  const indicador = document.createElement("span");
+  indicador.className = `lock-status ${configuracao.classe}`;
+  indicador.setAttribute("aria-label", `Geladeira ${configuracao.texto.toLowerCase()}`);
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  const corpo = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  corpo.setAttribute("x", "4"); corpo.setAttribute("y", "10");
+  corpo.setAttribute("width", "16"); corpo.setAttribute("height", "10");
+  corpo.setAttribute("rx", "2");
+  const arco = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  arco.setAttribute("d", configuracao.aberta ? "M9 10V7a4 4 0 0 1 7.5-2" : "M8 10V7a4 4 0 0 1 8 0v3");
+  const chave = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  chave.setAttribute("d", "M12 14v2");
+  svg.append(arco, corpo, chave);
+  const texto = document.createElement("span");
+  texto.textContent = configuracao.texto;
+  indicador.append(svg, texto);
+  campo.append(indicador);
+}
 function textoTempoRelativo(data) {
   const timestamp = Number(data?.lastSeen);
   if (!timestamp) return "SEM SINAL";
@@ -150,7 +185,7 @@ function atualizarStatusESP(dados = estadoESP) {
   pill.className = `status-pill ${online ? "online" : "offline"}`;
   pill.textContent = online ? "ONLINE" : "OFFLINE";
   $("#esp-ultimo-sinal").textContent = textoTempoRelativo(dados);
-  $("#esp-estado").textContent = textoEstadoESP(dados?.state);
+  atualizarEstadoESP(dados?.state);
   $("#esp-wifi").classList.remove("wifi-status");
   atualizarWiFiESP(dados?.wifi);
   $("#esp-firebase").textContent = dados?.firebaseConnected ? "CONECTADO" : "SEM CONEXÃO";

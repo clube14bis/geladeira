@@ -221,6 +221,41 @@
         font-size: .83rem;
         font-weight: 850;
       }
+      .lock-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 8px;
+        border-radius: 9px;
+        font-size: .72rem;
+        line-height: 1;
+      }
+      .lock-status svg {
+        width: 17px;
+        height: 17px;
+        flex: 0 0 auto;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2;
+      }
+      .lock-status.locked { color: #b23335; background: #ffe8e8; }
+      .lock-status.open { color: #138653; background: #e2f7eb; }
+      .lock-status.waiting { color: #9b6500; background: #fff3d6; }
+      .status-grid div.estado-locked { background: #c9363b; color: #fff; }
+      .status-grid div.estado-open { background: #168a55; color: #fff; }
+      .status-grid div.estado-waiting { background: #a86d06; color: #fff; }
+      .status-grid div.estado-locked dt,
+      .status-grid div.estado-open dt,
+      .status-grid div.estado-waiting dt { color: rgba(255, 255, 255, .8); }
+      .status-grid div.estado-locked .lock-status,
+      .status-grid div.estado-open .lock-status,
+      .status-grid div.estado-waiting .lock-status {
+        padding: 0;
+        color: inherit;
+        background: transparent;
+      }
       .wifi-status {
         display: inline-flex;
         align-items: center;
