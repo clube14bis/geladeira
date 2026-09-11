@@ -77,8 +77,8 @@ function mostrarPainel(ativo) {
 }
 function textoEstadoESP(estado) {
   return {
-    locked: "TRANCADA",
-    open: "ABERTA",
+    locked: "TRANCADO",
+    open: "ABERTO",
     waiting_to_open: "AGUARDANDO ABERTURA",
   }[estado] || "—";
 }
@@ -87,8 +87,8 @@ function atualizarEstadoESP(estado) {
   const caixa = campo.parentElement;
   caixa.classList.remove("estado-locked", "estado-open", "estado-waiting");
   const configuracao = {
-    locked: { classe: "locked", texto: "TRANCADA", aberta: false },
-    open: { classe: "open", texto: "ABERTA", aberta: true },
+    locked: { classe: "locked", texto: "TRANCADO", aberta: false },
+    open: { classe: "open", texto: "ABERTO", aberta: true },
     waiting_to_open: { classe: "waiting", texto: "AGUARDANDO", aberta: false },
   }[estado];
   campo.replaceChildren();
