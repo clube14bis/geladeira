@@ -92,6 +92,55 @@ function textoTempoRelativo(data) {
   if (minutos < 60) return `HÁ ${minutos} MIN`;
   return `HÁ ${Math.floor(minutos / 60)} H`;
 }
+function textoTempoLigado(segundos) {
+  const total = Math.max(0, Math.floor(Number(segundos) || 0));
+  if (!total) return "—";
+  const dias = Math.floor(total / 86400);
+  const horas = Math.floor((total % 86400) / 3600);
+  const minutos = Math.floor((total % 3600) / 60);
+  if (dias) return `${dias} D ${horas} H`;
+  if (horas) return `${horas} H ${minutos} MIN`;
+  return `${minutos} MIN`;
+}
+function qualidadeSinalWiFi(rssi) {
+  if (!Number.isFinite(rssi)) return "SINAL INDISPONÍVEL";
+  if (rssi >= -55) return "EXCELENTE";
+  if (rssi >= -67) return "BOA";
+  if (rssi >= -75) return "REGULAR";
+  if (rssi >= -90) return "FRACA";
+  return "CRÍTICA";
+}
+function nivelSinalWiFi(rssi) {
+  if (!Number.isFinite(rssi)) return 0;
+  if (rssi >= -55) return 4;
+  if (rssi >= -67) return 3;
+  if (rssi >= -75) return 2;
+  if (rssi >= -90) return 1;
+  return 0;
+}
+function atualizarWiFiESP(wifi) {
+  const campo = $("#esp-wifi");
+  campo.replaceChildren();
+  if (!wifi?.connected) {
+    campo.textContent = "DESCONECTADO";
+    return;
+  }
+  const rssi = Number(wifi.rssi);
+  const barras = document.createElement("span");
+  barras.className = "wifi-signal";
+  barras.setAttribute("role", "img");
+  barras.setAttribute("aria-label", Number.isFinite(rssi) ? `Força do sinal: ${rssi} dBm` : "Força do sinal indisponível");
+  const nivel = nivelSinalWiFi(rssi);
+  for (let indice = 1; indice <= 4; indice += 1) {
+    const barra = document.createElement("i");
+    if (indice <= nivel) barra.className = "ativo";
+    barras.append(barra);
+  }
+  const texto = document.createElement("span");
+  texto.textContent = `${qualidadeSinalWiFi(rssi)} | ${Number.isFinite(rssi) ? `(${rssi} dBm) ` : ""}${wifi.ssid || "CONECTADO"}`;
+  campo.classList.add("wifi-status");
+  campo.append(barras, texto);
+}
 function atualizarStatusESP(dados = estadoESP) {
   estadoESP = dados || null;
   const timestamp = Number(dados?.lastSeen);
@@ -102,13 +151,16 @@ function atualizarStatusESP(dados = estadoESP) {
   pill.textContent = online ? "ONLINE" : "OFFLINE";
   $("#esp-ultimo-sinal").textContent = textoTempoRelativo(dados);
   $("#esp-estado").textContent = textoEstadoESP(dados?.state);
-  const wifi = dados?.wifi;
-  $("#esp-wifi").textContent = wifi?.connected
-    ? `${wifi.ssid || "CONECTADO"}${Number.isFinite(wifi.rssi) ? ` (${wifi.rssi} dBm)` : ""}`
-    : "DESCONECTADO";
+  $("#esp-wifi").classList.remove("wifi-status");
+  atualizarWiFiESP(dados?.wifi);
   $("#esp-firebase").textContent = dados?.firebaseConnected ? "CONECTADO" : "SEM CONEXÃO";
   $("#esp-stream").textContent = dados?.streamActive ? "ATIVO" : "INATIVO";
   $("#esp-firmware").textContent = dados?.firmware || "—";
+  $("#esp-offline").textContent = timestamp && !online
+    ? textoTempoLigado((Date.now() - timestamp) / 1000)
+    : "—";
+  const tempoDesdeUltimoSinal = timestamp && online ? Math.max(0, Math.floor((Date.now() - timestamp) / 1000)) : 0;
+  $("#esp-uptime").textContent = textoTempoLigado(Number(dados?.uptimeSeconds) + tempoDesdeUltimoSinal);
   $("#esp-status-detalhe").textContent = online
     ? `SINAL RECEBIDO. INICIALIZAÇÕES: ${dados.bootCount ?? "—"}.`
     : timestamp
@@ -358,7 +410,7 @@ $("#sair-admin").addEventListener("click", async () => {
 });
 setInterval(() => {
   if (pararMonitoramentoESP) atualizarStatusESP();
-}, 15000);
+}, 1000);
 $("#adicionar-produto").addEventListener("click", () => {
   const name = $("#novo-nome").value.trim().toUpperCase(),
     category = $("#novo-categoria").value,

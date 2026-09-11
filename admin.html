@@ -221,6 +221,29 @@
         font-size: .83rem;
         font-weight: 850;
       }
+      .wifi-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .wifi-signal {
+        display: inline-flex;
+        align-items: end;
+        gap: 2px;
+        height: 15px;
+        flex: 0 0 auto;
+      }
+      .wifi-signal i {
+        display: block;
+        width: 4px;
+        border-radius: 2px;
+        background: #c4ced0;
+      }
+      .wifi-signal i:nth-child(1) { height: 4px; }
+      .wifi-signal i:nth-child(2) { height: 7px; }
+      .wifi-signal i:nth-child(3) { height: 10px; }
+      .wifi-signal i:nth-child(4) { height: 14px; }
+      .wifi-signal i.ativo { background: #168657; }
       .status-detalhe {
         min-height: 1.2em;
         margin: 10px 0 0;
@@ -565,16 +588,18 @@
         </header>
         <section class="status-esp" aria-live="polite">
           <div class="status-esp-cabecalho">
-            <h2>ESP32 STATUS</h2>
+            <h2>ESP32</h2>
             <span id="esp-status-pill" class="status-pill offline">Sem sinal</span>
           </div>
           <dl class="status-grid">
             <div><dt>Último sinal</dt><dd id="esp-ultimo-sinal">—</dd></div>
             <div><dt>Estado</dt><dd id="esp-estado">—</dd></div>
             <div><dt>Wi-Fi</dt><dd id="esp-wifi">—</dd></div>
+            <div><dt>Tempo offline</dt><dd id="esp-offline">—</dd></div>
             <div><dt>Firebase</dt><dd id="esp-firebase">—</dd></div>
             <div><dt>Monitoramento</dt><dd id="esp-stream">—</dd></div>
             <div><dt>Firmware</dt><dd id="esp-firmware">—</dd></div>
+            <div><dt>Tempo ligado</dt><dd id="esp-uptime">—</dd></div>
           </dl>
           <p id="esp-status-detalhe" class="status-detalhe">Aguardando o primeiro sinal do ESP32.</p>
         </section>
