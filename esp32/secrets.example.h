@@ -1,12 +1,18 @@
-#define WIFI_SSID "SEU_WIFI"
-#define WIFI_PASSWORD "SUA_SENHA"
+#pragma once
 
-#define FIREBASE_API_KEY "SUA_API_KEY"
-#define FIREBASE_DB_HOST "SEU_DATABASE.firebaseio.com"
+// Copie este arquivo para secrets.h e preencha os valores. Nunca publique secrets.h.
+#define WIFI_CLUBE_SSID "14Bis"
+#define WIFI_CLUBE_PASSWORD ""
+#define WIFI_CASA_SSID "Ralf 2.4G"
+#define WIFI_CASA_PASSWORD ""
+#define WIFI_CLUBE_EXT_SSID "14bis_Ext_2.4"
+#define WIFI_CLUBE_EXT_PASSWORD ""
+#define WIFI_FORUM_SSID "FORUM"
+#define WIFI_FORUM_PASSWORD ""
+#define WIFI_SECRETARIA_SSID "Secretaria"
+#define WIFI_SECRETARIA_PASSWORD ""
 
-#define DEVICE_EMAIL "USUARIO_DO_ESP32"
-#define DEVICE_PASSWORD "SENHA_DO_ESP32"
-
-#define DEVICE_SECRET "SEGREDO_DO_DISPOSITIVO"
-
-#define APPS_SCRIPT_URL "URL_DO_GOOGLE_APPS_SCRIPT"
+#define FIREBASE_WEB_API_KEY ""
+#define FIREBASE_DEVICE_EMAIL ""
+#define FIREBASE_DEVICE_PASSWORD ""
+#define FIREBASE_DATABASE_URL "https://geladeira-14-bis-default-rtdb.firebaseio.com"

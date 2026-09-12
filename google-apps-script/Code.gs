@@ -27,14 +27,33 @@ function doPost(e) {
     const agora = new Date();
     const fuso = Session.getScriptTimeZone() || "America/Sao_Paulo";
 
-    aba.appendRow([
+    // A linha 3 é sempre reservada ao pedido mais recente. Os anteriores
+    // descem, preservando o título (linha 1) e os cabeçalhos (linha 2).
+    aba.insertRowBefore(3);
+    const destino = aba.getRange(3, 1, 1, 5);
+    const linhaModelo = aba.getLastRow() >= 4 ? 4 : 0;
+    // Copia somente a aparência do pedido que acabou de descer para a linha 4.
+    // Assim, toda solicitação nova mantém as mesmas cores, bordas, fonte,
+    // alinhamento e altura sem copiar os valores do pedido anterior.
+    if (linhaModelo) {
+      aba.getRange(linhaModelo, 1, 1, 5).copyTo(
+        destino,
+        SpreadsheetApp.CopyPasteType.PASTE_FORMAT,
+        false
+      );
+      aba.setRowHeight(3, aba.getRowHeight(linhaModelo));
+    } else {
+      destino.setBackground("#ffffff").setFontColor("#1d1d1f")
+        .setVerticalAlignment("middle").setWrap(true);
+      aba.setRowHeight(3, 26);
+    }
+    destino.setValues([[
       Utilities.formatDate(agora,fuso,"dd/MM/yyyy"),
       Utilities.formatDate(agora,fuso,"HH:mm:ss"),
       textoSeguro(dado.fullName,80),
       bebidas,
       totalCentavos / 100
-    ]);
-    aba.getRange(aba.getLastRow(),5).setNumberFormat('[$R$-pt-BR] #,##0.00');
+    ]]);
 
     return resposta({ok:true});
   } catch (erro) {
@@ -72,7 +91,8 @@ function validarTokenFirebase(token, props) {
 function configurarPlanilha() {
   const planilhaId = PropertiesService.getScriptProperties().getProperty("SPREADSHEET_ID");
   if (!planilhaId) throw new Error("SPREADSHEET_ID não configurado");
-  obterAbaPedidos(SpreadsheetApp.openById(planilhaId));
+  const aba = obterAbaPedidos(SpreadsheetApp.openById(planilhaId));
+  formatarEstruturaInicial(aba);
 }
 
 // Execute esta função uma única vez no editor caso o Google peça autorização
@@ -91,7 +111,17 @@ function obterAbaPedidos(planilha) {
   // insere uma linha sem alterar nem perder os pedidos anteriores.
   if (aba.getLastRow() === 0) {
     aba.insertRowsBefore(1, 2);
-  } else if (aba.getRange("A1").getValue() !== "Geladeira 14 BIS") {
+  }
+  // Esta função é chamada a cada pedido. Não altere títulos, cores,
+  // tamanhos, larguras ou alinhamentos aqui: o administrador os define
+  // manualmente na planilha e os pedidos novos apenas os preservam.
+  return aba;
+}
+
+// Use somente ao criar ou reorganizar a planilha. Após o administrador
+// personalizar o visual, não é necessário executar esta função novamente.
+function formatarEstruturaInicial(aba) {
+  if (aba.getRange("A1").getValue() !== "Geladeira 14 BIS") {
     aba.insertRowBefore(1);
   }
   ["Pedido ID","Pago"].forEach(titulo => {
@@ -100,14 +130,16 @@ function obterAbaPedidos(planilha) {
     if (coluna) aba.deleteColumn(coluna);
   });
   aba.getRange("A1:E1").breakApart().merge().setValue("Geladeira 14 BIS")
-    .setFontWeight("bold").setFontSize(16).setHorizontalAlignment("center")
-    .setBackground("#1f4e78").setFontColor("#ffffff");
+    .setFontWeight("bold").setFontSize(27).setHorizontalAlignment("center")
+    .setVerticalAlignment("middle").setBackground("#158557").setFontColor("#ffffff");
   aba.getRange(2,1,1,5).setValues([["Data","Hora","Nome do cliente","Bebidas","Valor total"]]);
-  aba.getRange("A2:E2").setFontWeight("bold").setBackground("#1f4e78").setFontColor("#ffffff");
+  aba.getRange("A2:E2").setFontWeight("bold").setFontSize(16)
+    .setBackground("#1f4e78").setFontColor("#ffffff").setVerticalAlignment("middle");
+  aba.setRowHeight(1, 42);
+  aba.setRowHeight(2, 30);
   aba.getRange("E:E").setNumberFormat('[$R$-pt-BR] #,##0.00');
   aba.setFrozenRows(2);
   aba.autoResizeColumns(1,5);
-  return aba;
 }
 
 function textoSeguro(valor, limite) {

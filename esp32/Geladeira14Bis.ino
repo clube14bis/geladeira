@@ -1,3 +1,6 @@
+// ARQUIVO LEGADO — o firmware ativo é esp32.ino.
+// Mantido apenas como referência e excluído da compilação do Arduino.
+#if 0
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -60,6 +63,7 @@ void blinkStatusLed(){
     delay(LED_BLINK_MS);
   }
 }
+#endif
 
 bool requestHttps(const String& method,const String& url,const String& body,String& response,bool acceptRedirect=false){
   HTTPClient http;
