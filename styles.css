@@ -2204,7 +2204,7 @@
       /* Barra sticky: permanece visível enquanto a lista passa por baixo. */
       .carrinho-barra.tem-itens {
         position: sticky !important;
-        top: calc(100svh - 164px) !important;
+        top: 16px !important;
         left: auto !important;
         right: auto !important;
         bottom: auto !important;
@@ -2217,7 +2217,7 @@
         align-items: center !important;
         padding: 14px 16px !important;
         gap: 14px !important;
-        margin: 0 auto -102px !important;
+        margin: 12px auto 18px !important;
         border: 0 !important;
         border-radius: 21px !important;
         background: var(--green) !important;
@@ -2239,7 +2239,7 @@
       .carrinho-barra.tem-itens .carrinho-info .carrinho-itens,
       .carrinho-barra.tem-itens .carrinho-info .carrinho-valor {
         color: #fff !important;
-        font-size: 2.02rem !important;
+        font-size: 1.62rem !important;
         line-height: 1.05;
       }
       .carrinho-barra.tem-itens .concluir {
@@ -2257,12 +2257,12 @@
         border-radius: 16px !important;
         background: #fff !important;
         color: var(--green) !important;
-        font-size: 1.17rem !important;
+        font-size: .94rem !important;
         box-shadow: none !important;
       }
       .concluir .icone-carrinho {
-        width: 26px;
-        height: 26px;
+        width: 31px;
+        height: 31px;
         flex: 0 0 auto;
         fill: none;
         stroke: currentColor;
@@ -2272,21 +2272,21 @@
       }
       @media (max-width: 600px) {
         .carrinho-barra.tem-itens {
-          top: calc(100svh - 144px) !important;
+          top: 12px !important;
           width: min(100%, calc(100% - 16px)) !important;
           padding: 12px !important;
           gap: 8px !important;
           transform: none !important;
-          margin: 0 auto -86px !important;
+          margin: 10px auto 14px !important;
         }
         .carrinho-barra.tem-itens .carrinho-info .carrinho-itens,
         .carrinho-barra.tem-itens .carrinho-info .carrinho-valor {
-          font-size: 1.56rem !important;
+          font-size: 1.25rem !important;
         }
         .carrinho-barra.tem-itens .concluir {
           height: 58px !important;
           padding: 0 10px !important;
-          font-size: 1.05rem !important;
+          font-size: .84rem !important;
         }
-        .concluir .icone-carrinho { width: 23px; height: 23px; }
+        .concluir .icone-carrinho { width: 28px; height: 28px; }
       }
