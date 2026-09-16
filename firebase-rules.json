@@ -85,7 +85,7 @@
       "geladeira": {
         ".read": "auth != null && (auth.uid === 'IxZWx1TMk8VsTdEdCVUltFd96a93' || auth.uid === 'rS8DvYaBHnfPcueDePKr02SFTLE2' || root.child('admins').child(auth.uid).val() === true)",
         ".write": "auth != null && auth.uid === 'rS8DvYaBHnfPcueDePKr02SFTLE2'",
-        ".validate": "newData.hasChildren(['online', 'state', 'firmware', 'uptimeSeconds', 'bootCount', 'firebaseConnected', 'streamActive', 'wifi', 'lastSeen'])",
+        ".validate": "newData.hasChildren(['online', 'state', 'firmware', 'uptimeSeconds', 'bootCount', 'firebaseConnected', 'streamActive', 'streamLastEventSecondsAgo', 'streamRecoveries', 'lastStreamRecovery', 'freeHeap', 'minFreeHeap', 'resetReason', 'safeRestartPending', 'wifi', 'lastSeen'])",
         "online": { ".validate": "newData.isBoolean()" },
         "state": { ".validate": "newData.val() === 'locked' || newData.val() === 'open' || newData.val() === 'waiting_to_open'" },
         "firmware": { ".validate": "newData.isString() && newData.val().length <= 20" },
@@ -93,6 +93,13 @@
         "bootCount": { ".validate": "newData.isNumber() && newData.val() >= 1" },
         "firebaseConnected": { ".validate": "newData.isBoolean()" },
         "streamActive": { ".validate": "newData.isBoolean()" },
+        "streamLastEventSecondsAgo": { ".validate": "newData.isNumber() && newData.val() >= -1" },
+        "streamRecoveries": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "lastStreamRecovery": { ".validate": "newData.isString() && newData.val().length <= 60" },
+        "freeHeap": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "minFreeHeap": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "resetReason": { ".validate": "newData.isString() && newData.val().length <= 60" },
+        "safeRestartPending": { ".validate": "newData.isBoolean()" },
         "lastOrderId": { ".validate": "newData.isString() && newData.val().length <= 100" },
         "lastSeen": { ".validate": "newData.isNumber() && newData.val() <= now" },
         "wifi": {

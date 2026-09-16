@@ -137,6 +137,17 @@ function textoTempoLigado(segundos) {
   if (horas) return `${horas} H ${minutos} MIN`;
   return `${minutos} MIN`;
 }
+function textoTempoCurto(segundos) {
+  const total = Number(segundos);
+  if (!Number.isFinite(total) || total < 0) return "—";
+  if (total < 60) return `HÁ ${Math.floor(total)} S`;
+  return textoTempoLigado(total);
+}
+function textoMemoria(bytes) {
+  const total = Number(bytes);
+  if (!Number.isFinite(total) || total <= 0) return "—";
+  return `${Math.round(total / 1024)} KB`;
+}
 function qualidadeSinalWiFi(rssi) {
   if (!Number.isFinite(rssi)) return "SINAL INDISPONÍVEL";
   if (rssi >= -55) return "EXCELENTE";
@@ -190,12 +201,25 @@ function atualizarStatusESP(dados = estadoESP) {
   atualizarWiFiESP(dados?.wifi);
   $("#esp-firebase").textContent = dados?.firebaseConnected ? "CONECTADO" : "SEM CONEXÃO";
   $("#esp-stream").textContent = dados?.streamActive ? "ATIVO" : "INATIVO";
+  $("#esp-stream-saude").textContent = textoTempoCurto(dados?.streamLastEventSecondsAgo);
+  const recuperacoes = Number(dados?.streamRecoveries);
+  const motivoRecuperacao = dados?.lastStreamRecovery;
+  $("#esp-recuperacoes").textContent = Number.isFinite(recuperacoes)
+    ? `${recuperacoes}${motivoRecuperacao ? ` | ${motivoRecuperacao}` : ""}`
+    : "ATUALIZE O FIRMWARE";
   $("#esp-firmware").textContent = dados?.firmware || "—";
   $("#esp-offline").textContent = timestamp && !online
     ? textoTempoLigado((Date.now() - timestamp) / 1000)
     : "—";
   const tempoDesdeUltimoSinal = timestamp && online ? Math.max(0, Math.floor((Date.now() - timestamp) / 1000)) : 0;
   $("#esp-uptime").textContent = textoTempoLigado(Number(dados?.uptimeSeconds) + tempoDesdeUltimoSinal);
+  const memoriaLivre = textoMemoria(dados?.freeHeap);
+  const memoriaMinima = textoMemoria(dados?.minFreeHeap);
+  $("#esp-memoria").textContent = memoriaLivre === "—" ? "ATUALIZE O FIRMWARE" : `${memoriaLivre} | mín. ${memoriaMinima}`;
+  const reinicio = dados?.resetReason;
+  $("#esp-reinicio").textContent = reinicio
+    ? `${reinicio}${dados?.safeRestartPending ? " | PENDENTE" : ""}`
+    : "ATUALIZE O FIRMWARE";
   $("#esp-status-detalhe").textContent = online
     ? `SINAL RECEBIDO. INICIALIZAÇÕES: ${dados.bootCount ?? "—"}.`
     : timestamp

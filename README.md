@@ -55,7 +55,9 @@ O ESP32 mantém um stream contínuo para a área de pedidos do Firebase. Antes e
 
 O stream só é iniciado após a autenticação do Firebase ser concluída. No boot, a placa sincroniza pedidos antigos e não abre a porta por histórico. Para testar, faça sempre pedido novo depois que o ESP32 estiver pronto.
 
-O firmware 2.1.0 também usa um watchdog de 60 segundos, tenta recuperar a conexão de Wi-Fi e recria o stream caso o Firebase o encerre. A cada 30 segundos ele grava um sinal de vida em `devices/geladeira`; o painel usa esse sinal para considerar a placa online por até 90 segundos. Isso melhora a recuperação após quedas de rede, mas não substitui alimentação elétrica estável, sinal Wi-Fi adequado ou instalação correta do relé.
+O firmware 2.2.0 também usa um watchdog de 60 segundos, tenta recuperar a conexão de Wi-Fi e recria o stream caso o Firebase o encerre. Se o stream ficar sem eventos por 2 minutos, ele é reconstruído e os pedidos são sincronizados novamente. A cada 30 segundos ele grava um sinal de vida em `devices/geladeira`; o painel usa esse sinal para considerar a placa online por até 90 segundos. Após 10 horas ligado, o ESP32 agenda um reinício preventivo e só reinicia quando a trava está fechada e não há pedido em andamento. Isso melhora a recuperação após quedas de rede ou travamentos, mas não substitui alimentação elétrica estável, sinal Wi-Fi adequado ou instalação correta do relé.
+
+O painel administrativo exibe a idade do último evento do stream, o número e o motivo das recuperações, memória livre, motivo do último reset e se há um reinício preventivo agendado. Esses dados ajudam a diferenciar uma placa ativa de uma placa que perdeu comunicação.
 
 ## Endereços e arquivos
 

@@ -14,6 +14,7 @@
 #include <FirebaseClient.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <esp_system.h>
 #include <esp_task_wdt.h>
 #include "secrets.h"
 
@@ -26,8 +27,11 @@ constexpr unsigned long ESPERA_ANTES_DE_ABRIR_MS = 6000;
 constexpr unsigned long TEMPO_DESTRAVADO_MS = 10000;
 constexpr unsigned long INTERVALO_HEARTBEAT_MS = 30000;
 constexpr unsigned long INTERVALO_RECONEXAO_STREAM_MS = 3000;
+constexpr unsigned long INTERVALO_VERIFICACAO_STREAM_MS = 5000;
+constexpr unsigned long LIMITE_SEM_EVENTO_STREAM_MS = 120000;
+constexpr unsigned long INTERVALO_REINICIO_PREVENTIVO_MS = 10UL * 60UL * 60UL * 1000UL;
 constexpr uint32_t WATCHDOG_TIMEOUT_MS = 60000;
-constexpr char VERSAO_FIRMWARE[] = "2.1.0";
+constexpr char VERSAO_FIRMWARE[] = "2.2.0";
 
 struct Rede { const char *ssid; const char *senha; };
 Rede redes[] = {
@@ -57,16 +61,40 @@ bool baselineFeito = false;
 bool firebaseConfirmado = false;
 bool streamIniciado = false;
 bool sincronizacaoSolicitada = false;
+bool recuperacaoStreamPendente = false;
+bool reinicioPreventivoPendente = false;
 unsigned long proximaTentativaSincronizacao = 0;
 unsigned long proximaTentativaStream = 0;
 unsigned long ultimoHeartbeat = 0;
+unsigned long ultimoEventoStream = 0;
+unsigned long ultimaVerificacaoStream = 0;
+unsigned long inicioSessao = 0;
 uint32_t totalInicializacoes = 0;
+uint32_t totalRecuperacoesStream = 0;
+String ultimoMotivoRecuperacao = "NENHUMA";
+String motivoInicializacao = "DESCONHECIDO";
 
 void apagarLeds() { digitalWrite(LED_INDICADOR, LOW); }
 void acenderIndicador() { digitalWrite(LED_INDICADOR, HIGH); }
 
 void iniciarPedido(const String &id);
 void processarSincronizacaoInicial(AsyncResult &resultado);
+
+const char *nomeMotivoReset(esp_reset_reason_t motivo) {
+  switch (motivo) {
+    case ESP_RST_POWERON: return "ENERGIA";
+    case ESP_RST_EXT: return "RESET_EXTERNO";
+    case ESP_RST_SW: return "SOFTWARE";
+    case ESP_RST_PANIC: return "FALHA_DO_PROGRAMA";
+    case ESP_RST_INT_WDT: return "WATCHDOG_INTERNO";
+    case ESP_RST_TASK_WDT: return "WATCHDOG_DA_TAREFA";
+    case ESP_RST_WDT: return "WATCHDOG";
+    case ESP_RST_DEEPSLEEP: return "DEEP_SLEEP";
+    case ESP_RST_BROWNOUT: return "QUEDA_DE_TENSAO";
+    case ESP_RST_SDIO: return "SDIO";
+    default: return "DESCONHECIDO";
+  }
+}
 
 void alimentarWatchdog() { esp_task_wdt_reset(); }
 
@@ -164,6 +192,14 @@ void enviarHeartbeat(bool imediato = false) {
   doc["bootCount"] = totalInicializacoes;
   doc["firebaseConnected"] = firebase.ready();
   doc["streamActive"] = streamIniciado;
+  doc["streamLastEventSecondsAgo"] = streamIniciado && ultimoEventoStream
+    ? (agora - ultimoEventoStream) / 1000 : -1;
+  doc["streamRecoveries"] = totalRecuperacoesStream;
+  doc["lastStreamRecovery"] = ultimoMotivoRecuperacao;
+  doc["freeHeap"] = ESP.getFreeHeap();
+  doc["minFreeHeap"] = ESP.getMinFreeHeap();
+  doc["resetReason"] = motivoInicializacao;
+  doc["safeRestartPending"] = reinicioPreventivoPendente;
   doc["lastOrderId"] = ultimoPedido;
   JsonObject wifi = doc["wifi"].to<JsonObject>();
   wifi["connected"] = WiFi.status() == WL_CONNECTED;
@@ -231,6 +267,47 @@ void iniciarPedido(const String &id) {
   Serial.printf("Novo pedido %s. Abrindo em 6 segundos.\n", id.c_str());
 }
 
+void agendarRecuperacaoStream(const char *motivo) {
+  if (recuperacaoStreamPendente) return;
+  ultimoMotivoRecuperacao = motivo;
+  totalRecuperacoesStream++;
+  memoria.putUInt("streamRecoveries", totalRecuperacoesStream);
+  memoria.putString("lastStreamRecovery", ultimoMotivoRecuperacao);
+  clienteStream.stopAsync(true);
+  streamIniciado = false;
+  recuperacaoStreamPendente = true;
+  sincronizacaoSolicitada = false;
+  proximaTentativaSincronizacao = millis() + INTERVALO_RECONEXAO_STREAM_MS;
+  Serial.printf("Recuperação do stream agendada: %s\n", motivo);
+}
+
+void verificarSaudeStream(unsigned long agora) {
+  if (!firebase.ready() || !streamIniciado || recuperacaoStreamPendente) return;
+  if (agora - ultimaVerificacaoStream < INTERVALO_VERIFICACAO_STREAM_MS) return;
+  ultimaVerificacaoStream = agora;
+  if (ultimoEventoStream && agora - ultimoEventoStream > LIMITE_SEM_EVENTO_STREAM_MS) {
+    agendarRecuperacaoStream("STREAM_SEM_SINAL");
+  }
+}
+
+void reiniciarComSeguranca(const char *motivo) {
+  digitalWrite(RELE_TRAVA, RELE_TRAVADO);
+  apagarLeds();
+  memoria.putString("reinicioPlanejado", motivo);
+  Serial.printf("Reinício seguro: %s\n", motivo);
+  delay(150);
+  ESP.restart();
+}
+
+void verificarReinicioPreventivo(unsigned long agora) {
+  if (agora - inicioSessao >= INTERVALO_REINICIO_PREVENTIVO_MS) {
+    reinicioPreventivoPendente = true;
+  }
+  if (reinicioPreventivoPendente && estado == AGUARDANDO && !pedidoAtual.length() && !pedidoNaFila.length()) {
+    reiniciarComSeguranca("PREVENTIVO_10H");
+  }
+}
+
 void analisarPedidos(JsonObject pedidos) {
   String maiorId, candidato;
   for (JsonPair pedido : pedidos) {
@@ -265,7 +342,7 @@ void analisarPedidoNovo(const String &id, JsonObject dados) {
 void processarSincronizacaoInicial(AsyncResult &resultado) {
   if (!resultado.isResult()) return;
   if (resultado.isError()) {
-    Serial.printf("Falha na sincronização inicial: %s\n", resultado.error().message().c_str());
+    Serial.printf("Falha na sincronização de pedidos: %s\n", resultado.error().message().c_str());
     sincronizacaoSolicitada = false;
     proximaTentativaSincronizacao = millis() + 3000;
     return;
@@ -293,21 +370,29 @@ void processarSincronizacaoInicial(AsyncResult &resultado) {
     Serial.println("Formato inicial de pedidos inesperado; tentando novamente.");
     sincronizacaoSolicitada = false;
     proximaTentativaSincronizacao = millis() + 3000;
+    return;
   }
+  sincronizacaoSolicitada = false;
+  recuperacaoStreamPendente = false;
 }
 
 void processarStream(AsyncResult &resultado) {
   if (!resultado.isResult()) return;
   if (resultado.isError()) {
     Serial.printf("Stream Firebase: %s\n", resultado.error().message().c_str());
-    streamIniciado = false;
-    proximaTentativaStream = millis() + INTERVALO_RECONEXAO_STREAM_MS;
+    agendarRecuperacaoStream("ERRO_DO_STREAM");
     return;
   }
   if (!resultado.available()) return;
   RealtimeDatabaseResult &stream = resultado.to<RealtimeDatabaseResult>();
   if (!stream.isStream()) return;
+  ultimoEventoStream = millis();
+  if (stream.eventTimeout()) {
+    agendarRecuperacaoStream("TIMEOUT_DO_STREAM");
+    return;
+  }
   String evento = stream.event();
+  if (evento == "keep-alive") return;
   if (evento != "put" && evento != "patch") return;
   String caminho = stream.dataPath();
   if (caminho != "/" && caminho.indexOf('/', 1) >= 0) return;
@@ -334,12 +419,18 @@ void processarStream(AsyncResult &resultado) {
 
 void setup() {
   Serial.begin(115200);
+  inicioSessao = millis();
   pinMode(LED_INDICADOR, OUTPUT); acenderIndicador();
   pinMode(RELE_TRAVA, OUTPUT); digitalWrite(RELE_TRAVA, RELE_TRAVADO);
   memoria.begin("geladeira", false);
+  String reinicioPlanejado = memoria.getString("reinicioPlanejado", "");
+  memoria.remove("reinicioPlanejado");
+  motivoInicializacao = reinicioPlanejado.length() ? reinicioPlanejado : nomeMotivoReset(esp_reset_reason());
   ultimoPedido = memoria.getString("ultimoPedido", "");
   totalInicializacoes = memoria.getUInt("bootCount", 0) + 1;
   memoria.putUInt("bootCount", totalInicializacoes);
+  totalRecuperacoesStream = memoria.getUInt("streamRecoveries", 0);
+  ultimoMotivoRecuperacao = memoria.getString("lastStreamRecovery", "NENHUMA");
   configurarWatchdog();
   WiFi.mode(WIFI_STA);
   while (!conectarWiFi()) {
@@ -354,7 +445,7 @@ void setup() {
   initializeApp(cliente, firebase, getAuth(credenciais));
   firebase.getApp<RealtimeDatabase>(banco);
   banco.url(FIREBASE_DATABASE_URL);
-  Serial.println("ESP32 preparado.");
+  Serial.printf("ESP32 preparado. Motivo da inicialização: %s\n", motivoInicializacao.c_str());
 }
 
 void loop() {
@@ -366,7 +457,9 @@ void loop() {
   alternarLeds();
 
   if (WiFi.status() != WL_CONNECTED) {
-    streamIniciado = false;
+    if (streamIniciado || (baselineFeito && !recuperacaoStreamPendente)) {
+      agendarRecuperacaoStream("WIFI_DESCONECTADO");
+    }
     firebaseConfirmado = false;
     if (!conectarWiFi()) {
       delay(1000);
@@ -380,19 +473,22 @@ void loop() {
     piscarIndicador(5); // confirma a conexão com o Firebase
     acenderIndicador(); // permanece aceso até a sincronização inicial dos pedidos
   }
-  if (firebase.ready() && !baselineFeito && !sincronizacaoSolicitada && millis() >= proximaTentativaSincronizacao) {
+  verificarSaudeStream(agora);
+  if (firebase.ready() && (!baselineFeito || recuperacaoStreamPendente) && !sincronizacaoSolicitada && millis() >= proximaTentativaSincronizacao) {
     sincronizacaoSolicitada = true;
     banco.get(cliente, "/orders", processarSincronizacaoInicial, false, "sincronizacaoInicial");
-    Serial.println("Sincronizando pedidos iniciais.");
+    Serial.println(recuperacaoStreamPendente ? "Sincronizando pedidos após recuperar stream." : "Sincronizando pedidos iniciais.");
   }
   if (firebase.ready() && baselineFeito && !streamIniciado && millis() >= proximaTentativaStream) {
     // O stream só é aberto depois da autenticação: assim todo pedido novo é recebido.
     clienteStream.setSSEFilters("get,put,patch,keep-alive,cancel,auth_revoked");
     banco.get(clienteStream, "/orders", processarStream, true /* stream SSE */, "pedidosStream");
     streamIniciado = true;
+    ultimoEventoStream = millis();
     Serial.println("Monitoramento de pedidos ativado.");
     enviarHeartbeat(true);
   }
   if (estado == AGUARDANDO && pedidoAtual.length() && agora >= proximaAcao) abrirTrava();
   enviarHeartbeat();
+  verificarReinicioPreventivo(agora);
 }
