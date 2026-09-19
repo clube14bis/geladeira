@@ -44,7 +44,7 @@ constexpr unsigned long LIMITE_WIFI_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
 constexpr unsigned long LIMITE_FIREBASE_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
 constexpr uint32_t WATCHDOG_TIMEOUT_MS = 60000;
 constexpr size_t TAMANHO_HISTORICO_EVENTOS = 900;
-constexpr char VERSAO_FIRMWARE[] = "2.5.0";
+constexpr char VERSAO_FIRMWARE[] = "2.5.1";
 
 struct Rede { const char *ssid; const char *senha; };
 Rede redes[] = {
@@ -73,6 +73,7 @@ unsigned long proximaAcao = 0;
 unsigned long ultimaTrocaLed = 0;
 bool baselineFeito = false;
 bool firebaseConfirmado = false;
+bool watchdogConfigurado = false;
 bool streamIniciado = false;
 bool sincronizacaoSolicitada = false;
 bool recuperacaoStreamPendente = false;
@@ -183,21 +184,30 @@ const char *nomeMotivoReset(esp_reset_reason_t motivo) {
   }
 }
 
-void alimentarWatchdog() { esp_task_wdt_reset(); }
+void alimentarWatchdog() {
+  if (watchdogConfigurado) esp_task_wdt_reset();
+}
 
 void configurarWatchdog() {
   esp_task_wdt_config_t config = {
     .timeout_ms = WATCHDOG_TIMEOUT_MS,
-    .idle_core_mask = (1UL << portNUM_PROCESSORS) - 1,
+    // Monitoramos apenas este loop. As tarefas de Wi-Fi/Firebase ocupam os
+    // núcleos internos durante conexões TLS e não devem provocar reset falso.
+    .idle_core_mask = 0,
     .trigger_panic = true
   };
   esp_err_t resultado = esp_task_wdt_init(&config);
   if (resultado == ESP_ERR_INVALID_STATE) resultado = esp_task_wdt_reconfigure(&config);
-  if (resultado == ESP_OK || resultado == ESP_ERR_INVALID_STATE) {
-    esp_task_wdt_add(NULL);
-    Serial.println("Watchdog de 60 segundos ativado.");
-  } else {
+  if (resultado != ESP_OK) {
     Serial.printf("Watchdog não pôde ser ativado: %d\n", resultado);
+    return;
+  }
+  resultado = esp_task_wdt_add(NULL);
+  if (resultado == ESP_OK || resultado == ESP_ERR_INVALID_STATE) {
+    watchdogConfigurado = true;
+    Serial.println("Watchdog de 60 segundos ativado para o loop principal.");
+  } else {
+    Serial.printf("Watchdog não pôde monitorar o loop: %d\n", resultado);
   }
 }
 

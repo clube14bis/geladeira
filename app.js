@@ -465,7 +465,6 @@ async function enviar(b) {
       v = total();
     if (!demo) {
       let pedido = push(ref(db, "orders"));
-      await sheets(pedido.key, items, v);
       const dadosPedido = {
         uid: usuarioAtual.uid,
         username: perfilAtual.username,
@@ -487,7 +486,12 @@ async function enviar(b) {
           createdAt: serverTimestamp(),
         },
       });
-      await reduzirEstoque(items);
+      // A abertura depende somente do Firebase. Planilha e estoque são
+      // registros auxiliares: nunca podem atrasar o comando da geladeira.
+      void sheets(pedido.key, items, v).catch((e) => {
+        console.warn("Não foi possível registrar o pedido na planilha", e);
+      });
+      void reduzirEstoque(items);
     }
     fechar();
     obrigadoTela(v);

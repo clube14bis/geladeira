@@ -40,20 +40,20 @@ Clube 14 BIS Fridge is a self-service system for a shared refrigerator. Members 
 ## Order flow
 
 1. A customer signs in, selects items, and confirms the cart.
-2. The web app records the withdrawal in Google Sheets.
-3. The web app creates a pending order, saves personal history, and updates informational stock in Firebase.
-4. The ESP32 receives the new Firebase Realtime Database stream event.
+2. The web app creates a pending order, saves personal history, and updates informational stock in Firebase.
+3. The ESP32 receives the new Firebase Realtime Database stream event.
+4. The Google Sheets report is sent in the background and never delays the lock command.
 5. It waits six seconds, then releases the relay for ten seconds while the onboard blue LED flashes.
 6. The relay interrupts power to the fail-safe electromagnetic lock, allowing the door to open.
 7. After ten seconds, the relay returns to the locked state and the ESP32 records the lock state in Firebase.
 
 ## ESP32 reliability design
 
-Firmware **2.5.0** is designed for unattended operation. It does not repeatedly poll the whole order history. Instead, it keeps a Firebase stream open and only checks the most recent order when it starts or rebuilds a stream. This prevents a large historical response from exhausting the ESP32 heap.
+Firmware **2.5.1** is designed for unattended operation. It does not repeatedly poll the whole order history. Instead, it keeps a Firebase stream open and only checks the most recent order when it starts or rebuilds a stream. This prevents a large historical response from exhausting the ESP32 heap.
 
 | Protection | Behaviour |
 | --- | --- |
-| Task watchdog | Restarts the ESP32 after a complete program stall lasting 60 seconds. |
+| Task watchdog | Restarts the main firmware loop after a complete 60-second stall. Wi-Fi and Firebase background tasks are excluded to prevent false resets during TLS/network activity. |
 | Stream health check | Checks the Firebase stream every five seconds and rebuilds it if no event or keep-alive arrives for two minutes. |
 | Wi-Fi recovery | Tries the configured 2.4 GHz networks again after a disconnect. |
 | Wi-Fi fallback reset | If Wi-Fi cannot return for five minutes, locks the relay output and restarts with `WIFI_SEM_RETORNO`. |
