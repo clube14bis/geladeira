@@ -43,7 +43,8 @@ constexpr unsigned long INTERVALO_REINICIO_PREVENTIVO_MS = 5UL * 60UL * 60UL * 1
 constexpr unsigned long LIMITE_WIFI_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
 constexpr unsigned long LIMITE_FIREBASE_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
 constexpr uint32_t WATCHDOG_TIMEOUT_MS = 60000;
-constexpr char VERSAO_FIRMWARE[] = "2.4.0";
+constexpr size_t TAMANHO_HISTORICO_EVENTOS = 900;
+constexpr char VERSAO_FIRMWARE[] = "2.5.0";
 
 struct Rede { const char *ssid; const char *senha; };
 Rede redes[] = {
@@ -89,6 +90,7 @@ uint32_t totalRecuperacoesStream = 0;
 String ultimoMotivoRecuperacao = "NENHUMA";
 String motivoInicializacao = "DESCONHECIDO";
 char caminhoStatus[48] = "/devices/geladeira";
+char historicoEventos[TAMANHO_HISTORICO_EVENTOS] = "";
 
 struct DiagnosticoMemoria {
   bool pronto = false;
@@ -109,6 +111,34 @@ void acenderIndicador() { digitalWrite(LED_INDICADOR, HIGH); }
 
 void iniciarPedido(const String &id);
 void processarSincronizacaoInicial(AsyncResult &resultado);
+
+void carregarHistoricoEventos() {
+  String historicoSalvo = memoria.getString("eventLog", "");
+  historicoSalvo.toCharArray(historicoEventos, sizeof(historicoEventos));
+}
+
+void registrarEvento(const char *evento) {
+  char item[100];
+  snprintf(item, sizeof(item), "B%lu/U%lus:%s",
+           static_cast<unsigned long>(totalInicializacoes),
+           millis() / 1000UL, evento);
+
+  size_t tamanhoAtual = strlen(historicoEventos);
+  while (tamanhoAtual && tamanhoAtual + 3 + strlen(item) >= sizeof(historicoEventos)) {
+    char *separador = strstr(historicoEventos, " | ");
+    if (!separador) {
+      historicoEventos[0] = '\0';
+      break;
+    }
+    memmove(historicoEventos, separador + 3, strlen(separador + 3) + 1);
+    tamanhoAtual = strlen(historicoEventos);
+  }
+  size_t inicio = strlen(historicoEventos);
+  snprintf(historicoEventos + inicio, sizeof(historicoEventos) - inicio,
+           "%s%s", inicio ? " | " : "", item);
+  memoria.putString("eventLog", historicoEventos);
+  Serial.printf("Evento persistente: %s\n", item);
+}
 
 uint32_t maiorBlocoLivre() {
   return heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
@@ -204,6 +234,7 @@ bool conectarWiFi() {
     if (aguardarWiFi(8000)) {
       WiFi.scanDelete();
       Serial.printf("Wi-Fi conectado: %s\n", WiFi.localIP().toString().c_str());
+      registrarEvento("WIFI_CONNECTED");
       piscarIndicador(3);
       acenderIndicador();
       return true;
@@ -220,6 +251,7 @@ bool conectarWiFi() {
     WiFi.begin(rede.ssid, rede.senha);
     if (aguardarWiFi(5000)) {
       Serial.printf("Wi-Fi conectado: %s\n", WiFi.localIP().toString().c_str());
+      registrarEvento("WIFI_CONNECTED");
       piscarIndicador(3);
       acenderIndicador();
       return true;
@@ -266,6 +298,7 @@ void enviarHeartbeat(bool imediato = false) {
   doc["heapAfterStreamRecovery"] = diagnosticoMemoria.heapDepoisRecuperacao;
   doc["largestBlockAfterStreamRecovery"] = diagnosticoMemoria.maiorBlocoDepoisRecuperacao;
   doc["deviceMode"] = MODO_TESTE ? "TESTE" : "PRODUCAO";
+  doc["eventLog"] = historicoEventos;
   doc["resetReason"] = motivoInicializacao;
   doc["safeRestartPending"] = reinicioPreventivoPendente;
   doc["lastOrderId"] = ultimoPedido;
@@ -297,6 +330,7 @@ void abrirTrava() {
   Serial.println("GELADEIRA ABERTA: 10 segundos");
   registrarEstado("opened");
   estado = DESTRAVADA;
+  registrarEvento("LOCK_OPENED");
   proximaAcao = millis() + TEMPO_DESTRAVADO_MS;
   ultimaTrocaLed = 0;
   enviarHeartbeat(true);
@@ -311,6 +345,7 @@ void trancarGeladeira() {
   pedidoAtual = "";
   apagarLeds();
   estado = AGUARDANDO;
+  registrarEvento("LOCKED");
   enviarHeartbeat(true);
   if (pedidoNaFila.length()) {
     String proximo = pedidoNaFila;
@@ -336,6 +371,7 @@ void iniciarPedido(const String &id) {
   pedidoAtual = id;
   estado = AGUARDANDO;
   proximaAcao = millis() + ESPERA_ANTES_DE_ABRIR_MS;
+  registrarEvento("ORDER_RECEIVED");
   Serial.printf("Novo pedido %s. Abrindo em 6 segundos.\n", id.c_str());
 }
 
@@ -348,6 +384,9 @@ void agendarRecuperacaoStream(const char *motivo) {
     diagnosticoMemoria.medicaoRecuperacaoPendente = true;
   }
   ultimoMotivoRecuperacao = motivo;
+  char evento[90];
+  snprintf(evento, sizeof(evento), "STREAM_%s", motivo);
+  registrarEvento(evento);
   totalRecuperacoesStream++;
   memoria.putUInt("streamRecoveries", totalRecuperacoesStream);
   memoria.putString("lastStreamRecovery", ultimoMotivoRecuperacao);
@@ -372,6 +411,9 @@ void reiniciarComSeguranca(const char *motivo) {
   // A saída do relé volta ao estado trancado antes do reset do processador.
   digitalWrite(RELE_TRAVA, RELE_TRAVADO);
   apagarLeds();
+  char evento[90];
+  snprintf(evento, sizeof(evento), "RESET_%s", motivo);
+  registrarEvento(evento);
   memoria.putString("reinicioPlanejado", motivo);
   Serial.printf("Reinício seguro: %s\n", motivo);
   delay(150);
@@ -403,6 +445,7 @@ void analisarPedidos(JsonObject pedidos) {
     baselineFeito = true;
     if (maiorId.length() && maiorId > ultimoPedido) { ultimoPedido = maiorId; memoria.putString("ultimoPedido", ultimoPedido); }
     apagarLeds(); // pronto para uso: LED apagado até uma abertura
+    registrarEvento("ORDERS_BASELINED");
     Serial.println("Sincronização inicial concluída; ESP32 pronto para uso.");
     return;
   }
@@ -447,6 +490,7 @@ void processarSincronizacaoInicial(AsyncResult &resultado) {
   if (doc.isNull()) {
     baselineFeito = true;
     apagarLeds();
+    registrarEvento("ORDERS_BASELINED");
     Serial.println("Sincronização inicial concluída; nenhum pedido pendente. ESP32 pronto para uso.");
   } else if (doc.is<JsonObject>()) {
     analisarPedidos(doc.as<JsonObject>());
@@ -495,6 +539,7 @@ void processarStream(AsyncResult &resultado) {
     if (doc.isNull()) {
       baselineFeito = true;
       apagarLeds(); // pronto para uso: LED apagado até uma abertura
+      registrarEvento("ORDERS_BASELINED");
       Serial.println("Sincronização inicial concluída; nenhum pedido pendente. ESP32 pronto para uso.");
       return;
     }
@@ -520,6 +565,10 @@ void setup() {
   memoria.putUInt("bootCount", totalInicializacoes);
   totalRecuperacoesStream = memoria.getUInt("streamRecoveries", 0);
   ultimoMotivoRecuperacao = memoria.getString("lastStreamRecovery", "NENHUMA");
+  carregarHistoricoEventos();
+  char eventoBoot[90];
+  snprintf(eventoBoot, sizeof(eventoBoot), "BOOT_%s", motivoInicializacao.c_str());
+  registrarEvento(eventoBoot);
   configurarWatchdog();
   WiFi.mode(WIFI_STA);
   while (!conectarWiFi()) {
@@ -548,7 +597,10 @@ void loop() {
   alternarLeds();
 
   if (WiFi.status() != WL_CONNECTED) {
-    if (!inicioWifiIndisponivel) inicioWifiIndisponivel = agora;
+    if (!inicioWifiIndisponivel) {
+      inicioWifiIndisponivel = agora;
+      registrarEvento("WIFI_DISCONNECTED");
+    }
     if (streamIniciado || (baselineFeito && !recuperacaoStreamPendente)) {
       agendarRecuperacaoStream("WIFI_DESCONECTADO");
     }
@@ -569,13 +621,17 @@ void loop() {
   if (firebase.ready() && !firebaseConfirmado) {
     firebaseConfirmado = true;
     Serial.println("Firebase conectado.");
+    registrarEvento("FIREBASE_CONNECTED");
     piscarIndicador(5); // confirma a conexão com o Firebase
     acenderIndicador(); // permanece aceso até a sincronização inicial dos pedidos
   }
   if (firebase.ready()) {
     inicioFirebaseIndisponivel = 0;
   } else {
-    if (!inicioFirebaseIndisponivel) inicioFirebaseIndisponivel = agora;
+    if (!inicioFirebaseIndisponivel) {
+      inicioFirebaseIndisponivel = agora;
+      registrarEvento("FIREBASE_UNAVAILABLE");
+    }
     // Wi-Fi funcionando sem Firebase por muito tempo também pode deixar a
     // placa incapaz de receber pedidos; reiniciar é a recuperação segura.
     if (agora - inicioFirebaseIndisponivel >= LIMITE_FIREBASE_SEM_RETORNO_MS) {
@@ -604,6 +660,7 @@ void loop() {
                     diagnosticoMemoria.maiorBlocoDepoisRecuperacao);
     }
     Serial.println("Monitoramento de pedidos ativado.");
+    registrarEvento("STREAM_ACTIVE");
     enviarHeartbeat(true);
   }
   if (estado == AGUARDANDO && pedidoAtual.length() && agora >= proximaAcao) abrirTrava();

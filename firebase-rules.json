@@ -108,6 +108,7 @@
         "heapAfterStreamRecovery": { ".validate": "newData.isNumber() && newData.val() >= 0" },
         "largestBlockAfterStreamRecovery": { ".validate": "newData.isNumber() && newData.val() >= 0" },
         "deviceMode": { ".validate": "newData.val() === 'PRODUCAO' || newData.val() === 'TESTE'" },
+        "eventLog": { ".validate": "newData.isString() && newData.val().length <= 900" },
         "resetReason": { ".validate": "newData.isString() && newData.val().length <= 60" },
         "safeRestartPending": { ".validate": "newData.isBoolean()" },
         "lastOrderId": { ".validate": "newData.isString() && newData.val().length <= 100" },

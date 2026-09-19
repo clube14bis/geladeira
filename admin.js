@@ -233,10 +233,12 @@ function atualizarStatusESP(dados = estadoESP) {
   $("#esp-recuperacao-memoria").textContent = heapAntes === "—"
     ? "SEM RECUPERAÇÕES"
     : `Antes ${heapAntes}/${blocoAntes} | depois ${heapDepois}/${blocoDepois}`;
-  $("#esp-modo").textContent = dados?.deviceMode || "PRODUÇÃO";
   const reinicio = dados?.resetReason;
   $("#esp-reinicio").textContent = reinicio
     ? `${reinicio}${dados?.safeRestartPending ? " | PENDENTE" : ""}`
+    : "ATUALIZE O FIRMWARE";
+  $("#esp-eventos").textContent = dados?.eventLog
+    ? dados.eventLog.replaceAll(" | ", "\n")
     : "ATUALIZE O FIRMWARE";
   $("#esp-status-detalhe").textContent = online
     ? `SINAL RECEBIDO. INICIALIZAÇÕES: ${dados.bootCount ?? "—"}.`

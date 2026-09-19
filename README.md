@@ -49,7 +49,7 @@ Clube 14 BIS Fridge is a self-service system for a shared refrigerator. Members 
 
 ## ESP32 reliability design
 
-Firmware **2.4.0** is designed for unattended operation. It does not repeatedly poll the whole order history. Instead, it keeps a Firebase stream open and only checks the most recent order when it starts or rebuilds a stream. This prevents a large historical response from exhausting the ESP32 heap.
+Firmware **2.5.0** is designed for unattended operation. It does not repeatedly poll the whole order history. Instead, it keeps a Firebase stream open and only checks the most recent order when it starts or rebuilds a stream. This prevents a large historical response from exhausting the ESP32 heap.
 
 | Protection | Behaviour |
 | --- | --- |
@@ -60,8 +60,11 @@ Firmware **2.4.0** is designed for unattended operation. It does not repeatedly 
 | Firebase fallback reset | If Wi-Fi is connected but Firebase does not return for five minutes, locks the relay output and restarts with `FIREBASE_SEM_RETORNO`. |
 | Preventive reset | Every five hours, restarts only when the lock is closed and there is no order being processed. |
 | Memory telemetry | Sends free heap, minimum heap, largest free block, stream-recovery memory, RSSI, and uptime to the dashboard every 30 seconds. |
+| Persistent event log | Keeps a circular history in ESP32 non-volatile memory and sends it to the dashboard after the next successful Firebase connection. |
 
 The dashboard considers the device offline when the latest heartbeat is older than 90 seconds. Values such as “Firebase connected” and “stream active” are the last status reported by the device; when the device is offline, they are historical values rather than live confirmation.
+
+The persistent event log uses records such as `B22/U18s:WIFI_CONNECTED`: `B` is the boot number, `U` is the elapsed time since that boot, and the final value is the event. It records device boot reason, Wi-Fi/Firebase changes, stream recovery, order processing, lock release/lock state, and planned reset reason. The log survives a normal ESP32 reset and helps identify what happened immediately before a recovery.
 
 ### Memory diagnostics
 

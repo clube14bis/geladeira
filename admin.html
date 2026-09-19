@@ -290,6 +290,31 @@
         font-size: .75rem;
         font-weight: 700;
       }
+      .esp-eventos {
+        margin: 12px 0 0;
+        padding: 12px;
+        border-radius: 12px;
+        background: #f6f8f8;
+      }
+      .esp-eventos h3 {
+        margin: 0 0 7px;
+        color: #63777c;
+        font-size: .68rem;
+        font-weight: 850;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .esp-eventos p {
+        max-height: 92px;
+        margin: 0;
+        overflow: auto;
+        color: #17333a;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: .7rem;
+        font-weight: 700;
+        line-height: 1.55;
+        overflow-wrap: anywhere;
+      }
       .grupo-admin {
         margin: 22px 0;
       }
@@ -651,9 +676,12 @@
             <div><dt>Memória desde pronto</dt><dd id="esp-memoria-pronto">—</dd></div>
             <div><dt>Maior bloco livre</dt><dd id="esp-maior-bloco">—</dd></div>
             <div><dt>Recuperação do stream</dt><dd id="esp-recuperacao-memoria">—</dd></div>
-            <div><dt>Modo</dt><dd id="esp-modo">—</dd></div>
             <div><dt>Última inicialização</dt><dd id="esp-reinicio">—</dd></div>
           </dl>
+          <div class="esp-eventos">
+            <h3>Histórico de eventos persistente</h3>
+            <p id="esp-eventos">ATUALIZE O FIRMWARE</p>
+          </div>
           <p id="esp-status-detalhe" class="status-detalhe">Aguardando o primeiro sinal do ESP32.</p>
         </section>
         <section class="gerenciador-categorias">

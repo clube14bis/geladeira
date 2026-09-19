@@ -2,7 +2,7 @@
 
 This folder contains the ESP32 firmware that receives new orders from Firebase Realtime Database and controls the refrigerator electromagnetic lock through a relay.
 
-Current firmware version: **2.4.0**.
+Current firmware version: **2.5.0**.
 
 ## What the firmware does
 
@@ -98,7 +98,7 @@ The red LED on many ESP32 development boards is only a power LED and is not cont
 
 ## Reliability and diagnostics
 
-Firmware 2.4.0 uses several independent safeguards:
+Firmware 2.5.0 uses several independent safeguards:
 
 - A 60-second task watchdog recovers from a complete program stall.
 - Firebase stream health is checked every five seconds. A stream with no event or keep-alive for two minutes is rebuilt.
@@ -107,8 +107,11 @@ Firmware 2.4.0 uses several independent safeguards:
 - If Wi-Fi is connected but Firebase does not return for five minutes, the same safe restart occurs with `FIREBASE_SEM_RETORNO`.
 - A preventive restart is scheduled every five hours and only occurs when the lock is closed and no order is in progress.
 - The device reports free heap, minimum heap, largest available allocation block, stream recovery memory, RSSI, uptime, reset reason, and stream recovery count.
+- A circular persistent event log records boot reason, Wi-Fi/Firebase transitions, stream recovery, lock actions, and planned reset reason. It is retained in internal non-volatile memory and displayed in the dashboard after the next successful heartbeat.
 
 The safe-reset reason is persisted locally and included in the first successful heartbeat after reboot. The admin dashboard can therefore show why a recovered device restarted.
+
+Event records follow `B<boot>/U<seconds>s:<event>`. For example, `B22/U301s:RESET_WIFI_SEM_RETORNO` means that boot 22 safely restarted after Wi-Fi had not returned. A power loss or total hardware freeze may prevent the final event from being written, but the reset reason on the next boot can still provide evidence.
 
 ## Reading memory values
 
