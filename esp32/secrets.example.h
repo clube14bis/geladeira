@@ -16,3 +16,8 @@
 #define FIREBASE_DEVICE_EMAIL ""
 #define FIREBASE_DEVICE_PASSWORD ""
 #define FIREBASE_DATABASE_URL "https://geladeira-14-bis-default-rtdb.firebaseio.com"
+
+// Identificação da placa. Para a geladeira em produção, mantenha estes valores.
+// Na placa de testes, use DEVICE_ID "teste" e MODO_TESTE true.
+#define DEVICE_ID "geladeira"
+#define MODO_TESTE false

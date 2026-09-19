@@ -82,10 +82,10 @@
       }
     },
     "devices": {
-      "geladeira": {
+      "$deviceId": {
         ".read": "auth != null && (auth.uid === 'IxZWx1TMk8VsTdEdCVUltFd96a93' || auth.uid === 'rS8DvYaBHnfPcueDePKr02SFTLE2' || root.child('admins').child(auth.uid).val() === true)",
         ".write": "auth != null && auth.uid === 'rS8DvYaBHnfPcueDePKr02SFTLE2'",
-        ".validate": "newData.hasChildren(['online', 'state', 'firmware', 'uptimeSeconds', 'bootCount', 'firebaseConnected', 'streamActive', 'streamLastEventSecondsAgo', 'streamRecoveries', 'lastStreamRecovery', 'freeHeap', 'minFreeHeap', 'resetReason', 'safeRestartPending', 'wifi', 'lastSeen'])",
+        ".validate": "($deviceId === 'geladeira' || $deviceId === 'teste') && newData.hasChildren(['online', 'state', 'firmware', 'uptimeSeconds', 'bootCount', 'firebaseConnected', 'streamActive', 'streamLastEventSecondsAgo', 'streamRecoveries', 'lastStreamRecovery', 'freeHeap', 'minFreeHeap', 'resetReason', 'safeRestartPending', 'wifi', 'lastSeen'])",
         "online": { ".validate": "newData.isBoolean()" },
         "state": { ".validate": "newData.val() === 'locked' || newData.val() === 'open' || newData.val() === 'waiting_to_open'" },
         "firmware": { ".validate": "newData.isString() && newData.val().length <= 20" },
@@ -98,6 +98,16 @@
         "lastStreamRecovery": { ".validate": "newData.isString() && newData.val().length <= 60" },
         "freeHeap": { ".validate": "newData.isNumber() && newData.val() >= 0" },
         "minFreeHeap": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "heapAtReady": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "minHeapSinceReady": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "largestFreeBlock": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "largestBlockAtReady": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "minLargestFreeBlock": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "heapBeforeStreamRecovery": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "largestBlockBeforeStreamRecovery": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "heapAfterStreamRecovery": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "largestBlockAfterStreamRecovery": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "deviceMode": { ".validate": "newData.val() === 'PRODUCAO' || newData.val() === 'TESTE'" },
         "resetReason": { ".validate": "newData.isString() && newData.val().length <= 60" },
         "safeRestartPending": { ".validate": "newData.isBoolean()" },
         "lastOrderId": { ".validate": "newData.isString() && newData.val().length <= 100" },

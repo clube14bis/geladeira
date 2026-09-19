@@ -14,9 +14,19 @@
 #include <FirebaseClient.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <esp_heap_caps.h>
 #include <esp_system.h>
 #include <esp_task_wdt.h>
 #include "secrets.h"
+
+// Cada placa precisa de um identificador próprio. Na placa de testes,
+// use DEVICE_ID "teste" e MODO_TESTE true no secrets.h local.
+#ifndef DEVICE_ID
+#define DEVICE_ID "geladeira"
+#endif
+#ifndef MODO_TESTE
+#define MODO_TESTE false
+#endif
 
 // O LED azul integrado costuma usar GPIO 2. O vermelho é apenas de alimentação.
 constexpr uint8_t LED_INDICADOR = 2;
@@ -29,9 +39,9 @@ constexpr unsigned long INTERVALO_HEARTBEAT_MS = 30000;
 constexpr unsigned long INTERVALO_RECONEXAO_STREAM_MS = 3000;
 constexpr unsigned long INTERVALO_VERIFICACAO_STREAM_MS = 5000;
 constexpr unsigned long LIMITE_SEM_EVENTO_STREAM_MS = 120000;
-constexpr unsigned long INTERVALO_REINICIO_PREVENTIVO_MS = 10UL * 60UL * 60UL * 1000UL;
+constexpr unsigned long INTERVALO_REINICIO_PREVENTIVO_MS = 5UL * 60UL * 60UL * 1000UL;
 constexpr uint32_t WATCHDOG_TIMEOUT_MS = 60000;
-constexpr char VERSAO_FIRMWARE[] = "2.2.0";
+constexpr char VERSAO_FIRMWARE[] = "2.3.0";
 
 struct Rede { const char *ssid; const char *senha; };
 Rede redes[] = {
@@ -49,6 +59,7 @@ using AsyncClient = AsyncClientClass;
 AsyncClient cliente(ssl), clienteStream(sslStream);
 RealtimeDatabase banco;
 Preferences memoria;
+DatabaseOptions filtroUltimoPedido;
 
 enum EstadoTrava { AGUARDANDO, DESTRAVADA };
 EstadoTrava estado = AGUARDANDO;
@@ -73,12 +84,54 @@ uint32_t totalInicializacoes = 0;
 uint32_t totalRecuperacoesStream = 0;
 String ultimoMotivoRecuperacao = "NENHUMA";
 String motivoInicializacao = "DESCONHECIDO";
+char caminhoStatus[48] = "/devices/geladeira";
+
+struct DiagnosticoMemoria {
+  bool pronto = false;
+  bool medicaoRecuperacaoPendente = false;
+  uint32_t heapPronto = 0;
+  uint32_t maiorBlocoPronto = 0;
+  uint32_t menorHeapDesdePronto = 0;
+  uint32_t menorMaiorBlocoDesdePronto = 0;
+  uint32_t heapAntesRecuperacao = 0;
+  uint32_t maiorBlocoAntesRecuperacao = 0;
+  uint32_t heapDepoisRecuperacao = 0;
+  uint32_t maiorBlocoDepoisRecuperacao = 0;
+};
+DiagnosticoMemoria diagnosticoMemoria;
 
 void apagarLeds() { digitalWrite(LED_INDICADOR, LOW); }
 void acenderIndicador() { digitalWrite(LED_INDICADOR, HIGH); }
 
 void iniciarPedido(const String &id);
 void processarSincronizacaoInicial(AsyncResult &resultado);
+
+uint32_t maiorBlocoLivre() {
+  return heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+}
+
+void atualizarDiagnosticoMemoria() {
+  if (!diagnosticoMemoria.pronto) return;
+  uint32_t heap = ESP.getFreeHeap();
+  uint32_t maiorBloco = maiorBlocoLivre();
+  if (!diagnosticoMemoria.menorHeapDesdePronto || heap < diagnosticoMemoria.menorHeapDesdePronto) {
+    diagnosticoMemoria.menorHeapDesdePronto = heap;
+  }
+  if (!diagnosticoMemoria.menorMaiorBlocoDesdePronto || maiorBloco < diagnosticoMemoria.menorMaiorBlocoDesdePronto) {
+    diagnosticoMemoria.menorMaiorBlocoDesdePronto = maiorBloco;
+  }
+}
+
+void iniciarDiagnosticoMemoria() {
+  if (diagnosticoMemoria.pronto) return;
+  diagnosticoMemoria.pronto = true;
+  diagnosticoMemoria.heapPronto = ESP.getFreeHeap();
+  diagnosticoMemoria.maiorBlocoPronto = maiorBlocoLivre();
+  diagnosticoMemoria.menorHeapDesdePronto = diagnosticoMemoria.heapPronto;
+  diagnosticoMemoria.menorMaiorBlocoDesdePronto = diagnosticoMemoria.maiorBlocoPronto;
+  Serial.printf("Diagnóstico de memória iniciado: heap %u, maior bloco %u.\n",
+                diagnosticoMemoria.heapPronto, diagnosticoMemoria.maiorBlocoPronto);
+}
 
 const char *nomeMotivoReset(esp_reset_reason_t motivo) {
   switch (motivo) {
@@ -184,6 +237,7 @@ void enviarHeartbeat(bool imediato = false) {
   unsigned long agora = millis();
   if (!imediato && agora - ultimoHeartbeat < INTERVALO_HEARTBEAT_MS) return;
   ultimoHeartbeat = agora;
+  atualizarDiagnosticoMemoria();
   JsonDocument doc;
   doc["online"] = true;
   doc["state"] = estadoDispositivo();
@@ -198,6 +252,16 @@ void enviarHeartbeat(bool imediato = false) {
   doc["lastStreamRecovery"] = ultimoMotivoRecuperacao;
   doc["freeHeap"] = ESP.getFreeHeap();
   doc["minFreeHeap"] = ESP.getMinFreeHeap();
+  doc["heapAtReady"] = diagnosticoMemoria.heapPronto;
+  doc["minHeapSinceReady"] = diagnosticoMemoria.menorHeapDesdePronto;
+  doc["largestFreeBlock"] = maiorBlocoLivre();
+  doc["largestBlockAtReady"] = diagnosticoMemoria.maiorBlocoPronto;
+  doc["minLargestFreeBlock"] = diagnosticoMemoria.menorMaiorBlocoDesdePronto;
+  doc["heapBeforeStreamRecovery"] = diagnosticoMemoria.heapAntesRecuperacao;
+  doc["largestBlockBeforeStreamRecovery"] = diagnosticoMemoria.maiorBlocoAntesRecuperacao;
+  doc["heapAfterStreamRecovery"] = diagnosticoMemoria.heapDepoisRecuperacao;
+  doc["largestBlockAfterStreamRecovery"] = diagnosticoMemoria.maiorBlocoDepoisRecuperacao;
+  doc["deviceMode"] = MODO_TESTE ? "TESTE" : "PRODUCAO";
   doc["resetReason"] = motivoInicializacao;
   doc["safeRestartPending"] = reinicioPreventivoPendente;
   doc["lastOrderId"] = ultimoPedido;
@@ -209,7 +273,7 @@ void enviarHeartbeat(bool imediato = false) {
   ultimoSinal[".sv"] = "timestamp";
   String json;
   serializeJson(doc, json);
-  if (!banco.set<object_t>(cliente, "/devices/geladeira", object_t(json))) {
+  if (!banco.set<object_t>(cliente, caminhoStatus, object_t(json))) {
     Serial.printf("Falha no heartbeat: %s\n", cliente.lastError().message().c_str());
   }
 }
@@ -261,6 +325,10 @@ void alternarLeds() {
 }
 
 void iniciarPedido(const String &id) {
+  if (MODO_TESTE) {
+    Serial.printf("Pedido %s ignorado: placa em modo de teste.\n", id.c_str());
+    return;
+  }
   pedidoAtual = id;
   estado = AGUARDANDO;
   proximaAcao = millis() + ESPERA_ANTES_DE_ABRIR_MS;
@@ -269,6 +337,12 @@ void iniciarPedido(const String &id) {
 
 void agendarRecuperacaoStream(const char *motivo) {
   if (recuperacaoStreamPendente) return;
+  atualizarDiagnosticoMemoria();
+  if (diagnosticoMemoria.pronto) {
+    diagnosticoMemoria.heapAntesRecuperacao = ESP.getFreeHeap();
+    diagnosticoMemoria.maiorBlocoAntesRecuperacao = maiorBlocoLivre();
+    diagnosticoMemoria.medicaoRecuperacaoPendente = true;
+  }
   ultimoMotivoRecuperacao = motivo;
   totalRecuperacoesStream++;
   memoria.putUInt("streamRecoveries", totalRecuperacoesStream);
@@ -291,6 +365,7 @@ void verificarSaudeStream(unsigned long agora) {
 }
 
 void reiniciarComSeguranca(const char *motivo) {
+  // A saída do relé volta ao estado trancado antes do reset do processador.
   digitalWrite(RELE_TRAVA, RELE_TRAVADO);
   apagarLeds();
   memoria.putString("reinicioPlanejado", motivo);
@@ -303,8 +378,9 @@ void verificarReinicioPreventivo(unsigned long agora) {
   if (agora - inicioSessao >= INTERVALO_REINICIO_PREVENTIVO_MS) {
     reinicioPreventivoPendente = true;
   }
+  // Nunca interrompe a abertura de uma bebida nem o intervalo de 6 segundos.
   if (reinicioPreventivoPendente && estado == AGUARDANDO && !pedidoAtual.length() && !pedidoNaFila.length()) {
-    reiniciarComSeguranca("PREVENTIVO_10H");
+    reiniciarComSeguranca("PREVENTIVO_5H");
   }
 }
 
@@ -318,7 +394,7 @@ void analisarPedidos(JsonObject pedidos) {
       if (!candidato.length() || id < candidato) candidato = id;
     }
   }
-  // Na primeira conexão apenas sincroniza os pedidos antigos para não abrir a geladeira por histórico.
+  // Na primeira conexão só registra o pedido mais recente para não abrir a geladeira por histórico.
   if (!baselineFeito) {
     baselineFeito = true;
     if (maiorId.length() && maiorId > ultimoPedido) { ultimoPedido = maiorId; memoria.putString("ultimoPedido", ultimoPedido); }
@@ -351,15 +427,19 @@ void processarSincronizacaoInicial(AsyncResult &resultado) {
 
   const char *conteudo = resultado.c_str();
   JsonDocument doc;
-  if (!conteudo || deserializeJson(doc, conteudo)) {
-    Serial.println("Resposta inicial de pedidos inválida; tentando novamente.");
+  DeserializationError erroJson = conteudo ? deserializeJson(doc, conteudo) : DeserializationError::InvalidInput;
+  if (!conteudo || erroJson) {
+    // Diagnóstico seguro: mostra somente o tipo e o tamanho da resposta, nunca
+    // o seu conteúdo (os pedidos podem conter dados de usuários).
+    Serial.printf("Resposta inicial de pedidos inválida (%s, %u bytes); tentando novamente.\n",
+                  erroJson.c_str(), conteudo ? strlen(conteudo) : 0U);
     sincronizacaoSolicitada = false;
     proximaTentativaSincronizacao = millis() + 3000;
     return;
   }
 
-  // Esta leitura única estabelece a base antes de abrir o stream. Isso evita
-  // depender do primeiro evento SSE, que alguns servidores só enviam após uma alteração.
+  // A consulta traz somente o último pedido. Baixar o histórico completo pode
+  // ultrapassar a memória disponível conforme a lista de pedidos cresce.
   if (doc.isNull()) {
     baselineFeito = true;
     apagarLeds();
@@ -398,6 +478,10 @@ void processarStream(AsyncResult &resultado) {
   if (caminho != "/" && caminho.indexOf('/', 1) >= 0) return;
   const char *conteudo = stream.to<const char *>();
   if (!conteudo || !strlen(conteudo)) return;
+  // Na abertura ou recuperação do stream o Firebase envia um snapshot de toda
+  // a coleção. A sincronização do último pedido já aconteceu antes; ignorar
+  // esse snapshot impede uma alocação grande e fragmentação do heap.
+  if (baselineFeito && caminho == "/") return;
   JsonDocument doc;
   if (deserializeJson(doc, conteudo)) {
     Serial.println("Evento de pedidos ignorado: dados vazios.");
@@ -420,6 +504,7 @@ void processarStream(AsyncResult &resultado) {
 void setup() {
   Serial.begin(115200);
   inicioSessao = millis();
+  snprintf(caminhoStatus, sizeof(caminhoStatus), "/devices/%s", DEVICE_ID);
   pinMode(LED_INDICADOR, OUTPUT); acenderIndicador();
   pinMode(RELE_TRAVA, OUTPUT); digitalWrite(RELE_TRAVA, RELE_TRAVADO);
   memoria.begin("geladeira", false);
@@ -445,7 +530,9 @@ void setup() {
   initializeApp(cliente, firebase, getAuth(credenciais));
   firebase.getApp<RealtimeDatabase>(banco);
   banco.url(FIREBASE_DATABASE_URL);
-  Serial.printf("ESP32 preparado. Motivo da inicialização: %s\n", motivoInicializacao.c_str());
+  filtroUltimoPedido.filter.orderBy("$key").limitToLast(1);
+  Serial.printf("ESP32 %s preparado (%s). Motivo da inicialização: %s\n",
+                DEVICE_ID, MODO_TESTE ? "TESTE" : "PRODUCAO", motivoInicializacao.c_str());
 }
 
 void loop() {
@@ -476,7 +563,7 @@ void loop() {
   verificarSaudeStream(agora);
   if (firebase.ready() && (!baselineFeito || recuperacaoStreamPendente) && !sincronizacaoSolicitada && millis() >= proximaTentativaSincronizacao) {
     sincronizacaoSolicitada = true;
-    banco.get(cliente, "/orders", processarSincronizacaoInicial, false, "sincronizacaoInicial");
+    banco.get(cliente, "/orders", filtroUltimoPedido, processarSincronizacaoInicial, "sincronizacaoInicial");
     Serial.println(recuperacaoStreamPendente ? "Sincronizando pedidos após recuperar stream." : "Sincronizando pedidos iniciais.");
   }
   if (firebase.ready() && baselineFeito && !streamIniciado && millis() >= proximaTentativaStream) {
@@ -485,6 +572,15 @@ void loop() {
     banco.get(clienteStream, "/orders", processarStream, true /* stream SSE */, "pedidosStream");
     streamIniciado = true;
     ultimoEventoStream = millis();
+    iniciarDiagnosticoMemoria();
+    if (diagnosticoMemoria.medicaoRecuperacaoPendente) {
+      diagnosticoMemoria.heapDepoisRecuperacao = ESP.getFreeHeap();
+      diagnosticoMemoria.maiorBlocoDepoisRecuperacao = maiorBlocoLivre();
+      diagnosticoMemoria.medicaoRecuperacaoPendente = false;
+      Serial.printf("Memória após recuperar stream: heap %u, maior bloco %u.\n",
+                    diagnosticoMemoria.heapDepoisRecuperacao,
+                    diagnosticoMemoria.maiorBlocoDepoisRecuperacao);
+    }
     Serial.println("Monitoramento de pedidos ativado.");
     enviarHeartbeat(true);
   }

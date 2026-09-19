@@ -216,6 +216,24 @@ function atualizarStatusESP(dados = estadoESP) {
   const memoriaLivre = textoMemoria(dados?.freeHeap);
   const memoriaMinima = textoMemoria(dados?.minFreeHeap);
   $("#esp-memoria").textContent = memoriaLivre === "—" ? "ATUALIZE O FIRMWARE" : `${memoriaLivre} | mín. ${memoriaMinima}`;
+  const heapPronto = textoMemoria(dados?.heapAtReady);
+  const menorHeapPronto = textoMemoria(dados?.minHeapSinceReady);
+  $("#esp-memoria-pronto").textContent = heapPronto === "—"
+    ? "ATUALIZE O FIRMWARE"
+    : `${heapPronto} | mín. ${menorHeapPronto}`;
+  const maiorBloco = textoMemoria(dados?.largestFreeBlock);
+  const menorMaiorBloco = textoMemoria(dados?.minLargestFreeBlock);
+  $("#esp-maior-bloco").textContent = maiorBloco === "—"
+    ? "ATUALIZE O FIRMWARE"
+    : `${maiorBloco} | mín. ${menorMaiorBloco}`;
+  const heapAntes = textoMemoria(dados?.heapBeforeStreamRecovery);
+  const blocoAntes = textoMemoria(dados?.largestBlockBeforeStreamRecovery);
+  const heapDepois = textoMemoria(dados?.heapAfterStreamRecovery);
+  const blocoDepois = textoMemoria(dados?.largestBlockAfterStreamRecovery);
+  $("#esp-recuperacao-memoria").textContent = heapAntes === "—"
+    ? "SEM RECUPERAÇÕES"
+    : `Antes ${heapAntes}/${blocoAntes} | depois ${heapDepois}/${blocoDepois}`;
+  $("#esp-modo").textContent = dados?.deviceMode || "PRODUÇÃO";
   const reinicio = dados?.resetReason;
   $("#esp-reinicio").textContent = reinicio
     ? `${reinicio}${dados?.safeRestartPending ? " | PENDENTE" : ""}`
