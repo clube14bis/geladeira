@@ -1,311 +1,309 @@
-# Geladeira Clube 14 BIS
+# Clube 14 BIS Fridge
 
-<img width="1280" height="853" alt="Geladeira Clube 14 BIS" src="https://github.com/user-attachments/assets/02b59fa2-7ec7-47b4-98f5-437ef00a6a8e" />
+<img width="1280" height="853" alt="Clube 14 BIS Fridge" src="https://github.com/user-attachments/assets/02b59fa2-7ec7-47b4-98f5-437ef00a6a8e" />
 
-Sistema de autosserviço para a geladeira do Clube 14 BIS. Pelo QR Code, o cliente abre o site, entra com nome de usuário e senha, escolhe os produtos e confirma o carrinho. O pedido é registrado no Firebase e no Google Sheets; o ESP32 recebe o comando e controla a fechadura eletromagnética.
+Clube 14 BIS Fridge is a self-service system for a shared refrigerator. Members open the web app from a QR code, sign in, choose their drinks, confirm the cart, and collect the items after the refrigerator door is released. Orders are stored in Firebase and Google Sheets, while an ESP32 drives the relay connected to the electromagnetic lock.
 
-## Componentes do sistema
+## Architecture
 
-| Parte | Responsabilidade |
+| Component | Responsibility |
 | --- | --- |
-| GitHub Pages | Hospeda o site público e o painel administrativo. |
-| Firebase Authentication | Cadastro, login, sessão e recuperação de senha por e-mail. |
-| Firebase Realtime Database | Perfis, catálogo, estoque, pedidos, histórico e permissões. |
-| Cloudflare Worker | Permite login por nome de usuário, localizando o e-mail da conta no Firebase. |
-| Google Apps Script + Sheets | Gera o relatório de retiradas. |
-| ESP32 | Recebe pedido novo e controla o relé/trava. |
+| GitHub Pages | Hosts the public ordering site and the administration panel. |
+| Firebase Authentication | Account creation, sign-in, session handling, and password-reset email. |
+| Firebase Realtime Database | Users, catalog, orders, order history, ESP32 status, and access control. |
+| Cloudflare Worker | Lets users sign in with a username by resolving the matching Firebase email address. |
+| Google Apps Script + Google Sheets | Creates the operational withdrawal report. |
+| ESP32 | Listens for new orders and controls the lock relay. |
 
-## Funções implementadas
+## Main features
 
-### Site do cliente
+### Customer site
 
-- Login por nome de usuário e senha, com botão para mostrar/ocultar senha.
-- Cadastro com nome completo, usuário, celular, CPF, e-mail e senha.
-- Recuperação de senha por link enviado ao e-mail cadastrado.
-- Catálogo por categorias, com foto, preço, estoque e botão de adicionar.
-- Carrinho com quantidades, remoção, total em reais e Pix copia-e-cola.
-- Tela verde: 6 segundos de espera, 10 segundos de abertura e aviso de fechamento.
-- Histórico individual dos últimos três meses em formato de calendário, com consumo e total por dia.
-- Registro público de uso por planilha publicada.
+- Username and password login, including a show/hide password control.
+- Registration with full name, username, phone number, Brazilian CPF, email, and password.
+- Email-based password reset through Firebase Authentication.
+- Product catalog grouped by category, with image, price, stock indicator, and quantity controls.
+- Floating cart summary, full cart page, quantity changes, removal, Brazilian Real total, and Pix copy-and-paste payment data.
+- Door-progress screen: six-second preparation period, ten-second unlock period, and a closing notice.
+- Personal three-month calendar history with daily consumption and totals.
+- Published Google Sheets usage report.
 
-### Painel administrativo
+### Administration panel
 
-- Acesso somente a usuários marcados como administradores no Firebase.
-- Criar produto com nome, categoria, imagem por URL, preço e quantidade inicial.
-- Alterar preço, estoque, imagem, categoria e visibilidade.
-- Remover produto incorreto.
-- Criar categorias e remover categorias vazias.
-- Mudar a ordem de categorias e produtos; o site público reflete a ordem depois de salvar.
-- Estoque informativo: diminui a cada pedido, mas produto com estoque zero continua selecionável por decisão do projeto.
-- Quadro de status do ESP32: mostra presença, último sinal, Wi-Fi, Firebase, stream de pedidos e versão do firmware.
+- Restricted to Firebase users marked as administrators.
+- Create, edit, reorder, show/hide, and remove products.
+- Create categories and remove empty categories.
+- Edit name, price, quantity, image URL, category, and visibility before saving changes.
+- Informational inventory control: stock decreases on an order but intentionally does not block selection at zero.
+- Live ESP32 dashboard with online state, lock state, Wi-Fi quality, Firebase and stream state, uptime, firmware version, reset reason, and memory diagnostics.
 
-## Fluxo de um pedido
+## Order flow
 
-1. O cliente faz login, seleciona produtos e confirma o carrinho.
-2. O site envia uma linha para a planilha com cliente, itens e total.
-3. O site cria pedido pendente, histórico individual e atualiza o estoque informativo no Firebase.
-4. O ESP32 mantém um stream contínuo de pedidos e recebe a alteração imediatamente.
-5. Depois de 6 segundos, o ESP32 aciona o relé por 10 segundos e pisca o LED azul.
-6. O relé interrompe a alimentação da fechadura eletromagnética fail-safe, liberando a porta.
-7. Ao término dos 10 segundos, a trava volta ao estado normal e o ESP32 grava os estados opened e locked.
+1. A customer signs in, selects items, and confirms the cart.
+2. The web app records the withdrawal in Google Sheets.
+3. The web app creates a pending order, saves personal history, and updates informational stock in Firebase.
+4. The ESP32 receives the new Firebase Realtime Database stream event.
+5. It waits six seconds, then releases the relay for ten seconds while the onboard blue LED flashes.
+6. The relay interrupts power to the fail-safe electromagnetic lock, allowing the door to open.
+7. After ten seconds, the relay returns to the locked state and the ESP32 records the lock state in Firebase.
 
-### Comunicação otimizada do ESP32
+## ESP32 reliability design
 
-O ESP32 mantém um stream contínuo para a área de pedidos do Firebase. Antes ele precisava consultar o banco repetidamente; agora recebe uma notificação assim que surge pedido novo. Isso reduz consumo de consultas, diminui atrasos e torna o comando do relé/LED mais confiável.
+Firmware **2.4.0** is designed for unattended operation. It does not repeatedly poll the whole order history. Instead, it keeps a Firebase stream open and only checks the most recent order when it starts or rebuilds a stream. This prevents a large historical response from exhausting the ESP32 heap.
 
-O stream só é iniciado após a autenticação do Firebase ser concluída. No boot, a placa consulta somente o pedido mais recente para estabelecer a base e não abre a porta por histórico. Para testar, faça sempre pedido novo depois que o ESP32 estiver pronto.
-
-O firmware 2.3.0 também usa um watchdog de 60 segundos, tenta recuperar a conexão de Wi-Fi e recria o stream caso o Firebase o encerre. Se o stream ficar sem evento ou `keep-alive` por 2 minutos, ele é reconstruído e o pedido mais recente é conferido novamente — sem carregar todo o histórico na RAM. A cada 30 segundos ele grava um sinal de vida em `devices/<id-da-placa>`; o painel usa esse sinal para considerar a placa online por até 90 segundos. Após 5 horas ligado, o ESP32 agenda um reinício preventivo e só reinicia quando a trava está fechada e não há pedido em andamento. Isso melhora a recuperação após quedas de rede ou travamentos, mas não substitui alimentação elétrica estável, sinal Wi-Fi adequado ou instalação correta do relé.
-
-O painel administrativo exibe a idade do último evento do stream, o número e o motivo das recuperações, memória livre, memória mínima, maior bloco alocável, memória antes/depois de recuperar o stream, motivo do último reset e se há um reinício preventivo agendado. Esses dados ajudam a detectar fragmentação de memória e diferenciar uma placa ativa de uma placa que perdeu comunicação.
-
-## Endereços e arquivos
-
-| Item | Endereço / arquivo |
+| Protection | Behaviour |
 | --- | --- |
-| Site | [clube14bis.github.io/geladeira](https://clube14bis.github.io/geladeira/) |
-| Painel | [admin.html](https://clube14bis.github.io/geladeira/admin.html) |
-| Repositório | [github.com/clube14bis/geladeira](https://github.com/clube14bis/geladeira) |
-| Firmware | [esp32/esp32.ino](esp32/esp32.ino) |
-| Credenciais-modelo | [esp32/secrets.example.h](esp32/secrets.example.h) |
-| Regras do banco | [firebase-rules.json](firebase-rules.json) |
-| Apps Script | [google-apps-script/Code.gs](google-apps-script/Code.gs) |
+| Task watchdog | Restarts the ESP32 after a complete program stall lasting 60 seconds. |
+| Stream health check | Checks the Firebase stream every five seconds and rebuilds it if no event or keep-alive arrives for two minutes. |
+| Wi-Fi recovery | Tries the configured 2.4 GHz networks again after a disconnect. |
+| Wi-Fi fallback reset | If Wi-Fi cannot return for five minutes, locks the relay output and restarts with `WIFI_SEM_RETORNO`. |
+| Firebase fallback reset | If Wi-Fi is connected but Firebase does not return for five minutes, locks the relay output and restarts with `FIREBASE_SEM_RETORNO`. |
+| Preventive reset | Every five hours, restarts only when the lock is closed and there is no order being processed. |
+| Memory telemetry | Sends free heap, minimum heap, largest free block, stream-recovery memory, RSSI, and uptime to the dashboard every 30 seconds. |
 
-## Uso pelo cliente
+The dashboard considers the device offline when the latest heartbeat is older than 90 seconds. Values such as “Firebase connected” and “stream active” are the last status reported by the device; when the device is offline, they are historical values rather than live confirmation.
 
-1. Escaneie o QR Code e abra o site.
-2. Entre com nome de usuário e senha. Caso seja o primeiro acesso, escolha Criar cadastro.
-3. No cadastro, informe nome, usuário, celular com DDD, CPF válido, e-mail e senha com pelo menos 6 caracteres.
-4. Escolha produtos pelo botão mais. O botão Ver carrinho aparece após a primeira seleção.
-5. No carrinho, confira itens, ajuste quantidades, remova o que não quiser e confirme.
-6. A tela verde mostra total e botão Copiar chave Pix.
-7. Após 6 segundos aparece Geladeira aberta com contador de 10 segundos. Retire os itens e feche a porta.
-8. Em Histórico, o usuário vê seus pedidos dos últimos três meses e pode copiar o Pix novamente.
+### Memory diagnostics
 
-Em Esqueci minha senha, o usuário informa o e-mail do cadastro e recebe link de redefinição pelo Firebase. Não existe recuperação por CPF, porque CPF sozinho não é fator seguro de confirmação.
+Free heap alone is not enough to assess memory health. The dashboard also reports the **largest free block**, which is the largest single allocation currently possible. For example, 80 KB total free heap with a 20 KB largest block cannot allocate a new 40 KB buffer. The firmware avoids the old full-history read specifically for this reason.
 
-## Painel administrativo
+Normal values can change after boot while Wi-Fi, TLS, and Firebase allocate their buffers. Watch the trend over 24–48 hours:
 
-Abra [admin.html](https://clube14bis.github.io/geladeira/admin.html) e entre com uma conta marcada como administradora no Firebase. O painel usa o mesmo nome de usuário e senha do site.
+- Stable values or small variations are expected.
+- A continuing drop in free heap or largest free block can indicate fragmentation or a memory leak.
+- The reset reason after a recovery helps identify a Wi-Fi, Firebase, watchdog, power, or planned-reset event.
 
-### Alterar catálogo
+## Project links and files
 
-1. Marque Exibir para deixar produto visível no site.
-2. Selecione a categoria.
-3. Informe preço em reais, por exemplo 5,50.
-4. Informe estoque inteiro igual ou superior a zero.
-5. Use as setas para reordenar produtos.
-6. Use o botão x para remover produto.
-7. Clique em Salvar alterações. Somente esse passo grava mudanças no Firebase.
-
-### Criar produto e categoria
-
-1. Informe nome, categoria, URL pública direta da imagem, preço e estoque.
-2. Clique em Adicionar produto.
-3. Clique em Salvar alterações.
-
-As imagens usam moldura quadrada e preservam proporção, mantendo o padrão visual. Categorias só podem ser removidas quando estiverem vazias; mova ou exclua os produtos antes.
-
-### Estoque
-
-Ao confirmar pedido, o site executa transação no Firebase e reduz o estoque sem permitir valor negativo. O contador vermelho no produto mostra a quantidade registrada. Como é controle informativo, chegar a zero não bloqueia a adição nem a confirmação do produto.
-
-## Firebase e Cloudflare
-
-### Configuração inicial do Firebase
-
-1. Crie ou abra o projeto geladeira-14-bis.
-2. Em Authentication, habilite E-mail/Senha.
-3. Em Authentication Templates, configure em português o e-mail de recuperação.
-4. Crie o Realtime Database.
-5. Em Realtime Database Rules, publique o conteúdo de [firebase-rules.json](firebase-rules.json).
-6. Em Project settings General, crie o aplicativo Web e complete firebase-config.js com a configuração pública gerada.
-
-### Estrutura do banco
-
-    users/<uid>                 perfil do cliente
-    usernames/<nome>            índice do nome de usuário
-    catalog/<id>                produto, foto, preço, estoque e exibição
-    catalogConfig/categoryOrder ordem das categorias
-    orders/<id>                 pedido recebido pelo ESP32
-    userOrders/<uid>/<id>       histórico individual
-    admins/<uid>                permissão do painel
-    devices/geladeira           sinal de vida e estado técnico do ESP32
-
-Firebase Authentication usa e-mail internamente. O Cloudflare Worker converte o nome de usuário digitado para o e-mail associado, permitindo que o cliente use somente nome de usuário no login. Não publique tokens, segredos do Worker, senhas ou chaves administrativas.
-
-Nunca substitua as regras por leitura ou escrita globalmente abertas.
-
-## Google Sheets e Apps Script
-
-### Formato da planilha
-
-| Linha | Conteúdo |
+| Item | Location |
 | --- | --- |
-| 1 | Título Geladeira 14 BIS |
-| 2 | Data, Hora, Nome do Cliente, Bebida, Valor |
-| 3 | Pedido mais recente |
-| 4 em diante | Pedidos anteriores |
+| Public site | [clube14bis.github.io/geladeira](https://clube14bis.github.io/geladeira/) |
+| Admin panel | [admin.html](https://clube14bis.github.io/geladeira/admin.html) |
+| Repository | [github.com/clube14bis/geladeira](https://github.com/clube14bis/geladeira) |
+| ESP32 firmware | [esp32/esp32.ino](esp32/esp32.ino) |
+| Credentials template | [esp32/secrets.example.h](esp32/secrets.example.h) |
+| Realtime Database rules | [firebase-rules.json](firebase-rules.json) |
+| Google Apps Script | [google-apps-script/Code.gs](google-apps-script/Code.gs) |
 
-Cada pedido entra na linha 3. O script copia a formatação da linha seguinte quando há uma linha-modelo, então cores, fontes, larguras e alinhamento que o administrador ajustar no Sheets permanecem em registros futuros.
+## Using the customer site
 
-### Configurar Apps Script
+1. Scan the QR code and open the site.
+2. Sign in with username and password, or choose **Create account**.
+3. For a new account, provide the requested identification and contact fields.
+4. Add products. The floating **View cart** control appears after the first item is selected.
+5. Review quantities and total in the cart, then confirm the order.
+6. Copy the Pix payment information when needed.
+7. Wait for the opening screen, collect the items, and close the refrigerator door.
+8. Use **History** to review orders from the last three months.
 
-1. Na planilha, abra Extensões e Apps Script.
-2. Copie [google-apps-script/Code.gs](google-apps-script/Code.gs).
-3. Nas Propriedades do script, configure SPREADSHEET_ID e FIREBASE_API_KEY. DEVICE_SECRET só é necessário para envio direto por dispositivo.
-4. Execute autorizarIntegracaoFirebase uma vez e aceite as permissões.
-5. Execute configurarPlanilha apenas para criar ou reorganizar a estrutura inicial.
-6. Em Implantar, crie Aplicativo da web executando como o proprietário.
-7. Copie a URL terminada em /exec para sheetsEndpoint em firebase-config.js.
+Password recovery uses the registered email address. A CPF alone is not used as a password-recovery factor because it is not a secure account-verification method.
 
-O Apps Script valida token Firebase, evita fórmulas maliciosas na planilha e grava valores em reais.
+## Using the administration panel
 
-## ESP32: instalação do firmware
+Open [admin.html](https://clube14bis.github.io/geladeira/admin.html) and sign in with an account that is listed as an administrator in Firebase.
 
-### Comportamento
+### Catalog management
 
-1. Conecta à primeira rede Wi-Fi cadastrada que estiver disponível.
-2. Autentica no Firebase.
-3. Abre o stream de pedidos.
-4. Ao receber pedido novo, espera 6 segundos.
-5. Destrava durante 10 segundos.
-6. Pisca LED azul integrado durante a abertura.
-7. Trava novamente e registra os estados no Firebase.
-8. Envia um sinal de vida a cada 30 segundos para o painel administrativo.
+1. Set **Show** to make a product visible in the public catalog.
+2. Choose its category, enter a price in BRL, and set a non-negative integer stock amount.
+3. Use the arrows to set product order.
+4. Add a public direct image URL for each product.
+5. Save changes to commit all edits to Firebase.
 
-| Evento | LED azul no GPIO 2 |
+Product images are displayed inside a square frame while preserving their aspect ratio. Categories can only be deleted after their products have been moved or removed.
+
+### Inventory policy
+
+Order confirmation uses Firebase transactions to avoid negative stock values. Stock is informational by design: a zero-stock product remains selectable and can still be ordered. This is intentional for this project and should be changed only if strict stock blocking becomes necessary.
+
+### ESP32 dashboard interpretation
+
+- **Online** means the most recent heartbeat is less than 90 seconds old.
+- **Lock state** is red when locked and green when open.
+- **Wi-Fi** includes the network name, RSSI in dBm, and a quality label.
+- **Stream recoveries** records automatic stream rebuilds since the last device boot.
+- **Memory since ready** compares memory immediately after the Firebase stream becomes operational with the lowest later value.
+- **Largest free block** is more useful than total heap when checking allocation headroom.
+- **Last initialization** shows why the currently running firmware started.
+
+## Firebase and Cloudflare setup
+
+### Firebase initial setup
+
+1. Create or open the `geladeira-14-bis` Firebase project.
+2. In **Authentication**, enable the Email/Password provider.
+3. Configure the password-reset email template as needed.
+4. Create a Realtime Database.
+5. Publish [firebase-rules.json](firebase-rules.json) in Realtime Database Rules.
+6. In **Project settings → General**, create a Web App and copy its public configuration to `firebase-config.js`.
+
+### Database structure
+
+```text
+users/<uid>                 customer profile
+usernames/<username>        username-to-email lookup index
+catalog/<id>                product data, image, price, stock, visibility
+catalogConfig/categoryOrder category ordering
+orders/<id>                 pending order consumed by ESP32
+userOrders/<uid>/<id>       personal order history
+admins/<uid>                admin permission
+devices/geladeira           ESP32 heartbeat and diagnostic status
+```
+
+Firebase Authentication uses email addresses internally. The Cloudflare Worker maps the username entered by the user to its Firebase email address. Never publish worker tokens, Firebase device credentials, Wi-Fi passwords, or administrator secrets.
+
+Do not replace the database rules with globally open read/write rules.
+
+## Google Sheets and Apps Script
+
+### Sheet layout
+
+| Row | Content |
 | --- | --- |
-| Wi-Fi conectado | 3 piscas |
-| Firebase conectado | 5 piscas |
-| Porta liberada | Pisca continuamente por 10 segundos |
-| Porta trancada | Apaga |
+| 1 | `Geladeira 14 BIS` title |
+| 2 | Date, time, customer, item, and value headers |
+| 3 | Most recent order |
+| 4 onward | Older orders |
 
-Se o painel mostrar **offline**, confira primeiro se o último sinal tem mais de 90 segundos. Em seguida verifique energia da fonte, intensidade do Wi-Fi, credenciais em `secrets.h` e se as regras do Firebase foram publicadas antes de concluir que há defeito na fechadura.
+Each new order is inserted on row 3. When a template row exists below it, the script copies that row’s formatting so manually chosen colors, fonts, widths, and alignment are preserved.
 
-O firmware procura automaticamente as redes cadastradas do clube, casa, extensão, fórum e Secretaria. Senhas ficam somente em esp32/secrets.h, que não deve ser publicado.
+### Apps Script setup
 
-### Arduino IDE
+1. In the spreadsheet, open **Extensions → Apps Script**.
+2. Copy [google-apps-script/Code.gs](google-apps-script/Code.gs).
+3. In Script Properties, configure `SPREADSHEET_ID` and `FIREBASE_API_KEY`. `DEVICE_SECRET` is only needed for direct device requests.
+4. Run `autorizarIntegracaoFirebase` once and approve the requested permissions.
+5. Run `configurarPlanilha` only when creating or rebuilding the initial worksheet structure.
+6. Deploy as a Web App running as the owner.
+7. Copy the resulting `/exec` URL into `sheetsEndpoint` in `firebase-config.js`.
 
-1. Instale [Arduino IDE 2](https://www.arduino.cc/en/software/).
-2. Em Preferences ou Settings, adicione a URL abaixo nas URLs adicionais do Gerenciador de placas:
+The Apps Script validates the Firebase token, prevents formula injection in the sheet, and writes monetary values in BRL.
 
-    https://espressif.github.io/arduino-esp32/package_esp32_index.json
+## Installing the ESP32 firmware
 
-3. Em Boards Manager, instale esp32 by Espressif Systems.
-4. Em Library Manager, instale FirebaseClient e ArduinoJson.
-5. Abra [esp32/esp32.ino](esp32/esp32.ino).
-6. Copie esp32/secrets.example.h para esp32/secrets.h e preencha Wi-Fi e credenciais técnicas Firebase.
-7. Selecione Tools, Board, ESP32 Arduino e ESP32 Dev Module.
-8. Conecte cabo USB de dados, escolha a porta e clique Upload.
-9. Se aparecer Connecting, mantenha BOOT pressionado até a gravação começar.
-10. Abra o Serial Monitor em 115200 baud.
+See [esp32/README.md](esp32/README.md) for the focused firmware guide. The summary below is enough for a normal USB update.
 
-Mensagens esperadas:
+1. Install [Arduino IDE 2](https://www.arduino.cc/en/software/).
+2. Add this Boards Manager URL in Arduino IDE settings:
 
-    Wi-Fi conectado: <ip>
-    ESP32 preparado.
-    Firebase conectado.
-    Monitoramento de pedidos ativado.
+   ```text
+   https://espressif.github.io/arduino-esp32/package_esp32_index.json
+   ```
 
-O LED vermelho de algumas placas é apenas de alimentação. Se a placa não possuir LED azul programável no GPIO 2, use LED externo com resistor de 220 a 330 ohms entre GPIO 2 e GND.
+3. Install **esp32 by Espressif Systems** in Boards Manager.
+4. Install **FirebaseClient** and **ArduinoJson** in Library Manager.
+5. Open [esp32/esp32.ino](esp32/esp32.ino).
+6. Copy `esp32/secrets.example.h` to local `esp32/secrets.h` and fill in Wi-Fi and Firebase device credentials.
+7. Select **Tools → Board → ESP32 Arduino → ESP32 Dev Module**.
+8. Connect a data-capable USB cable, select the serial port, and choose **Upload**.
+9. If the IDE stays at “Connecting…”, hold the **BOOT** button until upload starts.
+10. Open Serial Monitor at **115200 baud**.
 
-## Relé e fechadura eletromagnética
+Expected startup messages include:
 
-> Segurança: nunca conecte rede 127/220 V ao ESP32. Use fonte AC/DC certificada, desligue tudo antes de mexer em fios e peça apoio de técnico/eletricista se não tiver experiência.
+```text
+Wi-Fi connected: <ip>
+ESP32 geladeira preparado (PRODUCAO)
+Firebase connected.
+Monitoramento de pedidos ativado.
+```
 
-### Peças necessárias
+The red LED on many ESP32 boards is only a power indicator. The firmware uses the programmable onboard blue LED on GPIO 2 when that LED is present.
 
-| Peça | Especificação recomendada | Função |
+### Two identical ESP32 boards
+
+Both boards may use the same production configuration:
+
+```cpp
+#define DEVICE_ID "geladeira"
+#define MODO_TESTE false
+```
+
+Only one board must be powered and connected to the refrigerator system at a time. Two active boards using the same device ID would both receive the same order and could both operate a relay.
+
+## Relay and electromagnetic lock wiring
+
+> **Electrical safety:** never connect 127/220 V mains power to an ESP32. Use a certified DC power supply, disconnect power before changing wires, and ask a qualified electrician for help if necessary.
+
+### Required parts
+
+| Part | Recommended specification | Purpose |
 | --- | --- | --- |
-| ESP32 | ESP32 Dev Module ou DevKit | Wi-Fi e lógica de controle. |
-| Relé | 1 canal, bobina 5 V, entrada compatível com 3,3 V, COM/NC/NO | Comuta a alimentação da trava. |
-| Fechadura | Eletroímã 12 Vcc fail-safe, com força e suporte compatíveis com porta | Trava enquanto recebe energia. |
-| Fonte da trava | 12 Vcc certificada, corrente igual ou maior que a exigida | Alimenta a fechadura. |
-| Conversor buck | LM2596 ou equivalente, 12 V para 5 V, mínimo 2 A | Alimenta ESP32 e relé. |
-| Fusível | Porta-fusível e fusível conforme corrente da trava | Protege a linha de 12 V. |
-| Instalação | Bornes, caixa isolante, prensa-cabos e cabo 0,5 a 0,75 mm² | Segurança e organização. |
+| ESP32 | ESP32 Dev Module or DevKit | Wi-Fi and control logic |
+| Relay module | One channel, 5 V coil, 3.3 V-compatible input, COM/NC/NO terminals | Switches lock power |
+| Lock | 12 V DC fail-safe electromagnetic lock | Locks while powered |
+| Lock supply | Certified 12 V DC source sized for the lock current | Powers the lock |
+| Buck converter | LM2596 or equivalent, 12 V to 5 V, at least 2 A | Powers the ESP32 and relay |
+| Fuse | Suitable holder and fuse for the lock current | Protects the 12 V branch |
+| Enclosure and terminals | Insulated box, strain relief, terminals, 0.5–0.75 mm² cable | Safe installation |
 
-### Conceitos
+### Low-voltage control wiring
 
-- COM: contato comum do relé.
-- NC: normalmente fechado; ligado ao COM quando relé está inativo.
-- NO: normalmente aberto; ligado ao COM quando relé está acionado.
-- Trava fail-safe: energizada, fica travada; sem energia, libera.
-- O projeto usa NC: em repouso a trava recebe 12 V e fica fechada. Ao acionar relé, 12 V é interrompido e a porta abre.
+```text
+ESP32 GPIO 26  ─── IN on relay module
+ESP32 GND      ─── GND on relay module
+Buck 5 V OUT+  ─── VCC on relay module
 
-### Conexões de controle em 5 V
+12 V supply +  ─── Buck IN+
+12 V supply -  ─── Buck IN-
+Buck 5 V OUT+  ─── ESP32 5V/VIN
+Buck GND OUT-  ─── ESP32 GND
+```
 
-    ESP32 GPIO 26 ───── IN do módulo relé
-    ESP32 GND ───────── GND do módulo relé
-    Buck OUT+ 5 V ───── VCC do módulo relé
+ESP32 GND and relay-module GND must be common for a standard relay input. Choose a relay module whose input accepts a 3.3 V signal; some 5 V relay modules need a level shifter or transistor.
 
-    Fonte 12 V + ────── entrada + do buck LM2596
-    Fonte 12 V - ────── entrada - do buck LM2596
-    Buck OUT+ 5 V ───── pino 5V/VIN do ESP32
-    Buck OUT- GND ───── GND do ESP32
+### Lock power wiring
 
-O GND do ESP32 e do módulo relé deve ser comum quando o relé usar entrada convencional. Escolha módulo cujo pino IN reconheça 3,3 V; alguns módulos de 5 V exigem conversor de nível ou transistor.
+```text
+12 V supply + ── fuse ── COM on relay
+                             │
+                             └── NC on relay ─── lock positive terminal
 
-### Conexões de potência da trava em 12 V
+12 V supply - ─────────────────────────────────── lock negative terminal
+```
 
-    Fonte 12 V + ── fusível ── COM do relé
-                                  │
-                                  └── NC do relé ─── + da trava eletromagnética
+Leave **NO** unused in this fail-safe wiring. GPIO 26 connects only to the relay input; 12 V must never reach ESP32 GPIO, 3.3 V, 5 V, or GND pins.
 
-    Fonte 12 V - ─────────────────────────────────── - da trava eletromagnética
+The firmware assumes a low-level-active relay:
 
-Deixe NO sem uso neste esquema. O GPIO 26 vai somente para IN do módulo relé; os 12 V nunca devem ir a pinos do ESP32.
-
-### Estados usados pelo firmware
-
-O firmware assume módulo de relé ativo em nível baixo:
-
-| Situação | GPIO 26 | Relé | Trava |
+| Condition | GPIO 26 | Relay | Fail-safe lock |
 | --- | ---: | --- | --- |
-| Normal/trancada | HIGH | Inativo | Recebe 12 V pelo NC |
-| Abertura | LOW | Ativo | NC abre, corta 12 V e libera |
-| Depois de 10 segundos | HIGH | Inativo | NC volta e trava |
+| Normal / locked | HIGH | Inactive | Receives 12 V through NC |
+| Opening | LOW | Active | NC opens; 12 V is removed; door releases |
+| After ten seconds | HIGH | Inactive | NC closes; lock returns |
 
-Antes de conectar fechadura, teste COM/NC com multímetro. Se o módulo tiver lógica invertida, ajuste RELE_TRAVADO e RELE_DESTRAVADO em esp32/esp32.ino.
+Before connecting the lock, verify COM/NC with a multimeter. If the relay logic is inverted, adjust `RELE_TRAVADO` and `RELE_DESTRAVADO` in [esp32/esp32.ino](esp32/esp32.ino).
 
-### Ordem segura de instalação
+### Safe installation order
 
-1. Grave firmware e teste somente ESP32: 3 piscas de Wi-Fi e 5 de Firebase.
-2. Conecte buck e relé, mas não conecte a fechadura.
-3. Faça pedido novo e confirme que relé muda de estado por 10 segundos.
-4. Com multímetro, confirme continuidade COM/NC normalmente e interrupção somente na abertura.
-5. Desligue tudo; instale fonte 12 V, fusível e fechadura conforme o diagrama.
-6. Teste primeiro com porta aberta.
-7. Coloque fonte, buck, relé e bornes em caixa isolante, longe de umidade e partes móveis.
+1. Flash the firmware and test the ESP32 alone: three Wi-Fi flashes and five Firebase flashes.
+2. Connect the buck converter and relay, but not the lock.
+3. Create a new order and confirm the relay changes state for ten seconds.
+4. Verify COM/NC continuity with a multimeter.
+5. Power off, add the fused 12 V supply and lock as shown above.
+6. Test first with the door open.
+7. Put the supply, buck, relay, and terminals in an insulated enclosure away from moisture and moving parts.
 
-### Nunca faça
+Never power the lock from computer USB, leave exposed wiring inside the refrigerator, omit the fuse, or operate without an emergency mechanical opening method.
 
-- Não ligue 12 V da trava em GPIO, 3V3, 5V ou GND do ESP32.
-- Não alimente fechadura pelo USB do computador.
-- Não instale sem fusível e sem conferir corrente nominal.
-- Não deixe conexões expostas dentro da geladeira.
-- Não use sistema sem rota de abertura de emergência.
+## Troubleshooting
 
-## Diagnóstico
-
-| Sintoma | Verificação |
+| Symptom | Check |
 | --- | --- |
-| Não pisca 3 vezes | Rede/senha incorreta ou rede não é 2,4 GHz. |
-| Pisca 3, mas não 5 | Firebase não autenticou; confira credenciais e regras. |
-| Não há Monitoramento de pedidos ativado | Reinicie e confira Serial Monitor. |
-| Site confirma, LED não pisca | Faça pedido novo depois do ESP32 pronto; confira Wi-Fi e monitor serial. |
-| Relé invertido | Teste COM/NC e ajuste níveis no firmware. |
-| Porta não abre | Meça os 12 V na trava durante os 10 segundos. |
-| Pedido não entra no Sheets | Confira URL /exec, propriedades e autorização do Apps Script. |
-| Admin não salva catálogo | Confira permissão administrativa e regras Firebase. |
+| No three blue flashes | Wi-Fi credentials, 2.4 GHz availability, and power |
+| Three flashes but not five | Firebase device credentials and Realtime Database rules |
+| No “Monitoramento de pedidos ativado” serial message | Restart and inspect Serial Monitor at 115200 baud |
+| Site confirms but the LED does not flash | Place a new order only after the ESP32 is ready; check dashboard and serial output |
+| Relay appears inverted | Verify COM/NC and adjust relay logic constants |
+| Door does not release | Measure the lock’s 12 V during the ten-second window |
+| Order missing from Sheets | Check Apps Script deployment, `/exec` endpoint, script properties, and authorization |
+| Catalog changes do not save | Check admin permission and Firebase rules |
+| Dashboard offline | Confirm power, Wi-Fi, Firebase, and the latest heartbeat age. A stale connected state is not a live confirmation. |
 
-## Publicação e segurança
+## Deployment and security
 
-O site é publicado pela branch main no GitHub Pages. Mudanças no site exigem commit e alguns minutos de publicação. Mudanças no ESP32 exigem nova gravação por Arduino IDE.
+The website is deployed from the `main` branch through GitHub Pages. Website changes need a commit and a short deployment delay. ESP32 changes require a USB upload; publishing to GitHub does **not** update a physical device automatically.
 
-### Atualização em outro computador
+For updates on another computer, clone or download the updated repository, preserve the local `esp32/secrets.h` file with its configured credentials, and follow the Arduino IDE steps above. Secure OTA updates can be added later, but an unauthenticated internet-exposed OTA endpoint must never be used.
 
-Para instalar uma nova versão na casa do responsável, conecte o ESP32 por USB a um computador com Arduino IDE, baixe o repositório atualizado, mantenha o arquivo local `esp32/secrets.h` com as credenciais já configuradas e siga a seção Arduino IDE. A publicação no GitHub **não atualiza a placa automaticamente**: ela só recebe o firmware após o Upload via USB. Atualização OTA poderá ser adicionada numa etapa posterior, com senha exclusiva e conexão protegida; não use uma OTA aberta na internet.
-
-Nunca publique esp32/secrets.h, senhas Wi-Fi, senhas de usuários, tokens Cloudflare ou segredos do Apps Script. Mantenha regras Firebase restritivas e faça backup antes de excluir dados relevantes.
+Never commit `esp32/secrets.h`, Wi-Fi passwords, customer passwords, Cloudflare tokens, Firebase device credentials, or Apps Script secrets. Keep Firebase rules restrictive and back up important data before deletion.

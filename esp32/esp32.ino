@@ -40,8 +40,10 @@ constexpr unsigned long INTERVALO_RECONEXAO_STREAM_MS = 3000;
 constexpr unsigned long INTERVALO_VERIFICACAO_STREAM_MS = 5000;
 constexpr unsigned long LIMITE_SEM_EVENTO_STREAM_MS = 120000;
 constexpr unsigned long INTERVALO_REINICIO_PREVENTIVO_MS = 5UL * 60UL * 60UL * 1000UL;
+constexpr unsigned long LIMITE_WIFI_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
+constexpr unsigned long LIMITE_FIREBASE_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
 constexpr uint32_t WATCHDOG_TIMEOUT_MS = 60000;
-constexpr char VERSAO_FIRMWARE[] = "2.3.0";
+constexpr char VERSAO_FIRMWARE[] = "2.4.0";
 
 struct Rede { const char *ssid; const char *senha; };
 Rede redes[] = {
@@ -80,6 +82,8 @@ unsigned long ultimoHeartbeat = 0;
 unsigned long ultimoEventoStream = 0;
 unsigned long ultimaVerificacaoStream = 0;
 unsigned long inicioSessao = 0;
+unsigned long inicioWifiIndisponivel = 0;
+unsigned long inicioFirebaseIndisponivel = 0;
 uint32_t totalInicializacoes = 0;
 uint32_t totalRecuperacoesStream = 0;
 String ultimoMotivoRecuperacao = "NENHUMA";
@@ -544,14 +548,22 @@ void loop() {
   alternarLeds();
 
   if (WiFi.status() != WL_CONNECTED) {
+    if (!inicioWifiIndisponivel) inicioWifiIndisponivel = agora;
     if (streamIniciado || (baselineFeito && !recuperacaoStreamPendente)) {
       agendarRecuperacaoStream("WIFI_DESCONECTADO");
     }
     firebaseConfirmado = false;
+    inicioFirebaseIndisponivel = 0;
+    // Se a pilha Wi-Fi ficar presa tentando reconectar, a placa volta ao
+    // estado seguro e reinicia. O motivo será enviado no próximo heartbeat.
+    if (agora - inicioWifiIndisponivel >= LIMITE_WIFI_SEM_RETORNO_MS) {
+      reiniciarComSeguranca("WIFI_SEM_RETORNO");
+    }
     if (!conectarWiFi()) {
       delay(1000);
       return;
     }
+    inicioWifiIndisponivel = 0;
   }
   firebase.loop();
   if (firebase.ready() && !firebaseConfirmado) {
@@ -559,6 +571,16 @@ void loop() {
     Serial.println("Firebase conectado.");
     piscarIndicador(5); // confirma a conexão com o Firebase
     acenderIndicador(); // permanece aceso até a sincronização inicial dos pedidos
+  }
+  if (firebase.ready()) {
+    inicioFirebaseIndisponivel = 0;
+  } else {
+    if (!inicioFirebaseIndisponivel) inicioFirebaseIndisponivel = agora;
+    // Wi-Fi funcionando sem Firebase por muito tempo também pode deixar a
+    // placa incapaz de receber pedidos; reiniciar é a recuperação segura.
+    if (agora - inicioFirebaseIndisponivel >= LIMITE_FIREBASE_SEM_RETORNO_MS) {
+      reiniciarComSeguranca("FIREBASE_SEM_RETORNO");
+    }
   }
   verificarSaudeStream(agora);
   if (firebase.ready() && (!baselineFeito || recuperacaoStreamPendente) && !sincronizacaoSolicitada && millis() >= proximaTentativaSincronizacao) {
