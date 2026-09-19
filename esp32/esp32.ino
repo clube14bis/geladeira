@@ -44,7 +44,7 @@ constexpr unsigned long LIMITE_WIFI_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
 constexpr unsigned long LIMITE_FIREBASE_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
 constexpr uint32_t WATCHDOG_TIMEOUT_MS = 60000;
 constexpr size_t TAMANHO_HISTORICO_EVENTOS = 900;
-constexpr char VERSAO_FIRMWARE[] = "2.5.1";
+constexpr char VERSAO_FIRMWARE[] = "2.5.4";
 
 struct Rede { const char *ssid; const char *senha; };
 Rede redes[] = {
@@ -70,7 +70,8 @@ String pedidoAtual;
 String ultimoPedido;
 String pedidoNaFila;
 unsigned long proximaAcao = 0;
-unsigned long ultimaTrocaLed = 0;
+TaskHandle_t tarefaLedAbertura = nullptr;
+volatile bool piscarLedAberturaAtivo = false;
 bool baselineFeito = false;
 bool firebaseConfirmado = false;
 bool watchdogConfigurado = false;
@@ -107,7 +108,42 @@ struct DiagnosticoMemoria {
 };
 DiagnosticoMemoria diagnosticoMemoria;
 
-void apagarLeds() { digitalWrite(LED_INDICADOR, LOW); }
+void tarefaPiscarLedAbertura(void *) {
+  // Esta tarefa permanece independente das transmissões Wi-Fi/Firebase do
+  // loop principal. Assim o sinal luminoso acompanha a abertura real do relé.
+  while (piscarLedAberturaAtivo) {
+    digitalWrite(LED_INDICADOR, HIGH);
+    vTaskDelay(pdMS_TO_TICKS(250));
+    if (!piscarLedAberturaAtivo) break;
+    digitalWrite(LED_INDICADOR, LOW);
+    vTaskDelay(pdMS_TO_TICKS(250));
+  }
+  digitalWrite(LED_INDICADOR, LOW);
+  tarefaLedAbertura = nullptr;
+  vTaskDelete(nullptr);
+}
+
+void iniciarPiscarLedAbertura() {
+  piscarLedAberturaAtivo = true;
+  digitalWrite(LED_INDICADOR, HIGH);
+  if (!tarefaLedAbertura) {
+    BaseType_t criada = xTaskCreatePinnedToCore(
+      tarefaPiscarLedAbertura, "led_abertura", 2048, nullptr, 1,
+      &tarefaLedAbertura, 0
+    );
+    if (criada != pdPASS) {
+      tarefaLedAbertura = nullptr;
+      Serial.println("Não foi possível iniciar a tarefa do LED.");
+    }
+  }
+}
+
+void pararPiscarLedAbertura() {
+  piscarLedAberturaAtivo = false;
+  digitalWrite(LED_INDICADOR, LOW);
+}
+
+void apagarLeds() { pararPiscarLedAbertura(); }
 void acenderIndicador() { digitalWrite(LED_INDICADOR, HIGH); }
 
 void iniciarPedido(const String &id);
@@ -337,12 +373,12 @@ void registrarEstado(const char *novoEstado) {
 
 void abrirTrava() {
   digitalWrite(RELE_TRAVA, RELE_DESTRAVADO);
+  iniciarPiscarLedAbertura();
   Serial.println("GELADEIRA ABERTA: 10 segundos");
   registrarEstado("opened");
   estado = DESTRAVADA;
   registrarEvento("LOCK_OPENED");
   proximaAcao = millis() + TEMPO_DESTRAVADO_MS;
-  ultimaTrocaLed = 0;
   enviarHeartbeat(true);
 }
 
@@ -361,15 +397,6 @@ void trancarGeladeira() {
     String proximo = pedidoNaFila;
     pedidoNaFila = "";
     iniciarPedido(proximo);
-  }
-}
-
-void alternarLeds() {
-  if (estado != DESTRAVADA) return;
-  unsigned long agora = millis();
-  if (agora - ultimaTrocaLed >= 250) {
-    ultimaTrocaLed = agora;
-    digitalWrite(LED_INDICADOR, digitalRead(LED_INDICADOR) == LOW ? HIGH : LOW);
   }
 }
 
@@ -536,10 +563,11 @@ void processarStream(AsyncResult &resultado) {
   if (caminho != "/" && caminho.indexOf('/', 1) >= 0) return;
   const char *conteudo = stream.to<const char *>();
   if (!conteudo || !strlen(conteudo)) return;
-  // Na abertura ou recuperação do stream o Firebase envia um snapshot de toda
-  // a coleção. A sincronização do último pedido já aconteceu antes; ignorar
-  // esse snapshot impede uma alocação grande e fragmentação do heap.
-  if (baselineFeito && caminho == "/") return;
+  // Na abertura ou recuperação, o Firebase envia um PUT com o snapshot de toda
+  // a coleção. Ele é ignorado depois do baseline para não carregar o histórico.
+  // Já um PATCH na raiz é o formato que o update multi-caminho do site pode
+  // usar para entregar um pedido novo e precisa ser processado.
+  if (baselineFeito && caminho == "/" && evento == "put") return;
   JsonDocument doc;
   if (deserializeJson(doc, conteudo)) {
     Serial.println("Evento de pedidos ignorado: dados vazios.");
@@ -547,12 +575,16 @@ void processarStream(AsyncResult &resultado) {
   }
   if (caminho == "/") {
     if (doc.isNull()) {
-      baselineFeito = true;
-      apagarLeds(); // pronto para uso: LED apagado até uma abertura
-      registrarEvento("ORDERS_BASELINED");
-      Serial.println("Sincronização inicial concluída; nenhum pedido pendente. ESP32 pronto para uso.");
+      if (!baselineFeito) {
+        baselineFeito = true;
+        apagarLeds(); // pronto para uso: LED apagado até uma abertura
+        registrarEvento("ORDERS_BASELINED");
+        Serial.println("Sincronização inicial concluída; nenhum pedido pendente. ESP32 pronto para uso.");
+      }
       return;
     }
+    // Com o baseline concluído, aqui chegam somente os filhos modificados pelo
+    // PATCH. analisarPedidos trata o conteúdo como delta e abre apenas IDs novos.
     if (doc.is<JsonObject>()) analisarPedidos(doc.as<JsonObject>());
     return;
   }
@@ -564,7 +596,8 @@ void setup() {
   Serial.begin(115200);
   inicioSessao = millis();
   snprintf(caminhoStatus, sizeof(caminhoStatus), "/devices/%s", DEVICE_ID);
-  pinMode(LED_INDICADOR, OUTPUT); acenderIndicador();
+  pinMode(LED_INDICADOR, OUTPUT);
+  acenderIndicador();
   pinMode(RELE_TRAVA, OUTPUT); digitalWrite(RELE_TRAVA, RELE_TRAVADO);
   memoria.begin("geladeira", false);
   String reinicioPlanejado = memoria.getString("reinicioPlanejado", "");
@@ -604,7 +637,6 @@ void loop() {
   // O tempo de abertura nunca depende da internet: a porta volta a travar
   // mesmo durante uma reconexão de Wi-Fi/Firebase.
   if (estado == DESTRAVADA && agora >= proximaAcao) trancarGeladeira();
-  alternarLeds();
 
   if (WiFi.status() != WL_CONNECTED) {
     if (!inicioWifiIndisponivel) {

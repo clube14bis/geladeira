@@ -49,7 +49,7 @@ Clube 14 BIS Fridge is a self-service system for a shared refrigerator. Members 
 
 ## ESP32 reliability design
 
-Firmware **2.5.1** is designed for unattended operation. It does not repeatedly poll the whole order history. Instead, it keeps a Firebase stream open and only checks the most recent order when it starts or rebuilds a stream. This prevents a large historical response from exhausting the ESP32 heap.
+Firmware **2.5.4** is designed for unattended operation. It does not repeatedly poll the whole order history. Instead, it keeps a Firebase stream open and only checks the most recent order when it starts or rebuilds a stream. This prevents a large historical response from exhausting the ESP32 heap. It processes small root-level Firebase patches created by the website's atomic order update while still ignoring the large startup snapshot. The opening LED is driven by its own ESP32 task, so a delayed network operation cannot hide the visual opening signal.
 
 | Protection | Behaviour |
 | --- | --- |

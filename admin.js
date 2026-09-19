@@ -251,7 +251,10 @@ function monitorarESP() {
   pararMonitoramentoESP = onValue(
     ref(db, "devices/geladeira"),
     (snapshot) => atualizarStatusESP(snapshot.val()),
-    () => atualizarStatusESP(null),
+    // Uma interrupção temporária da conexão do navegador não deve apagar a
+    // última telemetria válida; o tempo do último sinal continuará indicando
+    // quando ela ficar antiga.
+    () => atualizarStatusESP(estadoESP),
   );
 }
 function ordenarCategorias(ordenacao = [], configuracaoSalva = false) {

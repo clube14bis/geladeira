@@ -2,7 +2,7 @@
 
 This folder contains the ESP32 firmware that receives new orders from Firebase Realtime Database and controls the refrigerator electromagnetic lock through a relay.
 
-Current firmware version: **2.5.1**.
+Current firmware version: **2.5.4**.
 
 ## What the firmware does
 
@@ -98,7 +98,7 @@ The red LED on many ESP32 development boards is only a power LED and is not cont
 
 ## Reliability and diagnostics
 
-Firmware 2.5.1 uses several independent safeguards:
+Firmware 2.5.4 uses several independent safeguards, including a dedicated ESP32 task for the blue opening indicator and support for atomic root-level order patches:
 
 - A 60-second watchdog monitors only the main firmware loop. Wi-Fi and Firebase background tasks are excluded so normal TLS/network activity cannot cause a false reset.
 - Firebase stream health is checked every five seconds. A stream with no event or keep-alive for two minutes is rebuilt.
