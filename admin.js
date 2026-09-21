@@ -29,6 +29,14 @@ let auth,
   categoriasOrdenadas = [...ordemCategorias];
 let pararMonitoramentoESP = null;
 let estadoESP = null;
+function atualizarRelogioESP() {
+  const relogio = $("#esp-relogio");
+  if (!relogio) return;
+  relogio.textContent = new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "medium",
+  }).format(new Date());
+}
 function email(usuario) {
   return `${usuario.trim().toLowerCase()}@${loginDomain}`;
 }
@@ -490,7 +498,9 @@ $("#sair-admin").addEventListener("click", async () => {
   await signOut(auth);
   mostrarPainel(false);
 });
+atualizarRelogioESP();
 setInterval(() => {
+  atualizarRelogioESP();
   if (pararMonitoramentoESP) atualizarStatusESP();
 }, 1000);
 $("#adicionar-produto").addEventListener("click", () => {

@@ -168,10 +168,11 @@
       .status-esp {
         margin: 0 0 18px;
         padding: 18px;
-        border: 1px solid #cfe0f3;
+        border: 1px solid #c9dce0;
         border-radius: 18px;
         background: #fff;
         color: #11262c;
+        box-shadow: 0 14px 32px rgba(10, 38, 43, .10);
       }
       .status-esp-cabecalho {
         display: flex;
@@ -180,8 +181,24 @@
         gap: 12px;
       }
       .status-esp h2 {
+        display: flex;
+        align-items: baseline;
+        gap: 9px;
         font-size: 1rem;
         letter-spacing: .1em;
+      }
+      .esp-relogio {
+        color: #62787d;
+        font-family: inherit;
+        font-size: .68rem;
+        font-weight: 750;
+        letter-spacing: .02em;
+        white-space: nowrap;
+      }
+      .esp-relogio::before {
+        margin-right: 9px;
+        color: #14905a;
+        content: "—";
       }
       .status-pill {
         display: inline-flex;
@@ -210,18 +227,24 @@
       .status-grid div {
         min-width: 0;
         padding: 10px;
+        border: 1px solid #e0eae9;
         border-radius: 12px;
-        background: #f6f8f8;
+        background: linear-gradient(135deg, #f9fbfb, #eef4f3);
+        box-shadow: inset 3px 0 0 #d8e8e4;
       }
       .status-grid dt {
         margin-bottom: 4px;
         color: #63777c;
+        font-family: inherit;
         font-size: .66rem;
         font-weight: 850;
+        letter-spacing: .035em;
       }
+      .status-grid dt::before { color: #14905a; content: "> "; }
       .status-grid dd {
         margin: 0;
         overflow-wrap: anywhere;
+        font-family: inherit;
         font-size: .83rem;
         font-weight: 850;
       }
@@ -260,6 +283,9 @@
         color: inherit;
         background: transparent;
       }
+      .status-grid div.estado-locked,
+      .status-grid div.estado-open,
+      .status-grid div.estado-waiting { border-color: transparent; box-shadow: none; }
       .wifi-status {
         display: inline-flex;
         align-items: center;
@@ -285,36 +311,58 @@
       .wifi-signal i.ativo { background: #168657; }
       .status-detalhe {
         min-height: 1.2em;
-        margin: 10px 0 0;
-        color: #63777c;
-        font-size: .75rem;
+        margin: 12px 0 0;
+        padding-top: 10px;
+        border-top: 1px solid #dfe9e7;
+        color: #587076;
+        font-family: inherit;
+        font-size: .7rem;
         font-weight: 700;
+        letter-spacing: .025em;
       }
       .esp-eventos {
         margin: 12px 0 0;
         padding: 12px;
+        border: 1px solid #1d5e3c;
         border-radius: 12px;
-        background: #f6f8f8;
+        background: #06140f;
+        box-shadow: inset 0 1px 0 rgba(177, 255, 205, .12), 0 10px 22px rgba(5, 30, 18, .18);
       }
       .esp-eventos h3 {
-        margin: 0 0 7px;
-        color: #63777c;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin: 0 0 9px;
+        color: #8effb5;
+        font-family: inherit;
         font-size: .68rem;
         font-weight: 850;
         letter-spacing: .08em;
         text-transform: uppercase;
       }
+      .esp-eventos h3::before {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #4cff8a;
+        box-shadow: 0 0 9px #4cff8a;
+        content: "";
+      }
       .esp-eventos p {
-        max-height: 92px;
+        max-height: 112px;
         margin: 0;
         overflow: auto;
-        color: #17333a;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        color: #65f99a;
+        font-family: inherit;
         font-size: .7rem;
         font-weight: 700;
         line-height: 1.55;
+        text-shadow: 0 0 7px rgba(101, 249, 154, .35);
         overflow-wrap: anywhere;
       }
+      .esp-eventos p::-webkit-scrollbar { width: 7px; }
+      .esp-eventos p::-webkit-scrollbar-track { background: #0b2518; border-radius: 99px; }
+      .esp-eventos p::-webkit-scrollbar-thumb { background: #31965b; border-radius: 99px; }
       .grupo-admin {
         margin: 22px 0;
       }
@@ -496,6 +544,9 @@
         .acoes { flex-direction: column; align-items: stretch; }
         .acoes .mensagem { text-align: center; }
         .status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .status-esp-cabecalho { gap: 8px; }
+        .status-esp h2 { gap: 6px; font-size: .85rem; letter-spacing: .07em; }
+        .esp-relogio { font-size: .58rem; }
       }
       .novo-produto {
         margin: 0 0 24px;
@@ -658,7 +709,7 @@
         </header>
         <section class="status-esp" aria-live="polite">
           <div class="status-esp-cabecalho">
-            <h2>ESP32</h2>
+            <h2>ESP32 <span id="esp-relogio" class="esp-relogio" aria-label="Data e hora atual">—</span></h2>
             <span id="esp-status-pill" class="status-pill offline">Sem sinal</span>
           </div>
           <dl class="status-grid">
@@ -722,6 +773,6 @@
         <div class="acoes"><p id="mensagem-admin" class="mensagem"></p><button id="salvar">Salvar alterações</button></div>
       </section>
     </main>
-    <script type="module" src="admin.js?v=1.5.7"></script>
+    <script type="module" src="admin.js?v=1.5.8"></script>
   </body>
 </html>
