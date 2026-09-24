@@ -71,6 +71,7 @@ const audioGeladeiraAberta = new Audio("audio/Geladeira-Aberta.mp3"),
   audioGeladeiraFechada = new Audio("audio/Geladeira-Fechada.mp3");
 [audioGeladeiraAberta, audioGeladeiraFechada].forEach((audio) => {
   audio.preload = "auto";
+  audio.load();
 });
 function prepararAudioGeladeira() {
   // O toque em "Confirmar" libera áudio em navegadores móveis sem emitir som.
@@ -86,7 +87,15 @@ function prepararAudioGeladeira() {
 function tocarAudioGeladeira(audio) {
   audio.pause();
   audio.currentTime = 0;
-  audio.play().catch(() => {});
+  audio.muted = false;
+  const reproduzirDoInicio = () => audio.play().catch(() => {});
+  // Em celulares, só inicia quando houver buffer suficiente para não truncar o som.
+  if (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
+    audio.addEventListener("canplaythrough", reproduzirDoInicio, { once: true });
+    audio.load();
+    return;
+  }
+  reproduzirDoInicio();
 }
 $("#cad-senha").minLength = 6;
 [
