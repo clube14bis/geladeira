@@ -718,21 +718,66 @@ $("#form-recuperacao").addEventListener("submit", async (e) => {
 $("#cad-telefone").oninput = (e) =>
   (e.target.value = e.target.value.replace(/\D/g, "").slice(0, 11));
 $("#cad-cpf").oninput = cpfMask;
+const camposCadastro = [
+  "cad-nome",
+  "cad-usuario",
+  "cad-telefone",
+  "cad-cpf",
+  "cad-email",
+  "cad-senha",
+];
+function limparErrosCadastro() {
+  camposCadastro.forEach((id) => {
+    const campo = $("#" + id);
+    campo.classList.remove("campo-invalido");
+    campo.removeAttribute("aria-invalid");
+  });
+}
+function erroNoCampo(id, mensagem) {
+  const falha = Error(mensagem);
+  falha.campo = id;
+  return falha;
+}
+function marcarCampoInvalido(id) {
+  const campo = $("#" + id);
+  if (!campo) return;
+  campo.classList.add("campo-invalido");
+  campo.setAttribute("aria-invalid", "true");
+}
+camposCadastro.forEach((id) => {
+  $("#" + id).addEventListener("input", () => {
+    $("#" + id).classList.remove("campo-invalido");
+    $("#" + id).removeAttribute("aria-invalid");
+  });
+});
 $("#form-cadastro").addEventListener("submit", async (e) => {
   e.preventDefault();
   erroCadastro.textContent = "";
+  limparErrosCadastro();
   try {
     let fullName = $("#cad-nome").value.trim(),
-      username = normalizarUsuario($("#cad-usuario").value),
+      username,
       phone = $("#cad-telefone").value.replace(/\D/g, ""),
       cpf = $("#cad-cpf").value.replace(/\D/g, ""),
-      contactEmail = emailValido($("#cad-email").value),
+      contactEmail,
       senha = $("#cad-senha").value;
-    if (fullName.length < 3) throw Error("Informe o nome completo.");
-    if (phone.length < 10) throw Error("Informe o celular com DDD.");
-    if (!cpfOk(cpf)) throw Error("Informe um CPF válido.");
+    if (fullName.length < 3)
+      throw erroNoCampo("cad-nome", "Informe o nome completo.");
+    try {
+      username = normalizarUsuario($("#cad-usuario").value);
+    } catch (falha) {
+      throw erroNoCampo("cad-usuario", falha.message);
+    }
+    if (phone.length < 10)
+      throw erroNoCampo("cad-telefone", "Informe o celular com DDD.");
+    if (!cpfOk(cpf)) throw erroNoCampo("cad-cpf", "Informe um CPF válido.");
+    try {
+      contactEmail = emailValido($("#cad-email").value);
+    } catch (falha) {
+      throw erroNoCampo("cad-email", falha.message);
+    }
     if (senha.length < 6)
-      throw Error("A senha precisa ter ao menos 6 caracteres.");
+      throw erroNoCampo("cad-senha", "A senha precisa ter ao menos 6 caracteres.");
     let c,
       perfilGravado = false,
       nomeRegistrado = false;
@@ -765,6 +810,13 @@ $("#form-cadastro").addEventListener("submit", async (e) => {
     $("#form-cadastro").reset();
     await bebidas();
   } catch (e) {
+    const campoPorErro = {
+      "auth/email-already-in-use": "cad-email",
+      "auth/invalid-email": "cad-email",
+      "auth/weak-password": "cad-senha",
+      USERNAME_TAKEN: "cad-usuario",
+    };
+    marcarCampoInvalido(e.campo || campoPorErro[e.code]);
     erroCadastro.textContent = erro(e);
   }
 });
