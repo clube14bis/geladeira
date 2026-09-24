@@ -76,39 +76,99 @@ const audioGeladeiraAberta = new Audio("audio/Geladeira-Aberta.mp3"),
 const ClasseAudioContext = window.AudioContext || window.webkitAudioContext;
 const contextoAudioGeladeira = ClasseAudioContext ? new ClasseAudioContext() : null;
 const buffersAudioGeladeira = new Map();
-async function carregarBufferAudio(nome, arquivo) {
-  if (!contextoAudioGeladeira) return;
-  try {
+const carregamentosAudioGeladeira = new Map();
+function carregarBufferAudio(nome, arquivo) {
+  if (!contextoAudioGeladeira) return Promise.resolve(null);
+  const carregamento = (async () => {
     const resposta = await fetch(arquivo);
     if (!resposta.ok) throw Error("Não foi possível carregar o áudio.");
     const dados = await resposta.arrayBuffer();
-    buffersAudioGeladeira.set(nome, await contextoAudioGeladeira.decodeAudioData(dados));
-  } catch (e) {
-    console.warn(`Áudio ${nome} será reproduzido pelo modo compatível.`, e);
-  }
+    const buffer = await contextoAudioGeladeira.decodeAudioData(dados);
+    buffersAudioGeladeira.set(nome, buffer);
+    return buffer;
+  })().catch((erro) => {
+    console.warn(`Não foi possível pré-carregar o áudio ${nome}.`, erro);
+    return null;
+  });
+  carregamentosAudioGeladeira.set(nome, carregamento);
+  return carregamento;
 }
 void carregarBufferAudio("aberta", "audio/Geladeira-Aberta.mp3");
 void carregarBufferAudio("fechada", "audio/Geladeira-Fechada.mp3");
-function prepararAudioGeladeira() {
-  // O toque em "Confirmar" libera o contexto sonoro sem iniciar ou pausar áudios.
-  if (contextoAudioGeladeira?.state === "suspended")
-    void contextoAudioGeladeira.resume().catch(() => {});
+function iniciarBufferAudio(buffer) {
+  const origem = contextoAudioGeladeira.createBufferSource();
+  origem.buffer = buffer;
+  origem.connect(contextoAudioGeladeira.destination);
+  origem.start(0);
+}
+function desbloquearAudioNativo(audio) {
+  // iOS e alguns Androids só autorizam play() durante o toque do usuário.
+  // Tocamos em mudo e pausamos imediatamente para liberar a reprodução futura.
+  audio.muted = true;
+  audio.currentTime = 0;
+  return audio
+    .play()
+    .catch((erro) => console.warn("Não foi possível liberar o áudio nativo.", erro))
+    .finally(() => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.muted = false;
+    });
+}
+async function prepararAudioGeladeira() {
+  // Esta função é chamada diretamente pelo toque em "Confirmar", antes de
+  // qualquer operação do Firebase. Isso preserva a permissão de áudio no
+  // Safari/iOS e no Chrome/Android para os sons disparados alguns segundos depois.
+  const preparacoesNativas = [
+    desbloquearAudioNativo(audioGeladeiraAberta),
+    desbloquearAudioNativo(audioGeladeiraFechada),
+  ];
+  const retomarContexto =
+    contextoAudioGeladeira?.state === "suspended"
+      ? contextoAudioGeladeira.resume()
+      : Promise.resolve();
+  try {
+    await retomarContexto;
+    if (contextoAudioGeladeira?.state === "running") {
+      // Um buffer silencioso iniciado no gesto do usuário evita que o Safari
+      // suspenda o contexto antes do som real da abertura.
+      const silencio = contextoAudioGeladeira.createBuffer(
+        1,
+        1,
+        contextoAudioGeladeira.sampleRate,
+      );
+      iniciarBufferAudio(silencio);
+    }
+  } catch (erro) {
+    console.warn("Não foi possível liberar o contexto de áudio.", erro);
+  }
+  // Não aguardamos a mídia nativa: a preparação não pode atrasar o pedido.
+  void Promise.allSettled(preparacoesNativas);
 }
 function tocarAudioGeladeira(nome, audioCompatibilidade) {
   const buffer = buffersAudioGeladeira.get(nome);
   if (contextoAudioGeladeira?.state === "running" && buffer) {
-    const origem = contextoAudioGeladeira.createBufferSource();
-    origem.buffer = buffer;
-    origem.connect(contextoAudioGeladeira.destination);
-    origem.start(0);
+    iniciarBufferAudio(buffer);
     return;
   }
-  // Fallback para navegadores sem Web Audio ou enquanto o arquivo ainda carrega.
+  // Se o arquivo ainda estiver carregando, aguarda a decodificação e toca pelo
+  // contexto já liberado pelo gesto. Assim o primeiro pedido também tem som.
+  const carregamento = carregamentosAudioGeladeira.get(nome);
+  if (contextoAudioGeladeira?.state === "running" && carregamento) {
+    void carregamento.then((bufferCarregado) => {
+      if (bufferCarregado && contextoAudioGeladeira.state === "running")
+        iniciarBufferAudio(bufferCarregado);
+    });
+    return;
+  }
+  // Compatibilidade com navegadores sem Web Audio.
   const audio = audioCompatibilidade;
   audio.pause();
   audio.currentTime = 0;
   audio.muted = false;
-  audio.play().catch(() => {});
+  audio.play().catch((erro) => {
+    console.warn(`Não foi possível reproduzir o áudio ${nome}.`, erro);
+  });
 }
 $("#cad-senha").minLength = 6;
 [
@@ -503,7 +563,7 @@ async function reduzirEstoque(items) {
 }
 async function enviar(b) {
   if (!usuarioAtual || !qtd()) return;
-  prepararAudioGeladeira();
+  await prepararAudioGeladeira();
   b.disabled = true;
   load(true, "Registrando pedido...");
   try {
