@@ -29,6 +29,7 @@ let auth,
   categoriasOrdenadas = [...ordemCategorias];
 let pararMonitoramentoESP = null;
 let estadoESP = null;
+let reinicioRemotoEmTransito = false;
 function atualizarRelogioESP() {
   const relogio = $("#esp-relogio");
   if (!relogio) return;
@@ -203,11 +204,47 @@ function atualizarStatusESP(dados = estadoESP) {
   $("#esp-uptime").textContent = textoTempoLigado(Number(dados?.uptimeSeconds) + tempoDesdeUltimoSinal);
   const reinicio = dados?.resetReason;
   $("#esp-reinicio").textContent = reinicio || "—";
+  const botaoReinicio = $("#reiniciar-esp");
+  const mensagemReinicio = $("#esp-acao-mensagem");
+  if (reinicio === "REMOTO" && Number(dados?.uptimeSeconds) < 90) {
+    reinicioRemotoEmTransito = false;
+  }
+  botaoReinicio.disabled = !online || reinicioRemotoEmTransito;
+  if (!online) {
+    mensagemReinicio.textContent = "AGUARDE O ESP32 FICAR ONLINE PARA REINICIÁ-LO.";
+  } else if (dados?.remoteRestartPending || reinicioRemotoEmTransito) {
+    mensagemReinicio.textContent = "COMANDO RECEBIDO. A TRAVA SERÁ FECHADA ANTES DO REINÍCIO.";
+  } else {
+    mensagemReinicio.textContent = "";
+  }
   $("#esp-status-detalhe").textContent = online
     ? "PRONTO PARA RECEBER COMANDOS DE ABERTURA."
     : timestamp
       ? "O ÚLTIMO SINAL PASSOU DE 180 SEGUNDOS. CONFIRA ENERGIA, WI-FI E FIREBASE."
       : "AGUARDANDO O PRIMEIRO SINAL DO ESP32.";
+}
+
+async function solicitarReinicioESP() {
+  const botao = $("#reiniciar-esp");
+  const mensagem = $("#esp-acao-mensagem");
+  const timestamp = Number(estadoESP?.lastSeen);
+  const online = Boolean(estadoESP?.online) && timestamp && Date.now() - timestamp <= 180000;
+  if (!online) {
+    mensagem.textContent = "O ESP32 ESTÁ OFFLINE. AGUARDE O SINAL ANTES DE REINICIAR.";
+    return;
+  }
+  if (!confirm("REINICIAR O ESP32? Se a geladeira estiver aberta, ela será fechada antes da reinicialização.")) return;
+  reinicioRemotoEmTransito = true;
+  botao.disabled = true;
+  mensagem.textContent = "ENVIANDO COMANDO DE REINÍCIO...";
+  try {
+    await set(ref(db, "commands/geladeira/system/restart"), true);
+    mensagem.textContent = "COMANDO ENVIADO. O ESP32 REINICIARÁ COM A TRAVA FECHADA.";
+  } catch (erro) {
+    reinicioRemotoEmTransito = false;
+    botao.disabled = false;
+    mensagem.textContent = `NÃO FOI POSSÍVEL ENVIAR O COMANDO: ${erro.message}`;
+  }
 }
 function monitorarESP() {
   pararMonitoramentoESP?.();
@@ -376,6 +413,7 @@ $("#form-admin").addEventListener("submit", async (e) => {
   }
 });
 $("#salvar").addEventListener("click", salvar);
+$("#reiniciar-esp").addEventListener("click", solicitarReinicioESP);
 function moverCategoria(categoria, direcao) {
   const indice = categoriasOrdenadas.indexOf(categoria);
   const destino = indice + direcao;

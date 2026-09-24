@@ -33,7 +33,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V2.3.0",
+  VERSAO_APP = "V2.3.2",
   PIX = "00020126580014BR.GOV.BCB.PIX0136c9cb7e85-240b-46e5-b500-3278442092475204000053039865802BR5912Clube 14 Bis6011Mirassol SP62160512Bebidas14Bis63045F94",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -73,29 +73,42 @@ const audioGeladeiraAberta = new Audio("audio/Geladeira-Aberta.mp3"),
   audio.preload = "auto";
   audio.load();
 });
-function prepararAudioGeladeira() {
-  // O toque em "Confirmar" libera áudio em navegadores móveis sem emitir som.
-  [audioGeladeiraAberta, audioGeladeiraFechada].forEach((audio) => {
-    audio.muted = true;
-    audio.play().then(() => {
-      audio.pause();
-      audio.currentTime = 0;
-      audio.muted = false;
-    }).catch(() => { audio.muted = false; });
-  });
+const ClasseAudioContext = window.AudioContext || window.webkitAudioContext;
+const contextoAudioGeladeira = ClasseAudioContext ? new ClasseAudioContext() : null;
+const buffersAudioGeladeira = new Map();
+async function carregarBufferAudio(nome, arquivo) {
+  if (!contextoAudioGeladeira) return;
+  try {
+    const resposta = await fetch(arquivo);
+    if (!resposta.ok) throw Error("Não foi possível carregar o áudio.");
+    const dados = await resposta.arrayBuffer();
+    buffersAudioGeladeira.set(nome, await contextoAudioGeladeira.decodeAudioData(dados));
+  } catch (e) {
+    console.warn(`Áudio ${nome} será reproduzido pelo modo compatível.`, e);
+  }
 }
-function tocarAudioGeladeira(audio) {
+void carregarBufferAudio("aberta", "audio/Geladeira-Aberta.mp3");
+void carregarBufferAudio("fechada", "audio/Geladeira-Fechada.mp3");
+function prepararAudioGeladeira() {
+  // O toque em "Confirmar" libera o contexto sonoro sem iniciar ou pausar áudios.
+  if (contextoAudioGeladeira?.state === "suspended")
+    void contextoAudioGeladeira.resume().catch(() => {});
+}
+function tocarAudioGeladeira(nome, audioCompatibilidade) {
+  const buffer = buffersAudioGeladeira.get(nome);
+  if (contextoAudioGeladeira?.state === "running" && buffer) {
+    const origem = contextoAudioGeladeira.createBufferSource();
+    origem.buffer = buffer;
+    origem.connect(contextoAudioGeladeira.destination);
+    origem.start(0);
+    return;
+  }
+  // Fallback para navegadores sem Web Audio ou enquanto o arquivo ainda carrega.
+  const audio = audioCompatibilidade;
   audio.pause();
   audio.currentTime = 0;
   audio.muted = false;
-  const reproduzirDoInicio = () => audio.play().catch(() => {});
-  // Em celulares, só inicia quando houver buffer suficiente para não truncar o som.
-  if (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
-    audio.addEventListener("canplaythrough", reproduzirDoInicio, { once: true });
-    audio.load();
-    return;
-  }
-  reproduzirDoInicio();
+  audio.play().catch(() => {});
 }
 $("#cad-senha").minLength = 6;
 [
@@ -440,7 +453,7 @@ function obrigadoTela(v) {
     p.textContent = "Retire suas bebidas";
     contador.textContent = restante;
     contador.classList.remove("oculto");
-    tocarAudioGeladeira(audioGeladeiraAberta);
+    tocarAudioGeladeira("aberta", audioGeladeiraAberta);
     intervaloObrigado = setInterval(() => {
       restante -= 1;
       if (restante <= 0) {
@@ -450,7 +463,7 @@ function obrigadoTela(v) {
         obrigado.classList.add("fase-fechada");
         titulo.textContent = "Obrigado";
         p.textContent = "GELADEIRA FECHADA";
-        tocarAudioGeladeira(audioGeladeiraFechada);
+        tocarAudioGeladeira("fechada", audioGeladeiraFechada);
         return;
       }
       contador.textContent = restante;
@@ -766,7 +779,7 @@ $("#fechar-obrigado").onclick = () => {
   obrigado.classList.remove("visivel");
   $("#confirmar-carrinho").disabled = false;
   atualizar();
-  tela("tela-produtos");
+  tela("tela-bebidas");
 };
 try {
   let app = initializeApp(firebaseConfig);

@@ -320,6 +320,37 @@
         font-weight: 700;
         letter-spacing: .025em;
       }
+      .esp-acoes {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid #dfe9e7;
+      }
+      .reiniciar-esp {
+        min-height: 39px;
+        padding: 0 14px;
+        border: 1px solid #b73d40;
+        border-radius: 10px;
+        background: #fff;
+        color: #a92f33;
+        font-family: inherit;
+        font-size: .7rem;
+        font-weight: 900;
+        letter-spacing: .045em;
+      }
+      .reiniciar-esp:not(:disabled):hover,
+      .reiniciar-esp:not(:disabled):focus-visible { background: #fff0f0; }
+      .reiniciar-esp:disabled { cursor: not-allowed; opacity: .48; }
+      .esp-acao-mensagem {
+        margin: 0;
+        color: #587076;
+        font-size: .66rem;
+        font-weight: 800;
+        letter-spacing: .02em;
+      }
       .grupo-admin {
         margin: 22px 0;
       }
@@ -680,6 +711,10 @@
             <div><dt>Última inicialização</dt><dd id="esp-reinicio">—</dd></div>
           </dl>
           <p id="esp-status-detalhe" class="status-detalhe">Aguardando o primeiro sinal do ESP32.</p>
+          <div class="esp-acoes">
+            <button id="reiniciar-esp" class="reiniciar-esp" type="button" disabled>REINICIAR ESP32</button>
+            <p id="esp-acao-mensagem" class="esp-acao-mensagem"></p>
+          </div>
         </section>
         <section class="gerenciador-categorias">
           <h2>Categorias</h2>
@@ -719,6 +754,6 @@
         <div class="acoes"><p id="mensagem-admin" class="mensagem"></p><button id="salvar">Salvar alterações</button></div>
       </section>
     </main>
-    <script type="module" src="admin.js?v=1.6.0"></script>
+    <script type="module" src="admin.js?v=1.6.1"></script>
   </body>
 </html>

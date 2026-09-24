@@ -63,7 +63,6 @@ void blinkStatusLed(){
     delay(LED_BLINK_MS);
   }
 }
-#endif
 
 bool requestHttps(const String& method,const String& url,const String& body,String& response,bool acceptRedirect=false){
   HTTPClient http;
@@ -184,3 +183,4 @@ void loop(){
     pollOrders();
   }
 }
+#endif

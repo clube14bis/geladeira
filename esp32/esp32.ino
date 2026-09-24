@@ -46,7 +46,7 @@ constexpr unsigned long LIMITE_FIREBASE_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
 constexpr uint32_t WATCHDOG_TIMEOUT_MS = 60000;
 constexpr uint32_t LIMITE_MAIOR_BLOCO_CRITICO = 10UL * 1024UL;
 constexpr uint8_t AMOSTRAS_BLOCO_CRITICO = 3;
-constexpr char VERSAO_FIRMWARE[] = "2.7.0";
+constexpr char VERSAO_FIRMWARE[] = "2.7.1";
 
 struct Rede { const char *ssid; const char *senha; };
 Rede redes[] = {
@@ -81,6 +81,7 @@ bool sincronizacaoSolicitada = false;
 bool recuperacaoStreamPendente = false;
 bool reinicioPreventivoPendente = false;
 bool reinicioMemoriaPendente = false;
+bool reinicioRemotoPendente = false;
 uint8_t amostrasBlocoCritico = 0;
 unsigned long proximaTentativaSincronizacao = 0;
 unsigned long proximaTentativaStream = 0;
@@ -326,11 +327,12 @@ void enviarHeartbeat(bool imediato = false) {
   const int escrito = snprintf(
     bufferHeartbeat, sizeof(bufferHeartbeat),
     "{\"online\":true,\"state\":\"%s\",\"firmware\":\"%s\",\"uptimeSeconds\":%lu,"
-    "\"firebaseConnected\":%s,\"streamActive\":%s,\"resetReason\":\"%s\","
+    "\"firebaseConnected\":%s,\"streamActive\":%s,\"remoteRestartPending\":%s,\"resetReason\":\"%s\","
     "\"wifi\":{\"connected\":%s,\"ssid\":\"%s\",\"rssi\":%d},"
     "\"lastSeen\":{\".sv\":\"timestamp\"}}",
     estadoDispositivo(), VERSAO_FIRMWARE, agora / 1000UL,
     firebase.ready() ? "true" : "false", streamIniciado ? "true" : "false",
+    reinicioRemotoPendente ? "true" : "false",
     motivoInicializacao.c_str(), WiFi.status() == WL_CONNECTED ? "true" : "false",
     WiFi.SSID().c_str(), WiFi.RSSI()
   );
@@ -356,6 +358,15 @@ void removerComando(const String &id) {
   if (escrito < 0 || static_cast<size_t>(escrito) >= sizeof(bufferCaminho)) return;
   if (!banco.remove(cliente, bufferCaminho)) {
     Serial.printf("Falha ao limpar comando: %s\n", cliente.lastError().message().c_str());
+  }
+}
+
+void removerComandoReinicioRemoto() {
+  const int escrito = snprintf(bufferCaminho, sizeof(bufferCaminho),
+                               "/commands/%s/system/restart", DEVICE_ID);
+  if (escrito < 0 || static_cast<size_t>(escrito) >= sizeof(bufferCaminho)) return;
+  if (!banco.remove(cliente, bufferCaminho)) {
+    Serial.printf("Falha ao limpar comando de reinício: %s\n", cliente.lastError().message().c_str());
   }
 }
 
@@ -449,6 +460,9 @@ void verificarReinicioPreventivo(unsigned long agora) {
     reinicioPreventivoPendente = true;
   }
   // Nunca interrompe a abertura de uma bebida nem o intervalo de 6 segundos.
+  if (reinicioRemotoPendente && prontoParaReinicioSeguro()) {
+    reiniciarComSeguranca("REMOTO");
+  }
   if (reinicioMemoriaPendente && prontoParaReinicioSeguro()) {
     reiniciarComSeguranca("MEMORIA_FRAGMENTADA");
   }
@@ -476,6 +490,17 @@ void analisarComandoNovo(const String &id) {
     pedidoNaFila = id;
     Serial.printf("Pedido %s colocado na fila.\n", id.c_str());
   }
+}
+
+void solicitarReinicioRemoto() {
+  // O comando só é aceito após o baseline. Ele é consumido imediatamente para
+  // que nunca sobreviva como uma solicitação pendente depois de um boot.
+  if (!baselineFeito || reinicioRemotoPendente) return;
+  reinicioRemotoPendente = true;
+  removerComandoReinicioRemoto();
+  registrarEvento("REMOTE_RESTART_REQUESTED");
+  Serial.println("Reinício remoto solicitado; aguardando a trava ficar fechada.");
+  enviarHeartbeat(true);
 }
 
 void processarSincronizacaoInicial(AsyncResult &resultado) {
@@ -513,7 +538,6 @@ void processarStream(AsyncResult &resultado) {
   String evento = stream.event();
   if (evento == "keep-alive" || evento != "put") return;
   String caminho = stream.dataPath();
-  if (caminho != "/" && caminho.indexOf('/', 1) >= 0) return;
   if (caminho == "/") {
     concluirSincronizacaoInicial();
     return;
@@ -522,6 +546,11 @@ void processarStream(AsyncResult &resultado) {
   // caminho SSE; nenhum pedido, item, preço ou dados do usuário são baixados.
   const char *conteudo = stream.to<const char *>();
   if (!conteudo || strcmp(conteudo, "true") != 0) return;
+  if (caminho == "/system/restart") {
+    solicitarReinicioRemoto();
+    return;
+  }
+  if (caminho.indexOf('/', 1) >= 0) return;
   String id = caminho.substring(1);
   analisarComandoNovo(id);
 }

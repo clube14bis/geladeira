@@ -2,7 +2,7 @@
 
 This folder contains the ESP32 firmware that receives new orders from Firebase Realtime Database and controls the refrigerator electromagnetic lock through a relay.
 
-Current firmware version: **2.7.0**.
+Current firmware version: **2.7.1**.
 
 ## What the firmware does
 
@@ -10,11 +10,30 @@ Current firmware version: **2.7.0**.
 2. Authenticates with Firebase using the device account.
 3. Establishes a safe starting point and ignores commands that existed before boot.
 4. Opens a Firebase Server-Sent Events stream only for minimal unlock commands.
-5. On a new pending order, waits six seconds, releases the lock for twenty seconds, then locks it again.
+5. On a new Boolean unlock command, waits six seconds, releases the lock for twenty seconds, then locks it again.
 6. Flashes the onboard blue LED on GPIO 2 while the door is released.
 7. Writes a compact operational status heartbeat to Firebase every 60 seconds for the admin dashboard.
+8. Accepts a protected remote restart request from the administration panel, but only restarts after the lock is safely closed.
 
 The ESP32 never downloads an order object. The website first saves the complete order, then writes only `true` at `commands/geladeira/<order-id>`. The ESP32 receives the order ID from the path and the boolean value, opens the lock, and deletes the command after accepting it. Old commands are never opened again after a device restart.
+
+The administration panel can also write `true` to `commands/geladeira/system/restart`. This branch is distinct from customer unlock commands and can only be created by an administrator through Firebase rules. The device deletes it when received, records `REMOTE_RESTART_REQUESTED`, and waits until no order is being processed and the relay is locked before restarting with the reason `REMOTO`. A restart command that existed before boot is ignored, preventing a stale Firebase value from causing an unexpected reboot.
+
+## Production configuration
+
+The following values are built into firmware 2.7.1. The browser and ESP32 both use six seconds before opening and a 20-second unlock period.
+
+| Configuration | Value | Meaning |
+| --- | --- | --- |
+| `LED_INDICADOR` | GPIO 2 | Onboard blue LED, when present on the ESP32 board. |
+| `RELE_TRAVA` | GPIO 26 | Relay input that controls the electromagnetic lock. |
+| `RELE_TRAVADO` | `HIGH` | Safe relay state used for a locked door with a low-level-active relay. |
+| `RELE_DESTRAVADO` | `LOW` | Relay state used to remove power from the fail-safe lock. |
+| `ESPERA_ANTES_DE_ABRIR_MS` | 6,000 ms | Delay after accepting a command. |
+| `TEMPO_DESTRAVADO_MS` | 20,000 ms | Door release duration. |
+| `INTERVALO_HEARTBEAT_MS` | 60,000 ms | Normal Firebase status update interval. |
+| `INTERVALO_REINICIO_PREVENTIVO_MS` | 5 hours | Safe preventive restart interval. |
+| `WATCHDOG_TIMEOUT_MS` | 60 seconds | Main-loop watchdog timeout. |
 
 ## Required wiring
 
@@ -91,7 +110,7 @@ The serial messages remain in Portuguese because they are intended for the proje
 | --- | --- |
 | Wi-Fi connected | Flashes three times |
 | Firebase connected | Flashes five times |
-| Lock released | Flashes for the ten-second opening period |
+| Lock released | Flashes during the 20-second opening period |
 | Device ready / locked | Off |
 
 The red LED on many ESP32 development boards is only a power LED and is not controlled by the firmware.
@@ -111,7 +130,7 @@ Firmware 2.7.0 uses several independent safeguards, including a dedicated ESP32 
 
 The safe-reset reason is persisted locally and included in the first successful heartbeat after reboot. The admin dashboard can therefore show why a recovered device restarted.
 
-The fragmentation protection continues to measure the largest free memory block internally. It triggers a safe restart only after three consecutive measurements below 10 KB and only while the lock is closed with no order in progress.
+The fragmentation protection continues to measure the largest free memory block internally. It schedules a safe restart after three periodic measurements below 10 KB and only performs it while the lock is closed with no order in progress.
 
 ## Troubleshooting
 

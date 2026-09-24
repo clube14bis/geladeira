@@ -16,11 +16,11 @@
       }
     },
     "orders": {
-      ".indexOn": ["status"],
-      ".read": "auth != null && auth.uid === 'rS8DvYaBHnfPcueDePKr02SFTLE2'",
+      ".indexOn": ["status", "createdAt"],
+      ".read": "auth != null && (auth.uid === 'rS8DvYaBHnfPcueDePKr02SFTLE2' || root.child('retentionAccounts').child(auth.uid).val() === true)",
       "$orderId": {
         ".read": "auth != null && (auth.uid === 'kQ1XjyUTg7h7AtTX222UV9wVOY03' || data.child('uid').val() === auth.uid)",
-        ".write": "auth != null && (auth.uid === 'kQ1XjyUTg7h7AtTX222UV9wVOY03' || (!data.exists() && newData.child('uid').val() === auth.uid && newData.child('username').val() === root.child('users').child(auth.uid).child('username').val() && newData.child('fullName').val() === root.child('users').child(auth.uid).child('fullName').val() && newData.child('status').val() === 'pending'))",
+        ".write": "auth != null && (auth.uid === 'kQ1XjyUTg7h7AtTX222UV9wVOY03' || (root.child('retentionAccounts').child(auth.uid).val() === true && data.exists() && !newData.exists() && data.child('createdAt').isNumber() && data.child('createdAt').val() <= now - 8208000000 && data.child('execution').child('state').val() === 'locked') || (!data.exists() && newData.child('uid').val() === auth.uid && newData.child('username').val() === root.child('users').child(auth.uid).child('username').val() && newData.child('fullName').val() === root.child('users').child(auth.uid).child('fullName').val() && newData.child('status').val() === 'pending'))",
         ".validate": "newData.hasChildren(['uid', 'username', 'fullName', 'items', 'totalItems', 'totalCents', 'status', 'createdAt']) && newData.child('items').hasChildren()",
         "uid": { ".validate": "newData.isString() && newData.val().length > 0" },
         "username": { ".validate": "newData.isString() && newData.val().length <= 24" },
@@ -54,6 +54,12 @@
     "commands": {
       "geladeira": {
         ".read": "auth != null && auth.uid === 'rS8DvYaBHnfPcueDePKr02SFTLE2'",
+        "system": {
+          "restart": {
+            ".write": "auth != null && ((auth.uid === 'rS8DvYaBHnfPcueDePKr02SFTLE2' && data.exists() && !newData.exists()) || ((auth.uid === 'IxZWx1TMk8VsTdEdCVUltFd96a93' || root.child('admins').child(auth.uid).val() === true) && !data.exists() && newData.val() === true))",
+            ".validate": "newData.val() === true"
+          }
+        },
         "$orderId": {
           ".write": "auth != null && ((auth.uid === 'rS8DvYaBHnfPcueDePKr02SFTLE2' && !newData.exists()) || (!data.exists() && newData.val() === true && root.child('orders').child($orderId).child('uid').val() === auth.uid && root.child('orders').child($orderId).child('status').val() === 'pending' && !root.child('orders').child($orderId).child('execution').exists()))",
           ".validate": "newData.val() === true"
@@ -64,7 +70,7 @@
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         "$orderId": {
-          ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.child('uid').val() === auth.uid",
+          ".write": "auth != null && ((auth.uid === $uid && !data.exists() && newData.child('uid').val() === auth.uid) || (root.child('retentionAccounts').child(auth.uid).val() === true && data.exists() && !newData.exists() && data.child('createdAt').isNumber() && data.child('createdAt').val() <= now - 8208000000))",
           ".validate": "newData.hasChildren(['uid', 'items', 'totalCents', 'createdAt']) && newData.child('items').hasChildren()",
           "uid": { ".validate": "newData.val() === auth.uid" },
           "items": {
@@ -90,6 +96,12 @@
         ".write": "auth != null && auth.uid === 'IxZWx1TMk8VsTdEdCVUltFd96a93' && newData.val() === true"
       }
     },
+    "retentionAccounts": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === 'IxZWx1TMk8VsTdEdCVUltFd96a93'",
+        ".write": "auth != null && auth.uid === 'IxZWx1TMk8VsTdEdCVUltFd96a93' && (!newData.exists() || newData.val() === true)"
+      }
+    },
     "devices": {
       "$deviceId": {
         ".read": "auth != null && (auth.uid === 'IxZWx1TMk8VsTdEdCVUltFd96a93' || auth.uid === 'rS8DvYaBHnfPcueDePKr02SFTLE2' || root.child('admins').child(auth.uid).val() === true)",
@@ -102,6 +114,7 @@
         "bootCount": { ".validate": "newData.isNumber() && newData.val() >= 1" },
         "firebaseConnected": { ".validate": "newData.isBoolean()" },
         "streamActive": { ".validate": "newData.isBoolean()" },
+        "remoteRestartPending": { ".validate": "newData.isBoolean()" },
         "streamLastEventSecondsAgo": { ".validate": "newData.isNumber() && newData.val() >= -1" },
         "streamRecoveries": { ".validate": "newData.isNumber() && newData.val() >= 0" },
         "lastStreamRecovery": { ".validate": "newData.isString() && newData.val().length <= 60" },

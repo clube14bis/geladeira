@@ -54,7 +54,6 @@ function doPost(e) {
       bebidas,
       totalCentavos / 100
     ]]);
-
     return resposta({ok:true});
   } catch (erro) {
     console.error(erro);
@@ -86,6 +85,154 @@ function validarTokenFirebase(token, props) {
     console.error(erro);
     return null;
   }
+}
+
+// Retenção segura no Realtime Database -------------------------------------
+// Mantém somente os últimos 95 dias no Firebase. A planilha continua sendo
+// o arquivo histórico permanente. Esta rotina só remove pedidos que a própria
+// ESP32 marcou como "locked"; pedidos pendentes ou com estado desconhecido
+// nunca são apagados automaticamente.
+const RETENCAO_DIAS = 95;
+const RETENCAO_LOTE_MAXIMO = 100;
+
+function simularLimpezaPedidosExpirados() {
+  return executarLimpezaPedidosExpirados_(true);
+}
+
+function limparPedidosExpirados() {
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty("RETENTION_ENABLED") !== "true") {
+    const resultado = {
+      ok: false,
+      mensagem: "RETENTION_ENABLED não está definido como true; nenhuma exclusão foi feita."
+    };
+    console.log(JSON.stringify(resultado));
+    return resultado;
+  }
+  return executarLimpezaPedidosExpirados_(false);
+}
+
+function executarLimpezaPedidosExpirados_(simulacao) {
+  const bloqueio = LockService.getScriptLock();
+  if (!bloqueio.tryLock(10000))
+    throw new Error("Outra limpeza de retenção já está em andamento. Tente novamente em alguns minutos.");
+
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const configuracao = obterConfiguracaoRetencao_(props);
+    const token = autenticarContaRetencao_(configuracao);
+    const limite = Date.now() - RETENCAO_DIAS * 24 * 60 * 60 * 1000;
+    const pedidos = lerPedidosExpirados_(configuracao, token, limite);
+    const ids = Object.keys(pedidos || {});
+    const exclusoes = {};
+    const ignorados = [];
+
+    ids.forEach(id => {
+      const pedido = pedidos[id] || {};
+      const criadoEm = Number(pedido.createdAt) || 0;
+      const fechado = pedido.execution && pedido.execution.state === "locked";
+      if (!pedido.uid || !criadoEm || criadoEm > limite || !fechado) {
+        ignorados.push(id);
+        return;
+      }
+      // Patch multi-local: pedido e histórico somem juntos, sem estado parcial.
+      exclusoes[`orders/${id}`] = null;
+      exclusoes[`userOrders/${pedido.uid}/${id}`] = null;
+    });
+
+    const resultado = {
+      ok: true,
+      simulacao: simulacao,
+      diasRetencao: RETENCAO_DIAS,
+      limiteIso: new Date(limite).toISOString(),
+      candidatosLidos: ids.length,
+      pedidosElegiveis: Object.keys(exclusoes).length / 2,
+      pedidosIgnorados: ignorados.length,
+      idsIgnorados: ignorados.slice(0, 20)
+    };
+
+    if (!simulacao && Object.keys(exclusoes).length) {
+      aplicarExclusoesRetencao_(configuracao, token, exclusoes);
+      resultado.excluidos = Object.keys(exclusoes).length / 2;
+    } else {
+      resultado.excluidos = 0;
+    }
+    console.log(JSON.stringify(resultado));
+    return resultado;
+  } finally {
+    bloqueio.releaseLock();
+  }
+}
+
+function obterConfiguracaoRetencao_(props) {
+  const banco = String(props.getProperty("FIREBASE_DATABASE_URL") || "").replace(/\/$/, "");
+  const apiKey = props.getProperty("FIREBASE_API_KEY");
+  const email = props.getProperty("FIREBASE_RETENTION_EMAIL");
+  const senha = props.getProperty("FIREBASE_RETENTION_PASSWORD");
+  if (!banco || !apiKey || !email || !senha)
+    throw new Error("Configure FIREBASE_DATABASE_URL, FIREBASE_API_KEY, FIREBASE_RETENTION_EMAIL e FIREBASE_RETENTION_PASSWORD nas Propriedades do script.");
+  return { banco, apiKey, email, senha };
+}
+
+function autenticarContaRetencao_(configuracao) {
+  const resposta = UrlFetchApp.fetch(
+    "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=" + encodeURIComponent(configuracao.apiKey),
+    {
+      method: "post",
+      contentType: "application/json",
+      payload: JSON.stringify({ email: configuracao.email, password: configuracao.senha, returnSecureToken: true }),
+      muteHttpExceptions: true
+    }
+  );
+  if (resposta.getResponseCode() !== 200)
+    throw new Error("A conta de retenção não pôde autenticar: " + resposta.getContentText());
+  const dados = JSON.parse(resposta.getContentText());
+  if (!dados.idToken) throw new Error("Firebase não devolveu um token para a conta de retenção.");
+  return dados.idToken;
+}
+
+function lerPedidosExpirados_(configuracao, token, limite) {
+  const consulta = [
+    "orderBy=" + encodeURIComponent(JSON.stringify("createdAt")),
+    "endAt=" + encodeURIComponent(limite),
+    "limitToFirst=" + RETENCAO_LOTE_MAXIMO,
+    "auth=" + encodeURIComponent(token)
+  ].join("&");
+  const resposta = UrlFetchApp.fetch(configuracao.banco + "/orders.json?" + consulta + "&timeout=20s", {
+    method: "get",
+    muteHttpExceptions: true
+  });
+  if (resposta.getResponseCode() !== 200)
+    throw new Error("Não foi possível consultar pedidos expirados: " + resposta.getContentText());
+  return JSON.parse(resposta.getContentText()) || {};
+}
+
+function aplicarExclusoesRetencao_(configuracao, token, exclusoes) {
+  const resposta = UrlFetchApp.fetch(
+    configuracao.banco + "/.json?auth=" + encodeURIComponent(token) + "&print=silent",
+    {
+      method: "patch",
+      contentType: "application/json",
+      payload: JSON.stringify(exclusoes),
+      muteHttpExceptions: true
+    }
+  );
+  if (resposta.getResponseCode() !== 200 && resposta.getResponseCode() !== 204)
+    throw new Error("Não foi possível excluir pedidos expirados: " + resposta.getContentText());
+}
+
+function instalarLimpezaAutomatica() {
+  ScriptApp.getProjectTriggers()
+    .filter(gatilho => gatilho.getHandlerFunction() === "limparPedidosExpirados")
+    .forEach(gatilho => ScriptApp.deleteTrigger(gatilho));
+  ScriptApp.newTrigger("limparPedidosExpirados").timeBased().everyDays(1).atHour(3).create();
+  console.log("Limpeza automática diária instalada. RETENTION_ENABLED precisa ser true para excluir dados.");
+}
+
+function removerLimpezaAutomatica() {
+  ScriptApp.getProjectTriggers()
+    .filter(gatilho => gatilho.getHandlerFunction() === "limparPedidosExpirados")
+    .forEach(gatilho => ScriptApp.deleteTrigger(gatilho));
 }
 
 function configurarPlanilha() {
