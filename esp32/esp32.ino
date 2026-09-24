@@ -12,7 +12,6 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <FirebaseClient.h>
-#include <ArduinoJson.h>
 #include <Preferences.h>
 #include <esp_heap_caps.h>
 #include <esp_system.h>
@@ -34,8 +33,10 @@ constexpr uint8_t RELE_TRAVA = 26;
 constexpr uint8_t RELE_TRAVADO = HIGH; // confirme no módulo relé antes de ligar a trava
 constexpr uint8_t RELE_DESTRAVADO = LOW;
 constexpr unsigned long ESPERA_ANTES_DE_ABRIR_MS = 6000;
-constexpr unsigned long TEMPO_DESTRAVADO_MS = 10000;
-constexpr unsigned long INTERVALO_HEARTBEAT_MS = 30000;
+constexpr unsigned long TEMPO_DESTRAVADO_MS = 20000;
+// A abertura notifica o painel imediatamente; fora isso, um status por minuto
+// preserva a telemetria sem criar tráfego e buffers TLS desnecessários.
+constexpr unsigned long INTERVALO_HEARTBEAT_MS = 60000;
 constexpr unsigned long INTERVALO_RECONEXAO_STREAM_MS = 3000;
 constexpr unsigned long INTERVALO_VERIFICACAO_STREAM_MS = 5000;
 constexpr unsigned long LIMITE_SEM_EVENTO_STREAM_MS = 120000;
@@ -43,8 +44,9 @@ constexpr unsigned long INTERVALO_REINICIO_PREVENTIVO_MS = 5UL * 60UL * 60UL * 1
 constexpr unsigned long LIMITE_WIFI_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
 constexpr unsigned long LIMITE_FIREBASE_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
 constexpr uint32_t WATCHDOG_TIMEOUT_MS = 60000;
-constexpr size_t TAMANHO_HISTORICO_EVENTOS = 900;
-constexpr char VERSAO_FIRMWARE[] = "2.5.4";
+constexpr uint32_t LIMITE_MAIOR_BLOCO_CRITICO = 10UL * 1024UL;
+constexpr uint8_t AMOSTRAS_BLOCO_CRITICO = 3;
+constexpr char VERSAO_FIRMWARE[] = "2.7.0";
 
 struct Rede { const char *ssid; const char *senha; };
 Rede redes[] = {
@@ -62,7 +64,6 @@ using AsyncClient = AsyncClientClass;
 AsyncClient cliente(ssl), clienteStream(sslStream);
 RealtimeDatabase banco;
 Preferences memoria;
-DatabaseOptions filtroUltimoPedido;
 
 enum EstadoTrava { AGUARDANDO, DESTRAVADA };
 EstadoTrava estado = AGUARDANDO;
@@ -79,6 +80,8 @@ bool streamIniciado = false;
 bool sincronizacaoSolicitada = false;
 bool recuperacaoStreamPendente = false;
 bool reinicioPreventivoPendente = false;
+bool reinicioMemoriaPendente = false;
+uint8_t amostrasBlocoCritico = 0;
 unsigned long proximaTentativaSincronizacao = 0;
 unsigned long proximaTentativaStream = 0;
 unsigned long ultimoHeartbeat = 0;
@@ -88,11 +91,12 @@ unsigned long inicioSessao = 0;
 unsigned long inicioWifiIndisponivel = 0;
 unsigned long inicioFirebaseIndisponivel = 0;
 uint32_t totalInicializacoes = 0;
-uint32_t totalRecuperacoesStream = 0;
-String ultimoMotivoRecuperacao = "NENHUMA";
 String motivoInicializacao = "DESCONHECIDO";
-char caminhoStatus[48] = "/devices/geladeira";
-char historicoEventos[TAMANHO_HISTORICO_EVENTOS] = "";
+String caminhoStatus;
+String caminhoExecucao;
+String caminhoComandos;
+char bufferHeartbeat[480];
+char bufferCaminho[112];
 
 struct DiagnosticoMemoria {
   bool pronto = false;
@@ -149,32 +153,11 @@ void acenderIndicador() { digitalWrite(LED_INDICADOR, HIGH); }
 void iniciarPedido(const String &id);
 void processarSincronizacaoInicial(AsyncResult &resultado);
 
-void carregarHistoricoEventos() {
-  String historicoSalvo = memoria.getString("eventLog", "");
-  historicoSalvo.toCharArray(historicoEventos, sizeof(historicoEventos));
-}
-
 void registrarEvento(const char *evento) {
-  char item[100];
-  snprintf(item, sizeof(item), "B%lu/U%lus:%s",
-           static_cast<unsigned long>(totalInicializacoes),
-           millis() / 1000UL, evento);
-
-  size_t tamanhoAtual = strlen(historicoEventos);
-  while (tamanhoAtual && tamanhoAtual + 3 + strlen(item) >= sizeof(historicoEventos)) {
-    char *separador = strstr(historicoEventos, " | ");
-    if (!separador) {
-      historicoEventos[0] = '\0';
-      break;
-    }
-    memmove(historicoEventos, separador + 3, strlen(separador + 3) + 1);
-    tamanhoAtual = strlen(historicoEventos);
-  }
-  size_t inicio = strlen(historicoEventos);
-  snprintf(historicoEventos + inicio, sizeof(historicoEventos) - inicio,
-           "%s%s", inicio ? " | " : "", item);
-  memoria.putString("eventLog", historicoEventos);
-  Serial.printf("Evento persistente: %s\n", item);
+  // Logs completos ficam no Serial Monitor. Não os persistimos no Firebase:
+  // a operação contínua da trava tem prioridade sobre telemetria detalhada.
+  Serial.printf("B%lu/U%lus:%s\n", static_cast<unsigned long>(totalInicializacoes),
+                millis() / 1000UL, evento);
 }
 
 uint32_t maiorBlocoLivre() {
@@ -190,6 +173,23 @@ void atualizarDiagnosticoMemoria() {
   }
   if (!diagnosticoMemoria.menorMaiorBlocoDesdePronto || maiorBloco < diagnosticoMemoria.menorMaiorBlocoDesdePronto) {
     diagnosticoMemoria.menorMaiorBlocoDesdePronto = maiorBloco;
+  }
+}
+
+bool prontoParaReinicioSeguro() {
+  return estado == AGUARDANDO && !pedidoAtual.length() && !pedidoNaFila.length();
+}
+
+void verificarFragmentacaoMemoria() {
+  if (!diagnosticoMemoria.pronto) return;
+  uint32_t maiorBloco = maiorBlocoLivre();
+  if (maiorBloco < LIMITE_MAIOR_BLOCO_CRITICO) {
+    if (amostrasBlocoCritico < AMOSTRAS_BLOCO_CRITICO) amostrasBlocoCritico++;
+    if (amostrasBlocoCritico >= AMOSTRAS_BLOCO_CRITICO && !reinicioMemoriaPendente) {
+      reinicioMemoriaPendente = true;
+      registrarEvento("MEMORIA_BLOCO_CRITICO");
+      Serial.printf("Maior bloco livre crítico: %u bytes. Reinício seguro pendente.\n", maiorBloco);
+    }
   }
 }
 
@@ -320,61 +320,49 @@ void enviarHeartbeat(bool imediato = false) {
   if (!imediato && agora - ultimoHeartbeat < INTERVALO_HEARTBEAT_MS) return;
   ultimoHeartbeat = agora;
   atualizarDiagnosticoMemoria();
-  JsonDocument doc;
-  doc["online"] = true;
-  doc["state"] = estadoDispositivo();
-  doc["firmware"] = VERSAO_FIRMWARE;
-  doc["uptimeSeconds"] = agora / 1000;
-  doc["bootCount"] = totalInicializacoes;
-  doc["firebaseConnected"] = firebase.ready();
-  doc["streamActive"] = streamIniciado;
-  doc["streamLastEventSecondsAgo"] = streamIniciado && ultimoEventoStream
-    ? (agora - ultimoEventoStream) / 1000 : -1;
-  doc["streamRecoveries"] = totalRecuperacoesStream;
-  doc["lastStreamRecovery"] = ultimoMotivoRecuperacao;
-  doc["freeHeap"] = ESP.getFreeHeap();
-  doc["minFreeHeap"] = ESP.getMinFreeHeap();
-  doc["heapAtReady"] = diagnosticoMemoria.heapPronto;
-  doc["minHeapSinceReady"] = diagnosticoMemoria.menorHeapDesdePronto;
-  doc["largestFreeBlock"] = maiorBlocoLivre();
-  doc["largestBlockAtReady"] = diagnosticoMemoria.maiorBlocoPronto;
-  doc["minLargestFreeBlock"] = diagnosticoMemoria.menorMaiorBlocoDesdePronto;
-  doc["heapBeforeStreamRecovery"] = diagnosticoMemoria.heapAntesRecuperacao;
-  doc["largestBlockBeforeStreamRecovery"] = diagnosticoMemoria.maiorBlocoAntesRecuperacao;
-  doc["heapAfterStreamRecovery"] = diagnosticoMemoria.heapDepoisRecuperacao;
-  doc["largestBlockAfterStreamRecovery"] = diagnosticoMemoria.maiorBlocoDepoisRecuperacao;
-  doc["deviceMode"] = MODO_TESTE ? "TESTE" : "PRODUCAO";
-  doc["eventLog"] = historicoEventos;
-  doc["resetReason"] = motivoInicializacao;
-  doc["safeRestartPending"] = reinicioPreventivoPendente;
-  doc["lastOrderId"] = ultimoPedido;
-  JsonObject wifi = doc["wifi"].to<JsonObject>();
-  wifi["connected"] = WiFi.status() == WL_CONNECTED;
-  wifi["ssid"] = WiFi.SSID();
-  wifi["rssi"] = WiFi.RSSI();
-  JsonObject ultimoSinal = doc["lastSeen"].to<JsonObject>();
-  ultimoSinal[".sv"] = "timestamp";
-  String json;
-  serializeJson(doc, json);
-  if (!banco.set<object_t>(cliente, caminhoStatus, object_t(json))) {
+  // Só contam as leituras periódicas. Estados imediatos de abrir/trancar não
+  // podem provocar um reinício por uma queda transitória de memória.
+  if (!imediato) verificarFragmentacaoMemoria();
+  const int escrito = snprintf(
+    bufferHeartbeat, sizeof(bufferHeartbeat),
+    "{\"online\":true,\"state\":\"%s\",\"firmware\":\"%s\",\"uptimeSeconds\":%lu,"
+    "\"firebaseConnected\":%s,\"streamActive\":%s,\"resetReason\":\"%s\","
+    "\"wifi\":{\"connected\":%s,\"ssid\":\"%s\",\"rssi\":%d},"
+    "\"lastSeen\":{\".sv\":\"timestamp\"}}",
+    estadoDispositivo(), VERSAO_FIRMWARE, agora / 1000UL,
+    firebase.ready() ? "true" : "false", streamIniciado ? "true" : "false",
+    motivoInicializacao.c_str(), WiFi.status() == WL_CONNECTED ? "true" : "false",
+    WiFi.SSID().c_str(), WiFi.RSSI()
+  );
+  if (escrito < 0 || static_cast<size_t>(escrito) >= sizeof(bufferHeartbeat)) {
+    Serial.println("Heartbeat ignorado: buffer de status insuficiente.");
+    return;
+  }
+  if (!banco.update<object_t>(cliente, caminhoStatus, object_t(bufferHeartbeat))) {
     Serial.printf("Falha no heartbeat: %s\n", cliente.lastError().message().c_str());
   }
 }
 
 void registrarEstado(const char *novoEstado) {
-  JsonDocument doc;
-  doc["state"] = novoEstado;
-  doc["updatedAt"] = (uint64_t) millis();
-  String json;
-  serializeJson(doc, json);
-  bool ok = banco.set<object_t>(cliente, "/orders/" + pedidoAtual + "/execution", object_t(json));
+  caminhoExecucao = "/orders/";
+  caminhoExecucao += pedidoAtual;
+  caminhoExecucao += "/execution/state";
+  bool ok = banco.set<string_t>(cliente, caminhoExecucao, string_t(novoEstado));
   if (!ok) Serial.printf("Falha ao registrar estado: %s\n", cliente.lastError().message().c_str());
+}
+
+void removerComando(const String &id) {
+  const int escrito = snprintf(bufferCaminho, sizeof(bufferCaminho), "/commands/%s/%s", DEVICE_ID, id.c_str());
+  if (escrito < 0 || static_cast<size_t>(escrito) >= sizeof(bufferCaminho)) return;
+  if (!banco.remove(cliente, bufferCaminho)) {
+    Serial.printf("Falha ao limpar comando: %s\n", cliente.lastError().message().c_str());
+  }
 }
 
 void abrirTrava() {
   digitalWrite(RELE_TRAVA, RELE_DESTRAVADO);
   iniciarPiscarLedAbertura();
-  Serial.println("GELADEIRA ABERTA: 10 segundos");
+  Serial.println("GELADEIRA ABERTA: 20 segundos");
   registrarEstado("opened");
   estado = DESTRAVADA;
   registrarEvento("LOCK_OPENED");
@@ -406,6 +394,9 @@ void iniciarPedido(const String &id) {
     return;
   }
   pedidoAtual = id;
+  // O comando de abertura é descartado assim que foi aceito. Desse modo, o
+  // próximo snapshot do stream permanece vazio e não acumula pedidos antigos.
+  removerComando(id);
   estado = AGUARDANDO;
   proximaAcao = millis() + ESPERA_ANTES_DE_ABRIR_MS;
   registrarEvento("ORDER_RECEIVED");
@@ -420,13 +411,9 @@ void agendarRecuperacaoStream(const char *motivo) {
     diagnosticoMemoria.maiorBlocoAntesRecuperacao = maiorBlocoLivre();
     diagnosticoMemoria.medicaoRecuperacaoPendente = true;
   }
-  ultimoMotivoRecuperacao = motivo;
   char evento[90];
   snprintf(evento, sizeof(evento), "STREAM_%s", motivo);
   registrarEvento(evento);
-  totalRecuperacoesStream++;
-  memoria.putUInt("streamRecoveries", totalRecuperacoesStream);
-  memoria.putString("lastStreamRecovery", ultimoMotivoRecuperacao);
   clienteStream.stopAsync(true);
   streamIniciado = false;
   recuperacaoStreamPendente = true;
@@ -462,35 +449,27 @@ void verificarReinicioPreventivo(unsigned long agora) {
     reinicioPreventivoPendente = true;
   }
   // Nunca interrompe a abertura de uma bebida nem o intervalo de 6 segundos.
-  if (reinicioPreventivoPendente && estado == AGUARDANDO && !pedidoAtual.length() && !pedidoNaFila.length()) {
+  if (reinicioMemoriaPendente && prontoParaReinicioSeguro()) {
+    reiniciarComSeguranca("MEMORIA_FRAGMENTADA");
+  }
+  if (reinicioPreventivoPendente && prontoParaReinicioSeguro()) {
     reiniciarComSeguranca("PREVENTIVO_5H");
   }
 }
 
-void analisarPedidos(JsonObject pedidos) {
-  String maiorId, candidato;
-  for (JsonPair pedido : pedidos) {
-    String id = pedido.key().c_str();
-    if (id > maiorId) maiorId = id;
-    JsonObject dados = pedido.value().as<JsonObject>();
-    if (id > ultimoPedido && !dados.containsKey("execution") && dados["status"] == "pending") {
-      if (!candidato.length() || id < candidato) candidato = id;
-    }
-  }
-  // Na primeira conexão só registra o pedido mais recente para não abrir a geladeira por histórico.
-  if (!baselineFeito) {
-    baselineFeito = true;
-    if (maiorId.length() && maiorId > ultimoPedido) { ultimoPedido = maiorId; memoria.putString("ultimoPedido", ultimoPedido); }
-    apagarLeds(); // pronto para uso: LED apagado até uma abertura
-    registrarEvento("ORDERS_BASELINED");
-    Serial.println("Sincronização inicial concluída; ESP32 pronto para uso.");
-    return;
-  }
-  if (candidato.length()) iniciarPedido(candidato);
+void concluirSincronizacaoInicial() {
+  if (baselineFeito) return;
+  // Nunca executamos um comando que já estava no Firebase quando a placa
+  // iniciou. Isso impede que uma reinicialização abra a trava sem uma ação
+  // atual do usuário.
+  baselineFeito = true;
+  apagarLeds();
+  registrarEvento("COMMANDS_BASELINED");
+  Serial.println("Sincronização inicial concluída; ESP32 pronto para uso.");
 }
 
-void analisarPedidoNovo(const String &id, JsonObject dados) {
-  if (!baselineFeito || id <= ultimoPedido || dados.containsKey("execution") || dados["status"] != "pending") return;
+void analisarComandoNovo(const String &id) {
+  if (!baselineFeito || id <= ultimoPedido) return;
   if (!pedidoAtual.length()) {
     iniciarPedido(id);
   } else if (!pedidoNaFila.length() || id < pedidoNaFila) {
@@ -502,41 +481,16 @@ void analisarPedidoNovo(const String &id, JsonObject dados) {
 void processarSincronizacaoInicial(AsyncResult &resultado) {
   if (!resultado.isResult()) return;
   if (resultado.isError()) {
-    Serial.printf("Falha na sincronização de pedidos: %s\n", resultado.error().message().c_str());
+    Serial.printf("Falha na sincronização de comandos: %s\n", resultado.error().message().c_str());
     sincronizacaoSolicitada = false;
     proximaTentativaSincronizacao = millis() + 3000;
     return;
   }
   if (!resultado.available()) return;
 
-  const char *conteudo = resultado.c_str();
-  JsonDocument doc;
-  DeserializationError erroJson = conteudo ? deserializeJson(doc, conteudo) : DeserializationError::InvalidInput;
-  if (!conteudo || erroJson) {
-    // Diagnóstico seguro: mostra somente o tipo e o tamanho da resposta, nunca
-    // o seu conteúdo (os pedidos podem conter dados de usuários).
-    Serial.printf("Resposta inicial de pedidos inválida (%s, %u bytes); tentando novamente.\n",
-                  erroJson.c_str(), conteudo ? strlen(conteudo) : 0U);
-    sincronizacaoSolicitada = false;
-    proximaTentativaSincronizacao = millis() + 3000;
-    return;
-  }
-
-  // A consulta traz somente o último pedido. Baixar o histórico completo pode
-  // ultrapassar a memória disponível conforme a lista de pedidos cresce.
-  if (doc.isNull()) {
-    baselineFeito = true;
-    apagarLeds();
-    registrarEvento("ORDERS_BASELINED");
-    Serial.println("Sincronização inicial concluída; nenhum pedido pendente. ESP32 pronto para uso.");
-  } else if (doc.is<JsonObject>()) {
-    analisarPedidos(doc.as<JsonObject>());
-  } else {
-    Serial.println("Formato inicial de pedidos inesperado; tentando novamente.");
-    sincronizacaoSolicitada = false;
-    proximaTentativaSincronizacao = millis() + 3000;
-    return;
-  }
+  // O conteúdo inicial é propositalmente ignorado. A coleção contém somente
+  // comandos mínimos; qualquer comando anterior ao boot é considerado antigo.
+  concluirSincronizacaoInicial();
   sincronizacaoSolicitada = false;
   recuperacaoStreamPendente = false;
 }
@@ -557,45 +511,35 @@ void processarStream(AsyncResult &resultado) {
     return;
   }
   String evento = stream.event();
-  if (evento == "keep-alive") return;
-  if (evento != "put" && evento != "patch") return;
+  if (evento == "keep-alive" || evento != "put") return;
   String caminho = stream.dataPath();
   if (caminho != "/" && caminho.indexOf('/', 1) >= 0) return;
-  const char *conteudo = stream.to<const char *>();
-  if (!conteudo || !strlen(conteudo)) return;
-  // Na abertura ou recuperação, o Firebase envia um PUT com o snapshot de toda
-  // a coleção. Ele é ignorado depois do baseline para não carregar o histórico.
-  // Já um PATCH na raiz é o formato que o update multi-caminho do site pode
-  // usar para entregar um pedido novo e precisa ser processado.
-  if (baselineFeito && caminho == "/" && evento == "put") return;
-  JsonDocument doc;
-  if (deserializeJson(doc, conteudo)) {
-    Serial.println("Evento de pedidos ignorado: dados vazios.");
-    return;
-  }
   if (caminho == "/") {
-    if (doc.isNull()) {
-      if (!baselineFeito) {
-        baselineFeito = true;
-        apagarLeds(); // pronto para uso: LED apagado até uma abertura
-        registrarEvento("ORDERS_BASELINED");
-        Serial.println("Sincronização inicial concluída; nenhum pedido pendente. ESP32 pronto para uso.");
-      }
-      return;
-    }
-    // Com o baseline concluído, aqui chegam somente os filhos modificados pelo
-    // PATCH. analisarPedidos trata o conteúdo como delta e abre apenas IDs novos.
-    if (doc.is<JsonObject>()) analisarPedidos(doc.as<JsonObject>());
+    concluirSincronizacaoInicial();
     return;
   }
+  // Cada novo comando é somente o valor JSON literal `true`. O ID vem do
+  // caminho SSE; nenhum pedido, item, preço ou dados do usuário são baixados.
+  const char *conteudo = stream.to<const char *>();
+  if (!conteudo || strcmp(conteudo, "true") != 0) return;
   String id = caminho.substring(1);
-  if (doc.is<JsonObject>()) analisarPedidoNovo(id, doc.as<JsonObject>());
+  analisarComandoNovo(id);
 }
 
 void setup() {
   Serial.begin(115200);
   inicioSessao = millis();
-  snprintf(caminhoStatus, sizeof(caminhoStatus), "/devices/%s", DEVICE_ID);
+  pedidoAtual.reserve(40);
+  ultimoPedido.reserve(40);
+  pedidoNaFila.reserve(40);
+  motivoInicializacao.reserve(48);
+  caminhoStatus.reserve(48);
+  caminhoExecucao.reserve(96);
+  caminhoComandos.reserve(48);
+  caminhoStatus = "/devices/";
+  caminhoStatus += DEVICE_ID;
+  caminhoComandos = "/commands/";
+  caminhoComandos += DEVICE_ID;
   pinMode(LED_INDICADOR, OUTPUT);
   acenderIndicador();
   pinMode(RELE_TRAVA, OUTPUT); digitalWrite(RELE_TRAVA, RELE_TRAVADO);
@@ -606,9 +550,6 @@ void setup() {
   ultimoPedido = memoria.getString("ultimoPedido", "");
   totalInicializacoes = memoria.getUInt("bootCount", 0) + 1;
   memoria.putUInt("bootCount", totalInicializacoes);
-  totalRecuperacoesStream = memoria.getUInt("streamRecoveries", 0);
-  ultimoMotivoRecuperacao = memoria.getString("lastStreamRecovery", "NENHUMA");
-  carregarHistoricoEventos();
   char eventoBoot[90];
   snprintf(eventoBoot, sizeof(eventoBoot), "BOOT_%s", motivoInicializacao.c_str());
   registrarEvento(eventoBoot);
@@ -626,7 +567,6 @@ void setup() {
   initializeApp(cliente, firebase, getAuth(credenciais));
   firebase.getApp<RealtimeDatabase>(banco);
   banco.url(FIREBASE_DATABASE_URL);
-  filtroUltimoPedido.filter.orderBy("$key").limitToLast(1);
   Serial.printf("ESP32 %s preparado (%s). Motivo da inicialização: %s\n",
                 DEVICE_ID, MODO_TESTE ? "TESTE" : "PRODUCAO", motivoInicializacao.c_str());
 }
@@ -665,7 +605,7 @@ void loop() {
     Serial.println("Firebase conectado.");
     registrarEvento("FIREBASE_CONNECTED");
     piscarIndicador(5); // confirma a conexão com o Firebase
-    acenderIndicador(); // permanece aceso até a sincronização inicial dos pedidos
+    acenderIndicador(); // permanece aceso até a sincronização inicial dos comandos
   }
   if (firebase.ready()) {
     inicioFirebaseIndisponivel = 0;
@@ -675,7 +615,7 @@ void loop() {
       registrarEvento("FIREBASE_UNAVAILABLE");
     }
     // Wi-Fi funcionando sem Firebase por muito tempo também pode deixar a
-    // placa incapaz de receber pedidos; reiniciar é a recuperação segura.
+    // placa incapaz de receber comandos; reiniciar é a recuperação segura.
     if (agora - inicioFirebaseIndisponivel >= LIMITE_FIREBASE_SEM_RETORNO_MS) {
       reiniciarComSeguranca("FIREBASE_SEM_RETORNO");
     }
@@ -683,13 +623,13 @@ void loop() {
   verificarSaudeStream(agora);
   if (firebase.ready() && (!baselineFeito || recuperacaoStreamPendente) && !sincronizacaoSolicitada && millis() >= proximaTentativaSincronizacao) {
     sincronizacaoSolicitada = true;
-    banco.get(cliente, "/orders", filtroUltimoPedido, processarSincronizacaoInicial, "sincronizacaoInicial");
-    Serial.println(recuperacaoStreamPendente ? "Sincronizando pedidos após recuperar stream." : "Sincronizando pedidos iniciais.");
+    banco.get(cliente, caminhoComandos, processarSincronizacaoInicial, "sincronizacaoInicial");
+    Serial.println(recuperacaoStreamPendente ? "Sincronizando comandos após recuperar stream." : "Sincronizando comandos iniciais.");
   }
   if (firebase.ready() && baselineFeito && !streamIniciado && millis() >= proximaTentativaStream) {
     // O stream só é aberto depois da autenticação: assim todo pedido novo é recebido.
     clienteStream.setSSEFilters("get,put,patch,keep-alive,cancel,auth_revoked");
-    banco.get(clienteStream, "/orders", processarStream, true /* stream SSE */, "pedidosStream");
+    banco.get(clienteStream, caminhoComandos, processarStream, true /* stream SSE */, "comandosStream");
     streamIniciado = true;
     ultimoEventoStream = millis();
     iniciarDiagnosticoMemoria();
@@ -701,7 +641,7 @@ void loop() {
                     diagnosticoMemoria.heapDepoisRecuperacao,
                     diagnosticoMemoria.maiorBlocoDepoisRecuperacao);
     }
-    Serial.println("Monitoramento de pedidos ativado.");
+    Serial.println("Monitoramento de comandos ativado.");
     registrarEvento("STREAM_ACTIVE");
     enviarHeartbeat(true);
   }

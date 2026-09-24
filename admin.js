@@ -145,17 +145,6 @@ function textoTempoLigado(segundos) {
   if (horas) return `${horas} H ${minutos} MIN`;
   return `${minutos} MIN`;
 }
-function textoTempoCurto(segundos) {
-  const total = Number(segundos);
-  if (!Number.isFinite(total) || total < 0) return "—";
-  if (total < 60) return `HÁ ${Math.floor(total)} S`;
-  return textoTempoLigado(total);
-}
-function textoMemoria(bytes) {
-  const total = Number(bytes);
-  if (!Number.isFinite(total) || total <= 0) return "—";
-  return `${Math.round(total / 1024)} KB`;
-}
 function qualidadeSinalWiFi(rssi) {
   if (!Number.isFinite(rssi)) return "SINAL INDISPONÍVEL";
   if (rssi >= -55) return "EXCELENTE";
@@ -199,7 +188,7 @@ function atualizarStatusESP(dados = estadoESP) {
   estadoESP = dados || null;
   const timestamp = Number(dados?.lastSeen);
   const segundosSemSinal = timestamp ? (Date.now() - timestamp) / 1000 : Infinity;
-  const online = Boolean(dados?.online) && segundosSemSinal <= 90;
+  const online = Boolean(dados?.online) && segundosSemSinal <= 180;
   const pill = $("#esp-status-pill");
   pill.className = `status-pill ${online ? "online" : "offline"}`;
   pill.textContent = online ? "ONLINE" : "OFFLINE";
@@ -209,49 +198,15 @@ function atualizarStatusESP(dados = estadoESP) {
   atualizarWiFiESP(dados?.wifi);
   $("#esp-firebase").textContent = dados?.firebaseConnected ? "CONECTADO" : "SEM CONEXÃO";
   $("#esp-stream").textContent = dados?.streamActive ? "ATIVO" : "INATIVO";
-  $("#esp-stream-saude").textContent = textoTempoCurto(dados?.streamLastEventSecondsAgo);
-  const recuperacoes = Number(dados?.streamRecoveries);
-  const motivoRecuperacao = dados?.lastStreamRecovery;
-  $("#esp-recuperacoes").textContent = Number.isFinite(recuperacoes)
-    ? `${recuperacoes}${motivoRecuperacao ? ` | ${motivoRecuperacao}` : ""}`
-    : "ATUALIZE O FIRMWARE";
   $("#esp-firmware").textContent = dados?.firmware || "—";
-  $("#esp-offline").textContent = timestamp && !online
-    ? textoTempoLigado((Date.now() - timestamp) / 1000)
-    : "—";
   const tempoDesdeUltimoSinal = timestamp && online ? Math.max(0, Math.floor((Date.now() - timestamp) / 1000)) : 0;
   $("#esp-uptime").textContent = textoTempoLigado(Number(dados?.uptimeSeconds) + tempoDesdeUltimoSinal);
-  const memoriaLivre = textoMemoria(dados?.freeHeap);
-  const memoriaMinima = textoMemoria(dados?.minFreeHeap);
-  $("#esp-memoria").textContent = memoriaLivre === "—" ? "ATUALIZE O FIRMWARE" : `${memoriaLivre} | mín. ${memoriaMinima}`;
-  const heapPronto = textoMemoria(dados?.heapAtReady);
-  const menorHeapPronto = textoMemoria(dados?.minHeapSinceReady);
-  $("#esp-memoria-pronto").textContent = heapPronto === "—"
-    ? "ATUALIZE O FIRMWARE"
-    : `${heapPronto} | mín. ${menorHeapPronto}`;
-  const maiorBloco = textoMemoria(dados?.largestFreeBlock);
-  const menorMaiorBloco = textoMemoria(dados?.minLargestFreeBlock);
-  $("#esp-maior-bloco").textContent = maiorBloco === "—"
-    ? "ATUALIZE O FIRMWARE"
-    : `${maiorBloco} | mín. ${menorMaiorBloco}`;
-  const heapAntes = textoMemoria(dados?.heapBeforeStreamRecovery);
-  const blocoAntes = textoMemoria(dados?.largestBlockBeforeStreamRecovery);
-  const heapDepois = textoMemoria(dados?.heapAfterStreamRecovery);
-  const blocoDepois = textoMemoria(dados?.largestBlockAfterStreamRecovery);
-  $("#esp-recuperacao-memoria").textContent = heapAntes === "—"
-    ? "SEM RECUPERAÇÕES"
-    : `Antes ${heapAntes}/${blocoAntes} | depois ${heapDepois}/${blocoDepois}`;
   const reinicio = dados?.resetReason;
-  $("#esp-reinicio").textContent = reinicio
-    ? `${reinicio}${dados?.safeRestartPending ? " | PENDENTE" : ""}`
-    : "ATUALIZE O FIRMWARE";
-  $("#esp-eventos").textContent = dados?.eventLog
-    ? dados.eventLog.replaceAll(" | ", "\n")
-    : "ATUALIZE O FIRMWARE";
+  $("#esp-reinicio").textContent = reinicio || "—";
   $("#esp-status-detalhe").textContent = online
-    ? `SINAL RECEBIDO. INICIALIZAÇÕES: ${dados.bootCount ?? "—"}.`
+    ? "PRONTO PARA RECEBER COMANDOS DE ABERTURA."
     : timestamp
-      ? "O ÚLTIMO SINAL PASSOU DE 90 SEGUNDOS. CONFIRA ENERGIA, WI-FI E FIREBASE."
+      ? "O ÚLTIMO SINAL PASSOU DE 180 SEGUNDOS. CONFIRA ENERGIA, WI-FI E FIREBASE."
       : "AGUARDANDO O PRIMEIRO SINAL DO ESP32.";
 }
 function monitorarESP() {

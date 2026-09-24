@@ -2,19 +2,19 @@
 
 This folder contains the ESP32 firmware that receives new orders from Firebase Realtime Database and controls the refrigerator electromagnetic lock through a relay.
 
-Current firmware version: **2.5.4**.
+Current firmware version: **2.7.0**.
 
 ## What the firmware does
 
 1. Connects to the first configured 2.4 GHz Wi-Fi network that is available.
 2. Authenticates with Firebase using the device account.
-3. Queries only the most recent order to establish a safe starting point.
-4. Opens a Firebase Server-Sent Events stream for new orders.
-5. On a new pending order, waits six seconds, releases the lock for ten seconds, then locks it again.
+3. Establishes a safe starting point and ignores commands that existed before boot.
+4. Opens a Firebase Server-Sent Events stream only for minimal unlock commands.
+5. On a new pending order, waits six seconds, releases the lock for twenty seconds, then locks it again.
 6. Flashes the onboard blue LED on GPIO 2 while the door is released.
-7. Writes a status heartbeat to Firebase every 30 seconds for the admin dashboard.
+7. Writes a compact operational status heartbeat to Firebase every 60 seconds for the admin dashboard.
 
-Old orders are never opened again after a device restart. Always create a new order only after the device reports that its order monitoring is active.
+The ESP32 never downloads an order object. The website first saves the complete order, then writes only `true` at `commands/geladeira/<order-id>`. The ESP32 receives the order ID from the path and the boolean value, opens the lock, and deletes the command after accepting it. Old commands are never opened again after a device restart.
 
 ## Required wiring
 
@@ -65,7 +65,7 @@ Test mode connects to Wi-Fi and Firebase and publishes diagnostics at `devices/t
    ```
 
 3. Install **esp32 by Espressif Systems** in Boards Manager.
-4. Install **FirebaseClient** and **ArduinoJson** in Library Manager.
+4. Install **FirebaseClient** in Library Manager.
 5. Open `esp32.ino`.
 6. Create and complete the local `secrets.h` file as described above.
 7. Select **ESP32 Dev Module** under **Tools → Board**.
@@ -80,7 +80,7 @@ Wi-Fi connected: <ip>
 ESP32 geladeira preparado (PRODUCAO)
 Firebase connected.
 Sincronização inicial concluída; ESP32 pronto para uso.
-Monitoramento de pedidos ativado.
+Monitoramento de comandos ativado.
 ```
 
 The serial messages remain in Portuguese because they are intended for the project operator; their meaning is documented in the root README.
@@ -98,26 +98,20 @@ The red LED on many ESP32 development boards is only a power LED and is not cont
 
 ## Reliability and diagnostics
 
-Firmware 2.5.4 uses several independent safeguards, including a dedicated ESP32 task for the blue opening indicator and support for atomic root-level order patches:
+Firmware 2.7.0 uses several independent safeguards, including a dedicated ESP32 task for the blue opening indicator and a minimal command-only Firebase stream:
 
 - A 60-second watchdog monitors only the main firmware loop. Wi-Fi and Firebase background tasks are excluded so normal TLS/network activity cannot cause a false reset.
 - Firebase stream health is checked every five seconds. A stream with no event or keep-alive for two minutes is rebuilt.
-- Stream startup and recovery query only the latest order instead of downloading the complete historical `orders` node. This reduces heap pressure as the database grows.
+- The command stream contains only a boolean value and an order ID in the path. It does not parse order JSON, products, prices, or customer data.
 - If Wi-Fi does not return for five minutes, the relay is returned to `RELE_TRAVADO` and the ESP32 restarts with `WIFI_SEM_RETORNO`.
 - If Wi-Fi is connected but Firebase does not return for five minutes, the same safe restart occurs with `FIREBASE_SEM_RETORNO`.
 - A preventive restart is scheduled every five hours and only occurs when the lock is closed and no order is in progress.
-- The device reports free heap, minimum heap, largest available allocation block, stream recovery memory, RSSI, uptime, reset reason, and stream recovery count.
-- A circular persistent event log records boot reason, Wi-Fi/Firebase transitions, stream recovery, lock actions, and planned reset reason. It is retained in internal non-volatile memory and displayed in the dashboard after the next successful heartbeat.
+- The device reports only online state, lock state, Wi-Fi, Firebase, command-stream state, uptime, firmware, and reset reason. This keeps the normal heartbeat small.
+- Detailed events stay on the USB Serial Monitor during maintenance instead of being continuously persisted and uploaded.
 
 The safe-reset reason is persisted locally and included in the first successful heartbeat after reboot. The admin dashboard can therefore show why a recovered device restarted.
 
-Event records follow `B<boot>/U<seconds>s:<event>`. For example, `B22/U301s:RESET_WIFI_SEM_RETORNO` means that boot 22 safely restarted after Wi-Fi had not returned. A power loss or total hardware freeze may prevent the final event from being written, but the reset reason on the next boot can still provide evidence.
-
-## Reading memory values
-
-`freeHeap` is the total free memory. `largestFreeBlock` is the maximum amount that can be allocated in a single request. A healthy board may have a smaller largest block after TLS and Firebase connections are established; what matters most is whether the values continue to fall over time.
-
-Monitor the board for at least 24–48 hours after a firmware change. A stable range is normal. A steady decline in free heap or largest free block is evidence that should be investigated before adding more functionality.
+The fragmentation protection continues to measure the largest free memory block internally. It triggers a safe restart only after three consecutive measurements below 10 KB and only while the lock is closed with no order in progress.
 
 ## Troubleshooting
 

@@ -320,49 +320,6 @@
         font-weight: 700;
         letter-spacing: .025em;
       }
-      .esp-eventos {
-        margin: 12px 0 0;
-        padding: 12px;
-        border: 1px solid #1d5e3c;
-        border-radius: 12px;
-        background: #06140f;
-        box-shadow: inset 0 1px 0 rgba(177, 255, 205, .12), 0 10px 22px rgba(5, 30, 18, .18);
-      }
-      .esp-eventos h3 {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        margin: 0 0 9px;
-        color: #8effb5;
-        font-family: inherit;
-        font-size: .68rem;
-        font-weight: 850;
-        letter-spacing: .08em;
-        text-transform: uppercase;
-      }
-      .esp-eventos h3::before {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: #4cff8a;
-        box-shadow: 0 0 9px #4cff8a;
-        content: "";
-      }
-      .esp-eventos p {
-        max-height: 112px;
-        margin: 0;
-        overflow: auto;
-        color: #65f99a;
-        font-family: inherit;
-        font-size: .7rem;
-        font-weight: 700;
-        line-height: 1.55;
-        text-shadow: 0 0 7px rgba(101, 249, 154, .35);
-        overflow-wrap: anywhere;
-      }
-      .esp-eventos p::-webkit-scrollbar { width: 7px; }
-      .esp-eventos p::-webkit-scrollbar-track { background: #0b2518; border-radius: 99px; }
-      .esp-eventos p::-webkit-scrollbar-thumb { background: #31965b; border-radius: 99px; }
       .grupo-admin {
         margin: 22px 0;
       }
@@ -716,23 +673,12 @@
             <div><dt>Último sinal</dt><dd id="esp-ultimo-sinal">—</dd></div>
             <div><dt>Estado</dt><dd id="esp-estado">—</dd></div>
             <div><dt>Wi-Fi</dt><dd id="esp-wifi">—</dd></div>
-            <div><dt>Tempo offline</dt><dd id="esp-offline">—</dd></div>
             <div><dt>Firebase</dt><dd id="esp-firebase">—</dd></div>
-            <div><dt>Monitoramento</dt><dd id="esp-stream">—</dd></div>
-            <div><dt>Último evento do stream</dt><dd id="esp-stream-saude">—</dd></div>
-            <div><dt>Recuperações do stream</dt><dd id="esp-recuperacoes">—</dd></div>
+            <div><dt>Comandos</dt><dd id="esp-stream">—</dd></div>
             <div><dt>Firmware</dt><dd id="esp-firmware">—</dd></div>
             <div><dt>Tempo ligado</dt><dd id="esp-uptime">—</dd></div>
-            <div><dt>Memória</dt><dd id="esp-memoria">—</dd></div>
-            <div><dt>Memória desde pronto</dt><dd id="esp-memoria-pronto">—</dd></div>
-            <div><dt>Maior bloco livre</dt><dd id="esp-maior-bloco">—</dd></div>
-            <div><dt>Recuperação do stream</dt><dd id="esp-recuperacao-memoria">—</dd></div>
             <div><dt>Última inicialização</dt><dd id="esp-reinicio">—</dd></div>
           </dl>
-          <div class="esp-eventos">
-            <h3>Histórico de eventos persistente</h3>
-            <p id="esp-eventos">ATUALIZE O FIRMWARE</p>
-          </div>
           <p id="esp-status-detalhe" class="status-detalhe">Aguardando o primeiro sinal do ESP32.</p>
         </section>
         <section class="gerenciador-categorias">
@@ -773,6 +719,6 @@
         <div class="acoes"><p id="mensagem-admin" class="mensagem"></p><button id="salvar">Salvar alterações</button></div>
       </section>
     </main>
-    <script type="module" src="admin.js?v=1.5.8"></script>
+    <script type="module" src="admin.js?v=1.6.0"></script>
   </body>
 </html>

@@ -33,7 +33,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V2.0.0",
+  VERSAO_APP = "V2.1.0",
   PIX = "00020126580014BR.GOV.BCB.PIX0136c9cb7e85-240b-46e5-b500-3278442092475204000053039865802BR5912Clube 14 Bis6011Mirassol SP62160512Bebidas14Bis63045F94",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -400,7 +400,7 @@ function obrigadoTela(v) {
   $("#contador").classList.add("oculto");
   obrigado.classList.add("visivel");
   retornoLogin = setTimeout(() => {
-    let restante = 10;
+    let restante = 20;
     p.textContent = "Geladeira aberta";
     p.classList.add("geladeira-aberta");
     $("#contador").textContent = restante;
@@ -486,6 +486,11 @@ async function enviar(b) {
           createdAt: serverTimestamp(),
         },
       });
+      // O ESP32 não recebe o pedido completo. Depois que o pedido já existe
+      // com segurança no Firebase, ele recebe apenas este comando booleano,
+      // cujo caminho contém o ID do pedido. Assim não são transferidos itens,
+      // preços nem dados pessoais para a placa.
+      await set(ref(db, `commands/geladeira/${pedido.key}`), true);
       // A abertura depende somente do Firebase. Planilha e estoque são
       // registros auxiliares: nunca podem atrasar o comando da geladeira.
       void sheets(pedido.key, items, v).catch((e) => {

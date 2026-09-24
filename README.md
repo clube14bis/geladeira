@@ -1,4 +1,6 @@
-# Clube 14 BIS Geladeira
+# Clube 14 BIS Fridge
+
+<img width="1280" height="853" alt="Clube 14 BIS Fridge" src="https://github.com/user-attachments/assets/02b59fa2-7ec7-47b4-98f5-437ef00a6a8e" />
 
 Clube 14 BIS Fridge is a self-service system for a shared refrigerator. Members open the web app from a QR code, sign in, choose their drinks, confirm the cart, and collect the items after the refrigerator door is released. Orders are stored in Firebase and Google Sheets, while an ESP32 drives the relay connected to the electromagnetic lock.
 
@@ -11,7 +13,7 @@ Clube 14 BIS Fridge is a self-service system for a shared refrigerator. Members 
 | Firebase Realtime Database | Users, catalog, orders, order history, ESP32 status, and access control. |
 | Cloudflare Worker | Lets users sign in with a username by resolving the matching Firebase email address. |
 | Google Apps Script + Google Sheets | Creates the operational withdrawal report. |
-| ESP32 | Listens for new orders and controls the lock relay. |
+| ESP32 | Listens for minimal unlock commands and controls the lock relay. |
 
 ## Main features
 
@@ -33,21 +35,24 @@ Clube 14 BIS Fridge is a self-service system for a shared refrigerator. Members 
 - Create categories and remove empty categories.
 - Edit name, price, quantity, image URL, category, and visibility before saving changes.
 - Informational inventory control: stock decreases on an order but intentionally does not block selection at zero.
-- Live ESP32 dashboard with online state, lock state, Wi-Fi quality, Firebase and stream state, uptime, firmware version, reset reason, and memory diagnostics.
+- Lightweight ESP32 dashboard with online state, lock state, Wi-Fi quality, Firebase, command-stream state, uptime, firmware version, and last reset reason.
 
 ## Order flow
 
 1. A customer signs in, selects items, and confirms the cart.
 2. The web app creates a pending order, saves personal history, and updates informational stock in Firebase.
-3. The ESP32 receives the new Firebase Realtime Database stream event.
-4. The Google Sheets report is sent in the background and never delays the lock command.
-5. It waits six seconds, then releases the relay for ten seconds while the onboard blue LED flashes.
-6. The relay interrupts power to the fail-safe electromagnetic lock, allowing the door to open.
-7. After ten seconds, the relay returns to the locked state and the ESP32 records the lock state in Firebase.
+3. The web app writes one small `true` command at `commands/geladeira/<order-id>`.
+4. The ESP32 receives only that command path and its boolean value; it never downloads the order items, prices, or user data.
+5. The Google Sheets report is sent in the background and never delays the lock command.
+6. It waits six seconds, then releases the relay for twenty seconds while the onboard blue LED flashes.
+7. The relay interrupts power to the fail-safe electromagnetic lock, allowing the door to open.
+8. After twenty seconds, the relay returns to the locked state and the ESP32 records the lock state in Firebase.
 
 ## ESP32 reliability design
 
-Firmware **2.5.4** is designed for unattended operation. It does not repeatedly poll the whole order history. Instead, it keeps a Firebase stream open and only checks the most recent order when it starts or rebuilds a stream. This prevents a large historical response from exhausting the ESP32 heap. It processes small root-level Firebase patches created by the website's atomic order update while still ignoring the large startup snapshot. The opening LED is driven by its own ESP32 task, so a delayed network operation cannot hide the visual opening signal.
+Firmware **2.7.0** is designed for unattended operation. The ESP32 no longer streams the `orders` collection. It keeps a Firebase stream open only for `commands/geladeira`, where every valid request is a boolean `true` under the order ID. The order details remain in Firebase for the web application, reports, and order history, but are never transferred to the ESP32.
+
+This removes the heaviest recurring JSON work from the device: parsing order objects, product lists, prices, and user data. The status heartbeat is also a small fixed-buffer message with only operational fields. Routine status updates run once per minute; lock opening and locking still publish an immediate update. The opening LED is driven by its own ESP32 task, so a delayed network operation cannot hide the visual opening signal.
 
 | Protection | Behaviour |
 | --- | --- |
@@ -57,22 +62,12 @@ Firmware **2.5.4** is designed for unattended operation. It does not repeatedly 
 | Wi-Fi fallback reset | If Wi-Fi cannot return for five minutes, locks the relay output and restarts with `WIFI_SEM_RETORNO`. |
 | Firebase fallback reset | If Wi-Fi is connected but Firebase does not return for five minutes, locks the relay output and restarts with `FIREBASE_SEM_RETORNO`. |
 | Preventive reset | Every five hours, restarts only when the lock is closed and there is no order being processed. |
-| Memory telemetry | Sends free heap, minimum heap, largest free block, stream-recovery memory, RSSI, and uptime to the dashboard every 30 seconds. |
-| Persistent event log | Keeps a circular history in ESP32 non-volatile memory and sends it to the dashboard after the next successful Firebase connection. |
+| Compact telemetry | Sends only the status needed to operate the fridge: online state, lock state, Wi-Fi, Firebase, command stream, uptime, firmware, reset reason, and last signal. |
+| Fragmentation fallback | If the largest allocatable block stays below 10 KB for three consecutive checks, the relay is locked and the ESP32 performs a safe restart only when no order is in progress. This protection runs internally and does not continuously send memory data. |
 
-The dashboard considers the device offline when the latest heartbeat is older than 90 seconds. Values such as “Firebase connected” and “stream active” are the last status reported by the device; when the device is offline, they are historical values rather than live confirmation.
+The dashboard considers the device offline when the latest heartbeat is older than 180 seconds. Values such as “Firebase connected” and “stream active” are the last status reported by the device; when the device is offline, they are historical values rather than live confirmation.
 
-The persistent event log uses records such as `B22/U18s:WIFI_CONNECTED`: `B` is the boot number, `U` is the elapsed time since that boot, and the final value is the event. It records device boot reason, Wi-Fi/Firebase changes, stream recovery, order processing, lock release/lock state, and planned reset reason. The log survives a normal ESP32 reset and helps identify what happened immediately before a recovery.
-
-### Memory diagnostics
-
-Free heap alone is not enough to assess memory health. The dashboard also reports the **largest free block**, which is the largest single allocation currently possible. For example, 80 KB total free heap with a 20 KB largest block cannot allocate a new 40 KB buffer. The firmware avoids the old full-history read specifically for this reason.
-
-Normal values can change after boot while Wi-Fi, TLS, and Firebase allocate their buffers. Watch the trend over 24–48 hours:
-
-- Stable values or small variations are expected.
-- A continuing drop in free heap or largest free block can indicate fragmentation or a memory leak.
-- The reset reason after a recovery helps identify a Wi-Fi, Firebase, watchdog, power, or planned-reset event.
+Detailed logs remain available through the USB Serial Monitor during local maintenance. The web dashboard intentionally stays small so routine monitoring does not add avoidable payloads or database writes.
 
 ## Project links and files
 
@@ -119,7 +114,7 @@ Order confirmation uses Firebase transactions to avoid negative stock values. St
 
 ### ESP32 dashboard interpretation
 
-- **Online** means the most recent heartbeat is less than 90 seconds old.
+- **Online** means the most recent heartbeat is less than 180 seconds old.
 - **Lock state** is red when locked and green when open.
 - **Wi-Fi** includes the network name, RSSI in dBm, and a quality label.
 - **Stream recoveries** records automatic stream rebuilds since the last device boot.
@@ -271,7 +266,7 @@ The firmware assumes a low-level-active relay:
 | --- | ---: | --- | --- |
 | Normal / locked | HIGH | Inactive | Receives 12 V through NC |
 | Opening | LOW | Active | NC opens; 12 V is removed; door releases |
-| After ten seconds | HIGH | Inactive | NC closes; lock returns |
+| After twenty seconds | HIGH | Inactive | NC closes; lock returns |
 
 Before connecting the lock, verify COM/NC with a multimeter. If the relay logic is inverted, adjust `RELE_TRAVADO` and `RELE_DESTRAVADO` in [esp32/esp32.ino](esp32/esp32.ino).
 
@@ -279,7 +274,7 @@ Before connecting the lock, verify COM/NC with a multimeter. If the relay logic 
 
 1. Flash the firmware and test the ESP32 alone: three Wi-Fi flashes and five Firebase flashes.
 2. Connect the buck converter and relay, but not the lock.
-3. Create a new order and confirm the relay changes state for ten seconds.
+3. Create a new order and confirm the relay changes state for twenty seconds.
 4. Verify COM/NC continuity with a multimeter.
 5. Power off, add the fused 12 V supply and lock as shown above.
 6. Test first with the door open.
