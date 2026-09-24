@@ -33,7 +33,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V2.1.0",
+  VERSAO_APP = "V2.3.0",
   PIX = "00020126580014BR.GOV.BCB.PIX0136c9cb7e85-240b-46e5-b500-3278442092475204000053039865802BR5912Clube 14 Bis6011Mirassol SP62160512Bebidas14Bis63045F94",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -67,6 +67,27 @@ const erroLogin = $("#erro-login"),
   barraCarrinho = $(".carrinho-barra"),
   carregando = $("#carregando"),
   textoCarregando = $("#texto-carregando");
+const audioGeladeiraAberta = new Audio("audio/Geladeira-Aberta.mp3"),
+  audioGeladeiraFechada = new Audio("audio/Geladeira-Fechada.mp3");
+[audioGeladeiraAberta, audioGeladeiraFechada].forEach((audio) => {
+  audio.preload = "auto";
+});
+function prepararAudioGeladeira() {
+  // O toque em "Confirmar" libera áudio em navegadores móveis sem emitir som.
+  [audioGeladeiraAberta, audioGeladeiraFechada].forEach((audio) => {
+    audio.muted = true;
+    audio.play().then(() => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.muted = false;
+    }).catch(() => { audio.muted = false; });
+  });
+}
+function tocarAudioGeladeira(audio) {
+  audio.pause();
+  audio.currentTime = 0;
+  audio.play().catch(() => {});
+}
 $("#cad-senha").minLength = 6;
 [
   "#cad-nome",
@@ -392,30 +413,38 @@ async function sair() {
   tela("tela-login");
 }
 function obrigadoTela(v) {
-  const p = obrigado.querySelector(".obrigado-conteudo p");
-  p.textContent =
-    "Sua escolha foi registrada. A geladeira será aberta em instantes.";
-  p.classList.remove("geladeira-aberta", "geladeira-trancada");
+  const p = $("#mensagem-obrigado");
+  const titulo = $("#titulo-obrigado");
+  const contador = $("#contador");
+  obrigado.classList.remove("fase-aberta", "fase-fechada");
+  obrigado.classList.add("fase-registro");
+  titulo.textContent = "Pedido registrado";
+  p.textContent = "Em instantes a geladeira será aberta.";
   $("#valor-final").textContent = fmt(v);
-  $("#contador").classList.add("oculto");
+  contador.classList.add("oculto");
   obrigado.classList.add("visivel");
   retornoLogin = setTimeout(() => {
     let restante = 20;
-    p.textContent = "Geladeira aberta";
-    p.classList.add("geladeira-aberta");
-    $("#contador").textContent = restante;
-    $("#contador").classList.remove("oculto");
+    obrigado.classList.remove("fase-registro", "fase-fechada");
+    obrigado.classList.add("fase-aberta");
+    titulo.textContent = "Geladeira aberta";
+    p.textContent = "Retire suas bebidas";
+    contador.textContent = restante;
+    contador.classList.remove("oculto");
+    tocarAudioGeladeira(audioGeladeiraAberta);
     intervaloObrigado = setInterval(() => {
       restante -= 1;
       if (restante <= 0) {
         clearInterval(intervaloObrigado);
-        $("#contador").classList.add("oculto");
-        p.textContent = "Geladeira fechada";
-        p.classList.remove("geladeira-aberta");
-        p.classList.add("geladeira-trancada");
+        contador.classList.add("oculto");
+        obrigado.classList.remove("fase-aberta");
+        obrigado.classList.add("fase-fechada");
+        titulo.textContent = "Obrigado";
+        p.textContent = "GELADEIRA FECHADA";
+        tocarAudioGeladeira(audioGeladeiraFechada);
         return;
       }
-      $("#contador").textContent = restante;
+      contador.textContent = restante;
     }, 1000);
   }, 6000);
 }
@@ -452,6 +481,7 @@ async function reduzirEstoque(items) {
 }
 async function enviar(b) {
   if (!usuarioAtual || !qtd()) return;
+  prepararAudioGeladeira();
   b.disabled = true;
   load(true, "Registrando pedido...");
   try {
@@ -697,9 +727,16 @@ $("#calendario-historico").onclick = (e) => {
   renderDetalhesHistorico();
 };
 function efeitoCopiarPix(botao) {
+  const texto = botao.querySelector("span") || botao;
+  const textoOriginal = botao.dataset.textoOriginal || texto.textContent;
+  botao.dataset.textoOriginal = textoOriginal;
   botao.classList.remove("copiado");
   requestAnimationFrame(() => botao.classList.add("copiado"));
-  setTimeout(() => botao.classList.remove("copiado"), 420);
+  texto.textContent = "PIX COPIADO ✓";
+  setTimeout(() => {
+    botao.classList.remove("copiado");
+    texto.textContent = textoOriginal;
+  }, 1800);
 }
 $("#copiar-pix").onclick = async () => {
   efeitoCopiarPix($("#copiar-pix"));
@@ -713,11 +750,15 @@ $("#copiar-pix-historico").onclick = async () => {
     await navigator.clipboard.writeText(PIX);
   } catch {}
 };
-let f = document.createElement("button");
-f.id = "fechar-obrigado";
-f.textContent = "×";
-obrigado.prepend(f);
-f.onclick = sair;
+$("#fechar-obrigado").onclick = () => {
+  clearTimeout(retornoLogin);
+  clearInterval(intervaloObrigado);
+  carrinho = {};
+  obrigado.classList.remove("visivel");
+  $("#confirmar-carrinho").disabled = false;
+  atualizar();
+  tela("tela-produtos");
+};
 try {
   let app = initializeApp(firebaseConfig);
   auth = getAuth(app);

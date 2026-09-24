@@ -43,7 +43,7 @@
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="styles.css?v=2.0.16" />
+    <link rel="stylesheet" href="styles.css?v=2.2.0" />
   </head>
   <body>
     <div
@@ -319,30 +319,47 @@
     </main>
     <div
       id="obrigado"
-      class="obrigado"
+      class="obrigado fase-registro"
       role="dialog"
       aria-modal="true"
       tabindex="0"
     >
+      <button
+        id="fechar-obrigado"
+        type="button"
+        aria-label="Voltar para selecionar produtos"
+      >×</button>
       <div class="obrigado-conteudo">
-        <div class="check">✓</div>
-        <h2>Obrigado!</h2>
-        <p>A GELADEIRA VAI SER ABERTA. SUA ESCOLHA FOI REGISTRADA.</p>
-        <div id="contador" class="contador">6</div>
+        <div class="check" aria-hidden="true">
+          <svg class="icone-confirmacao icone-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m5 12 4 4L19 6" />
+          </svg>
+          <svg class="icone-confirmacao icone-cadeado-aberto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="10" width="16" height="10" rx="2" />
+            <path class="arco-aberto" d="M8 10V7a4 4 0 0 1 7.1-2.5" />
+            <path d="M12 14v2" />
+          </svg>
+          <svg class="icone-confirmacao icone-cadeado-fechado" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="10" width="16" height="10" rx="2" />
+            <path class="arco-fechado" d="M8 10V7a4 4 0 0 1 8 0v3" />
+            <path d="M12 14v2" />
+          </svg>
+        </div>
+        <h2 id="titulo-obrigado">Pedido registrado</h2>
+        <p id="mensagem-obrigado">Em instantes a geladeira será aberta.</p>
+        <div id="contador" class="contador oculto">20</div>
         <div class="pagamento-pix">
-          <span>Valor total</span
-          ><strong id="valor-final" class="valor-final">R$ 0,00</strong
-          ><button
+          <span class="rotulo-valor">Valor total</span
+          ><strong id="valor-final" class="valor-final">R$ 0,00</strong>
+          <button
             id="copiar-pix"
             class="botao-pix"
             type="button"
             aria-label="COPIAR CHAVE PIX"
-          >Copiar chave Pix
-          </button>
+          ><span>Copiar chave Pix</span></button>
         </div>
-        <p class="toque-voltar">Toque na tela para voltar ao login</p>
       </div>
     </div>
-    <script type="module" src="app.js?v=2.1.0"></script>
+    <script type="module" src="app.js?v=2.3.0"></script>
   </body>
 </html>
