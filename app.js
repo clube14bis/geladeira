@@ -19,6 +19,7 @@ import {
   update,
   runTransaction,
   serverTimestamp,
+  onValue,
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
 import {
   firebaseConfig,
@@ -33,7 +34,7 @@ import {
 } from "./catalogo-base.js?v=1.2.4";
 const $ = (s) => document.querySelector(s),
   telas = document.querySelectorAll(".tela"),
-  VERSAO_APP = "V2.3.2",
+  VERSAO_APP = "V2.3.4",
   PIX = "00020126580014BR.GOV.BCB.PIX0136c9cb7e85-240b-46e5-b500-3278442092475204000053039865802BR5912Clube 14 Bis6011Mirassol SP62160512Bebidas14Bis63045F94",
   fmt = (c) =>
     new Intl.NumberFormat("pt-BR", {
@@ -51,6 +52,7 @@ let auth,
   categoriasOrdenadas = [...ordemCategorias],
   retornoLogin,
   intervaloObrigado,
+  cancelarConfirmacaoAbertura,
   ultimoTotalCarrinho = 0,
   historicoPedidos = [],
   mesHistorico = new Date(),
@@ -484,6 +486,7 @@ function fechar() {
   document.body.classList.remove("carrinho-aberto");
 }
 async function sair() {
+  cancelarConfirmacaoAbertura?.();
   clearTimeout(retornoLogin);
   clearInterval(intervaloObrigado);
   carrinho = {};
@@ -494,18 +497,22 @@ async function sair() {
   usuarioAtual = perfilAtual = null;
   tela("tela-login");
 }
-function obrigadoTela(v) {
+function obrigadoTela(v, pedidoId = null) {
+  cancelarConfirmacaoAbertura?.();
+  clearTimeout(retornoLogin);
+  clearInterval(intervaloObrigado);
   const p = $("#mensagem-obrigado");
   const titulo = $("#titulo-obrigado");
   const contador = $("#contador");
-  obrigado.classList.remove("fase-aberta", "fase-fechada");
+  obrigado.classList.remove("fase-aberta", "fase-fechada", "fase-aviso");
   obrigado.classList.add("fase-registro");
   titulo.textContent = "Pedido registrado";
-  p.textContent = "Em instantes a geladeira será aberta.";
+  p.textContent = "Aguardando confirmação da abertura da geladeira.";
   $("#valor-final").textContent = fmt(v);
   contador.classList.add("oculto");
   obrigado.classList.add("visivel");
-  retornoLogin = setTimeout(() => {
+  function mostrarAbertura() {
+    cancelarConfirmacaoAbertura?.();
     let restante = 20;
     obrigado.classList.remove("fase-registro", "fase-fechada");
     obrigado.classList.add("fase-aberta");
@@ -528,19 +535,63 @@ function obrigadoTela(v) {
       }
       contador.textContent = restante;
     }, 1000);
-  }, 6000);
+  }
+  // A demonstração local simula a placa; em produção só o retorno do pedido
+  // autoriza a tela verde e o áudio. A planilha não depende desta escuta.
+  if (demo) {
+    retornoLogin = setTimeout(mostrarAbertura, 6000);
+    return;
+  }
+  let ativa = true;
+  let pararEscuta;
+  const prazo = setTimeout(mostrarAviso, 15000);
+  cancelarConfirmacaoAbertura = () => {
+    ativa = false;
+    clearTimeout(prazo);
+    pararEscuta?.();
+    cancelarConfirmacaoAbertura = null;
+  };
+  function mostrarAviso() {
+    if (!ativa) return;
+    cancelarConfirmacaoAbertura?.();
+    obrigado.classList.remove("fase-registro", "fase-aberta", "fase-fechada");
+    obrigado.classList.add("fase-aviso");
+    titulo.textContent = "Pedido registrado";
+    p.textContent = "Seu pedido foi registrado, mas não recebemos a confirmação da geladeira";
+    contador.classList.add("oculto");
+  }
+  pararEscuta = onValue(
+    ref(db, `orders/${pedidoId}/execution/state`),
+    (snapshot) => {
+      if (!ativa) return;
+      if (snapshot.val() === "opened") mostrarAbertura();
+      else if (snapshot.val() === "locked") {
+        // Uma reconexão pode entregar apenas o estado final. Não anunciar
+        // abertura quando o ESP32 já informou que voltou a travar.
+        cancelarConfirmacaoAbertura?.();
+        obrigado.classList.remove("fase-registro");
+        obrigado.classList.add("fase-fechada");
+        titulo.textContent = "Obrigado";
+        p.textContent = "GELADEIRA FECHADA";
+      }
+    },
+    mostrarAviso,
+  );
+  if (!ativa) pararEscuta();
 }
 async function sheets(orderId, items, totalCents) {
-  let idToken = await usuarioAtual.getIdToken();
+  const uid = usuarioAtual.uid;
+  const fullName = perfilAtual.fullName;
+  const idToken = await usuarioAtual.getIdToken();
   await fetch(sheetsEndpoint, {
     method: "POST",
     mode: "no-cors",
     headers: { "Content-Type": "text/plain;charset=UTF-8" },
     body: JSON.stringify({
       orderId,
-      uid: usuarioAtual.uid,
+      uid,
       idToken,
-      fullName: perfilAtual.fullName,
+      fullName,
       items,
       totalCents,
     }),
@@ -574,9 +625,11 @@ async function enviar(b) {
         priceCents: produtos[id].priceCents,
         subtotalCents: produtos[id].priceCents * quantity,
       })),
-      v = total();
+      v = total(),
+      pedidoId = null;
     if (!demo) {
       let pedido = push(ref(db, "orders"));
+      pedidoId = pedido.key;
       const dadosPedido = {
         uid: usuarioAtual.uid,
         username: perfilAtual.username,
@@ -585,7 +638,7 @@ async function enviar(b) {
         totalItems: qtd(),
         totalCents: v,
         status: "pending",
-        // O ESP32 usa este horário para iniciar a abertura junto com a tela.
+        // Mantido no registro; a abertura é confirmada em execution/state.
         unlockAt: Date.now() + 6000,
         createdAt: serverTimestamp(),
       };
@@ -598,20 +651,24 @@ async function enviar(b) {
           createdAt: serverTimestamp(),
         },
       });
-      // O ESP32 não recebe o pedido completo. Depois que o pedido já existe
-      // com segurança no Firebase, ele recebe apenas este comando booleano,
-      // cujo caminho contém o ID do pedido. Assim não são transferidos itens,
-      // preços nem dados pessoais para a placa.
-      await set(ref(db, `commands/geladeira/${pedido.key}`), true);
-      // A abertura depende somente do Firebase. Planilha e estoque são
-      // registros auxiliares: nunca podem atrasar o comando da geladeira.
+      // O registro na planilha e a baixa de estoque independem do comando
+      // e da confirmação do ESP32, inclusive quando a placa está offline.
       void sheets(pedido.key, items, v).catch((e) => {
         console.warn("Não foi possível registrar o pedido na planilha", e);
       });
       void reduzirEstoque(items);
+      // O ESP32 não recebe o pedido completo. Depois que o pedido já existe
+      // com segurança no Firebase, ele recebe apenas este comando booleano,
+      // cujo caminho contém o ID do pedido. Assim não são transferidos itens,
+      // preços nem dados pessoais para a placa.
+      // Não aguardamos o envio: a tela precisa exibir o prazo de confirmação
+      // mesmo se a conexão cair durante a escrita do comando.
+      void set(ref(db, `commands/geladeira/${pedido.key}`), true).catch((e) => {
+        console.warn("Não foi possível enviar o comando de abertura", e);
+      });
     }
     fechar();
-    obrigadoTela(v);
+    obrigadoTela(v, pedidoId);
   } catch (e) {
     alert(erro(e));
     b.disabled = false;
@@ -885,6 +942,7 @@ $("#copiar-pix-historico").onclick = async () => {
   } catch {}
 };
 $("#fechar-obrigado").onclick = () => {
+  cancelarConfirmacaoAbertura?.();
   clearTimeout(retornoLogin);
   clearInterval(intervaloObrigado);
   carrinho = {};

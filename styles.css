@@ -2324,6 +2324,12 @@
         background-size: 240% 240% !important;
         animation: fundo-vermelho 8s ease infinite !important;
       }
+      .obrigado.fase-aviso {
+        background: #fff4d6 !important;
+        color: #684500 !important;
+      }
+      .fase-aviso .check { display: none; }
+      .fase-aviso .pagamento-pix { margin-top: 34px !important; }
       @keyframes fundo-verde {
         0%, 100% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
@@ -2456,6 +2462,13 @@
         box-shadow: 0 5px 16px rgba(0,0,0,.18);
       }
       .fase-fechada #fechar-obrigado { display: grid; place-items: center; }
+      .fase-aviso #fechar-obrigado {
+        display: grid;
+        place-items: center;
+        color: #684500;
+        background: #fff;
+        border-color: #b38724;
+      }
 
       /* Camada de luz em movimento: deixa os gradientes de abertura e fechamento vivos. */
       .obrigado.fase-aberta::before,

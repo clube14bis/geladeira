@@ -24,7 +24,7 @@ Clube 14 BIS Fridge is a self-service system for a shared refrigerator. Members 
 - Email-based password reset through Firebase Authentication.
 - Product catalog grouped by category, with image, price, stock indicator, and quantity controls.
 - Floating cart summary, full cart page, quantity changes, removal, Brazilian Real total, and Pix copy-and-paste payment data.
-- Three-stage door-progress screen: a white **Order registered** confirmation for six seconds, a green animated **Door open** screen with a 20-second countdown, and a red animated **Door closed** payment screen. Opening and closing sounds are played by the browser when supported.
+- Door-progress screen: **Order registered** waits for this order's `execution/state = opened` from the ESP32 before showing the green **Door open** screen, playing the opening sound, and starting the visual 20-second countdown. If no confirmation arrives within 15 seconds, or the status listener fails, an attention screen says **Seu pedido foi registrado, mas não recebemos a confirmação da geladeira**. The amount and Pix button remain available. No opening sound or automatic command retry is triggered by the warning. The subsequent visual countdown and closing sound remain browser timers; a delayed opening confirmation can shift them relative to the physical relay.
 - Personal three-month calendar history with daily consumption and totals.
 - Published Google Sheets usage report.
 
@@ -43,9 +43,9 @@ Clube 14 BIS Fridge is a self-service system for a shared refrigerator. Members 
 2. The web app creates a pending order and saves the customer history in Firebase.
 3. The web app writes one small `true` command at `commands/geladeira/<order-id>`.
 4. The ESP32 receives only that command path and its boolean value; it never downloads the order items, prices, or user data.
-5. Inventory reduction and the Google Sheets report run in the background and never delay the lock command.
+5. Inventory reduction and the Google Sheets report start in the background as soon as the order is saved, independently of command delivery or ESP32 confirmation. An offline ESP32 or missing opening confirmation does not prevent sending the order to Sheets. Sheets delivery still requires the browser's network connection and a working Apps Script endpoint.
 6. The ESP32 waits six seconds, then releases the relay for twenty seconds while the onboard blue LED flashes.
-7. The relay interrupts power to the fail-safe electromagnetic lock, allowing the door to open.
+7. The relay interrupts power to the fail-safe electromagnetic lock, allowing the door to open. The ESP32 writes `opened` to the order's execution state; the customer site waits for that value before announcing the opening. This confirms relay control, not a physical door sensor.
 8. After twenty seconds, the relay returns to the locked state and the ESP32 records the lock state in Firebase.
 
 ## ESP32 reliability design
