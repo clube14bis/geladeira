@@ -2325,11 +2325,21 @@
         animation: fundo-vermelho 8s ease infinite !important;
       }
       .obrigado.fase-aviso {
-        background: #fff4d6 !important;
-        color: #684500 !important;
+        background: #fff !important;
+        color: #000 !important;
       }
       .fase-aviso .check { display: none; }
-      .fase-aviso .pagamento-pix { margin-top: 34px !important; }
+      .fase-aviso .pagamento-pix {
+        margin-top: 34px !important;
+        color: #000;
+      }
+      .fase-aviso .rotulo-valor,
+      .fase-aviso .valor-final,
+      .fase-aviso .botao-pix { color: #000; }
+      .fase-aviso .botao-pix {
+        background: #fff;
+        border: 2px solid #000;
+      }
       @keyframes fundo-verde {
         0%, 100% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
@@ -2465,9 +2475,9 @@
       .fase-aviso #fechar-obrigado {
         display: grid;
         place-items: center;
-        color: #684500;
+        color: #000;
         background: #fff;
-        border-color: #b38724;
+        border-color: #000;
       }
 
       /* Camada de luz em movimento: deixa os gradientes de abertura e fechamento vivos. */
