@@ -2,7 +2,7 @@
 
 This folder contains the ESP32 firmware that receives new orders from Firebase Realtime Database and controls the refrigerator electromagnetic lock through a relay.
 
-Current firmware version: **2.7.1**.
+Current firmware version: **2.8.0**.
 
 ## What the firmware does
 
@@ -21,7 +21,7 @@ The administration panel can also write `true` to `commands/geladeira/system/res
 
 ## Production configuration
 
-The following values are built into firmware 2.7.1. The browser and ESP32 both use six seconds before opening and a 20-second unlock period.
+The following values are built into firmware 2.8.0. The browser and ESP32 both use six seconds before opening and a 20-second unlock period.
 
 | Configuration | Value | Meaning |
 | --- | --- | --- |
@@ -117,14 +117,17 @@ The red LED on many ESP32 development boards is only a power LED and is not cont
 
 ## Reliability and diagnostics
 
-Firmware 2.7.0 uses several independent safeguards, including a dedicated ESP32 task for the blue opening indicator and a minimal command-only Firebase stream:
+Firmware 2.8.0 uses several independent safeguards, including a dedicated ESP32 task for the blue opening indicator and a minimal command-only Firebase stream:
 
 - A 60-second watchdog monitors only the main firmware loop. Wi-Fi and Firebase background tasks are excluded so normal TLS/network activity cannot cause a false reset.
 - Firebase stream health is checked every five seconds. A stream with no event or keep-alive for two minutes is rebuilt.
 - The command stream contains only a boolean value and an order ID in the path. It does not parse order JSON, products, prices, or customer data.
 - If Wi-Fi does not return for five minutes, the relay is returned to `RELE_TRAVADO` and the ESP32 restarts with `WIFI_SEM_RETORNO`.
 - If Wi-Fi is connected but Firebase does not return for five minutes, the same safe restart occurs with `FIREBASE_SEM_RETORNO`.
+- Boot never waits forever for Wi-Fi. The relay starts locked, then Wi-Fi and Firebase reconnection continue from the main loop so a failed connection cannot leave startup blocked indefinitely.
 - A preventive restart is scheduled every five hours and only occurs when the lock is closed and no order is in progress.
+- Before each major stage (Wi-Fi, Firebase, command stream, and order handling), the firmware stores a compact diagnostic marker. A later panic reports `FALHA_DO_PROGRAMA_<stage>` in the dashboard.
+- Three consecutive program panics activate a temporary safe mode: the relay remains locked while the device restores Wi-Fi and Firebase, and new commands are held instead of being discarded. After two stable online minutes, it resumes normal operation and processes the held command.
 - The device reports only online state, lock state, Wi-Fi, Firebase, command-stream state, uptime, firmware, and reset reason. This keeps the normal heartbeat small.
 - Detailed events stay on the USB Serial Monitor during maintenance instead of being continuously persisted and uploaded.
 

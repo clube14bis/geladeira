@@ -1,5 +1,23 @@
 # Clube 14 BIS Fridge
 
+## Local code map (Graphify)
+
+[Graphify](https://github.com/Graphify-Labs/graphify) is configured for this project. The first graph indexes code locally, without an API key or LLM calls. Documents, HTML pages, images, and PDFs are not included in this code-only graph. `.graphifyrc` maps Arduino `.ino` files to C++ and Apps Script `.gs` files to JavaScript. `.graphifyignore` excludes local credentials and generated files.
+
+Install the official CLI with `uv tool install graphifyy` (or `pipx install graphifyy`). On the current machine it is already installed in an isolated Python environment and available as `graphify`.
+
+From the project folder:
+
+```sh
+graphify extract . --code-only --max-workers 2
+graphify cluster-only . --no-label
+graphify query "iniciarPedido abrirTrava"
+graphify explain "trancarGeladeira"
+graphify update .
+```
+
+Open `graphify-out/graph.html` for the interactive map, `graphify-out/GRAPH_REPORT.md` for the generated report, or query `graphify-out/graph.json` through the CLI. After an incremental update, run `graphify cluster-only . --no-label` to refresh the report and visualization. The project also includes the Codex skill and `AGENTS.md` instructions to consult the graph before exploring source code.
+
 <img width="1280" height="853" alt="Clube 14 BIS Fridge" src="https://github.com/user-attachments/assets/02b59fa2-7ec7-47b4-98f5-437ef00a6a8e" />
 
 Clube 14 BIS Fridge is a self-service system for a shared refrigerator. Members open the web app from a QR code, sign in, choose their drinks, confirm the cart, and collect the items after the refrigerator door is released. Orders are stored in Firebase and Google Sheets, while an ESP32 drives the relay connected to the electromagnetic lock.
@@ -50,7 +68,7 @@ Clube 14 BIS Fridge is a self-service system for a shared refrigerator. Members 
 
 ## ESP32 reliability design
 
-Firmware **2.7.1** is designed for unattended operation. The ESP32 no longer streams the `orders` collection. It keeps a Firebase stream open only for `commands/geladeira`, where every valid request is a boolean `true` under the order ID. The order details remain in Firebase for the web application, reports, and order history, but are never transferred to the ESP32.
+Firmware **2.8.0** is designed for unattended operation. The ESP32 no longer streams the `orders` collection. It keeps a Firebase stream open only for `commands/geladeira`, where every valid request is a boolean `true` under the order ID. The order details remain in Firebase for the web application, reports, and order history, but are never transferred to the ESP32.
 
 This removes the heaviest recurring JSON work from the device: parsing order objects, product lists, prices, and user data. The status heartbeat is also a small fixed-buffer message with only operational fields. Routine status updates run once per minute; lock opening and locking still publish an immediate update. The opening LED is driven by its own ESP32 task, so a delayed network operation cannot hide the visual opening signal.
 
@@ -64,6 +82,7 @@ This removes the heaviest recurring JSON work from the device: parsing order obj
 | Preventive reset | Every five hours, restarts only when the lock is closed and there is no order being processed. |
 | Remote restart | An administrator can send `commands/geladeira/system/restart`. The ESP32 consumes the command, closes the lock if necessary, records `REMOTE_RESTART_REQUESTED`, and performs a safe restart. |
 | Compact telemetry | Sends only the status needed to operate the fridge: online state, lock state, Wi-Fi, Firebase, command stream, uptime, firmware, reset reason, and last signal. |
+| Panic recovery | Wi-Fi startup is non-blocking. A panic records the previous operating stage; three consecutive panics keep the lock closed in temporary safe mode, restore connectivity, hold new commands, then resume normal operation after two stable online minutes. |
 | Fragmentation fallback | If the largest allocatable block is below 10 KB in three periodic checks, the relay is locked and the ESP32 performs a safe restart only when no order is in progress. This protection runs internally and does not continuously send memory data. |
 
 The dashboard considers the device offline when the latest heartbeat is older than 180 seconds. Values such as “Firebase connected” and “stream active” are the last status reported by the device; when the device is offline, they are historical values rather than live confirmation.
@@ -232,7 +251,7 @@ See [esp32/README.md](esp32/README.md) for the focused firmware guide. The summa
    ```
 
 3. Install **esp32 by Espressif Systems** in Boards Manager.
-4. Install **FirebaseClient** in Library Manager. ArduinoJson is not required by firmware 2.7.0.
+4. Install **FirebaseClient** in Library Manager. ArduinoJson is not required by firmware 2.8.0.
 5. Open [esp32/esp32.ino](esp32/esp32.ino).
 6. Copy `esp32/secrets.example.h` to local `esp32/secrets.h` and fill in Wi-Fi and Firebase device credentials.
 7. Select **Tools → Board → ESP32 Arduino → ESP32 Dev Module**.
@@ -253,11 +272,11 @@ The red LED on many ESP32 boards is only a power indicator. The firmware uses th
 
 ### Releasing a compatible version
 
-The customer site, Firebase Rules, and the ESP32 firmware must use the same command format. For firmware 2.7.0, use this sequence:
+The customer site, Firebase Rules, and the ESP32 firmware must use the same command format. For firmware 2.8.0, use this sequence:
 
 1. Publish the website files to GitHub Pages.
 2. Publish the matching [Realtime Database rules](firebase-rules.json) in Firebase Console.
-3. Upload `esp32/esp32.ino` version 2.7.0 to the physical ESP32 over USB.
+3. Upload `esp32/esp32.ino` version 2.8.0 to the physical ESP32 over USB.
 4. Wait for **Monitoramento de comandos ativado** in Serial Monitor, then make one test order.
 
 The website now writes commands under `commands/geladeira`. An older firmware that still listens to `orders` is not compatible with the new website command path. GitHub publication does not update a physical ESP32; it still requires a USB upload until an authenticated OTA implementation is added.

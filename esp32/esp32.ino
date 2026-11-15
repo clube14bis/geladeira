@@ -43,18 +43,20 @@ constexpr unsigned long LIMITE_SEM_EVENTO_STREAM_MS = 120000;
 constexpr unsigned long INTERVALO_REINICIO_PREVENTIVO_MS = 5UL * 60UL * 60UL * 1000UL;
 constexpr unsigned long LIMITE_WIFI_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
 constexpr unsigned long LIMITE_FIREBASE_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
+constexpr unsigned long INTERVALO_ESTABILIZACAO_PANIC_MS = 2UL * 60UL * 1000UL;
 constexpr uint32_t WATCHDOG_TIMEOUT_MS = 60000;
 constexpr uint32_t LIMITE_MAIOR_BLOCO_CRITICO = 10UL * 1024UL;
 constexpr uint8_t AMOSTRAS_BLOCO_CRITICO = 3;
-constexpr char VERSAO_FIRMWARE[] = "2.7.1";
+constexpr uint8_t LIMITE_PANICS_CONSECUTIVOS = 3;
+constexpr char VERSAO_FIRMWARE[] = "2.8.0";
 
 struct Rede { const char *ssid; const char *senha; };
 Rede redes[] = {
-  { WIFI_CLUBE_SSID, WIFI_CLUBE_PASSWORD },
-  { WIFI_CASA_SSID, WIFI_CASA_PASSWORD },
+  { WIFI_BOX_POLEZI_SSID, WIFI_BOX_POLEZI_PASSWORD },
   { WIFI_CLUBE_EXT_SSID, WIFI_CLUBE_EXT_PASSWORD },
+  { WIFI_CLUBE_PRINCIPAL_SSID, WIFI_CLUBE_PRINCIPAL_PASSWORD },
+  { WIFI_CASA_SSID, WIFI_CASA_PASSWORD },
   { WIFI_FORUM_SSID, WIFI_FORUM_PASSWORD },
-  { WIFI_SECRETARIA_SSID, WIFI_SECRETARIA_PASSWORD }
 };
 
 UserAuth credenciais(FIREBASE_WEB_API_KEY, FIREBASE_DEVICE_EMAIL, FIREBASE_DEVICE_PASSWORD);
@@ -75,6 +77,7 @@ TaskHandle_t tarefaLedAbertura = nullptr;
 volatile bool piscarLedAberturaAtivo = false;
 bool baselineFeito = false;
 bool firebaseConfirmado = false;
+bool firebaseInicializado = false;
 bool watchdogConfigurado = false;
 bool streamIniciado = false;
 bool sincronizacaoSolicitada = false;
@@ -82,7 +85,9 @@ bool recuperacaoStreamPendente = false;
 bool reinicioPreventivoPendente = false;
 bool reinicioMemoriaPendente = false;
 bool reinicioRemotoPendente = false;
+bool modoSeguroPanico = false;
 uint8_t amostrasBlocoCritico = 0;
+uint8_t panicsConsecutivos = 0;
 unsigned long proximaTentativaSincronizacao = 0;
 unsigned long proximaTentativaStream = 0;
 unsigned long ultimoHeartbeat = 0;
@@ -91,8 +96,11 @@ unsigned long ultimaVerificacaoStream = 0;
 unsigned long inicioSessao = 0;
 unsigned long inicioWifiIndisponivel = 0;
 unsigned long inicioFirebaseIndisponivel = 0;
+unsigned long inicioModoSeguroPanico = 0;
 uint32_t totalInicializacoes = 0;
 String motivoInicializacao = "DESCONHECIDO";
+String etapaAnteriorReinicio;
+String etapaAtual;
 String caminhoStatus;
 String caminhoExecucao;
 String caminhoComandos;
@@ -159,6 +167,14 @@ void registrarEvento(const char *evento) {
   // a operação contínua da trava tem prioridade sobre telemetria detalhada.
   Serial.printf("B%lu/U%lus:%s\n", static_cast<unsigned long>(totalInicializacoes),
                 millis() / 1000UL, evento);
+}
+
+void marcarEtapa(const char *etapa) {
+  if (etapaAtual == etapa) return;
+  etapaAtual = etapa;
+  // Persistimos apenas transições importantes. Isso permite saber em qual
+  // etapa a placa estava antes de um panic sem gravar a cada heartbeat.
+  memoria.putString("ultimaEtapa", etapaAtual);
 }
 
 uint32_t maiorBlocoLivre() {
@@ -282,6 +298,7 @@ bool conectarWiFi() {
       WiFi.scanDelete();
       Serial.printf("Wi-Fi conectado: %s\n", WiFi.localIP().toString().c_str());
       registrarEvento("WIFI_CONNECTED");
+      marcarEtapa("WIFI_CONECTADO");
       piscarIndicador(3);
       acenderIndicador();
       return true;
@@ -299,6 +316,7 @@ bool conectarWiFi() {
     if (aguardarWiFi(5000)) {
       Serial.printf("Wi-Fi conectado: %s\n", WiFi.localIP().toString().c_str());
       registrarEvento("WIFI_CONNECTED");
+      marcarEtapa("WIFI_CONECTADO");
       piscarIndicador(3);
       acenderIndicador();
       return true;
@@ -307,6 +325,20 @@ bool conectarWiFi() {
     break;
   }
   return false;
+}
+
+void iniciarFirebaseSeNecessario() {
+  if (firebaseInicializado || WiFi.status() != WL_CONNECTED) return;
+  ssl.setInsecure();
+  sslStream.setInsecure();
+  ssl.setConnectionTimeout(1000); ssl.setHandshakeTimeout(5);
+  sslStream.setConnectionTimeout(1000); sslStream.setHandshakeTimeout(5);
+  initializeApp(cliente, firebase, getAuth(credenciais));
+  firebase.getApp<RealtimeDatabase>(banco);
+  banco.url(FIREBASE_DATABASE_URL);
+  firebaseInicializado = true;
+  marcarEtapa("FIREBASE_INICIADO");
+  Serial.println("Firebase inicializado; aguardando autenticação.");
 }
 
 const char *estadoDispositivo() {
@@ -390,6 +422,7 @@ void trancarGeladeira() {
   pedidoAtual = "";
   apagarLeds();
   estado = AGUARDANDO;
+  marcarEtapa("PRONTO");
   registrarEvento("LOCKED");
   enviarHeartbeat(true);
   if (pedidoNaFila.length()) {
@@ -400,11 +433,18 @@ void trancarGeladeira() {
 }
 
 void iniciarPedido(const String &id) {
+  if (modoSeguroPanico) {
+    if (!pedidoNaFila.length() || id < pedidoNaFila) pedidoNaFila = id;
+    registrarEvento("PEDIDO_AGUARDANDO_RECUPERACAO");
+    Serial.printf("Pedido %s aguardando o fim do modo seguro após panic.\n", id.c_str());
+    return;
+  }
   if (MODO_TESTE) {
     Serial.printf("Pedido %s ignorado: placa em modo de teste.\n", id.c_str());
     return;
   }
   pedidoAtual = id;
+  marcarEtapa("PEDIDO_EM_ANDAMENTO");
   // O comando de abertura é descartado assim que foi aceito. Desse modo, o
   // próximo snapshot do stream permanece vazio e não acumula pedidos antigos.
   removerComando(id);
@@ -455,6 +495,35 @@ void reiniciarComSeguranca(const char *motivo) {
   ESP.restart();
 }
 
+bool verificarModoSeguroPanico(unsigned long agora) {
+  if (!modoSeguroPanico) return false;
+  if (reinicioRemotoPendente && prontoParaReinicioSeguro()) {
+    reiniciarComSeguranca("REMOTO");
+  }
+  if (!firebase.ready() || !streamIniciado) return true;
+  if (!inicioModoSeguroPanico) {
+    inicioModoSeguroPanico = agora;
+    registrarEvento("PANIC_SAFE_MODE_ONLINE");
+    Serial.println("Modo seguro após panics repetidos: trava fechada, novos pedidos em espera.");
+  }
+  // Dois minutos com stream ativo sem novo panic mostram que o boot, Wi-Fi e
+  // Firebase estabilizaram. A placa então volta ao modo normal sem descartar
+  // pedidos que chegaram durante a recuperação.
+  if (agora - inicioModoSeguroPanico >= INTERVALO_ESTABILIZACAO_PANIC_MS) {
+    memoria.putUChar("panicCount", 0);
+    modoSeguroPanico = false;
+    registrarEvento("PANIC_SAFE_MODE_RECOVERED");
+    Serial.println("Modo seguro concluído; comandos voltaram a ser processados.");
+    if (pedidoNaFila.length()) {
+      String pedidoPendente = pedidoNaFila;
+      pedidoNaFila = "";
+      iniciarPedido(pedidoPendente);
+    }
+    return false;
+  }
+  return true;
+}
+
 void verificarReinicioPreventivo(unsigned long agora) {
   if (agora - inicioSessao >= INTERVALO_REINICIO_PREVENTIVO_MS) {
     reinicioPreventivoPendente = true;
@@ -477,6 +546,7 @@ void concluirSincronizacaoInicial() {
   // iniciou. Isso impede que uma reinicialização abra a trava sem uma ação
   // atual do usuário.
   baselineFeito = true;
+  marcarEtapa("COMANDOS_SINCRONIZADOS");
   apagarLeds();
   registrarEvento("COMMANDS_BASELINED");
   Serial.println("Sincronização inicial concluída; ESP32 pronto para uso.");
@@ -561,7 +631,9 @@ void setup() {
   pedidoAtual.reserve(40);
   ultimoPedido.reserve(40);
   pedidoNaFila.reserve(40);
-  motivoInicializacao.reserve(48);
+  motivoInicializacao.reserve(64);
+  etapaAnteriorReinicio.reserve(32);
+  etapaAtual.reserve(32);
   caminhoStatus.reserve(48);
   caminhoExecucao.reserve(96);
   caminhoComandos.reserve(48);
@@ -575,7 +647,26 @@ void setup() {
   memoria.begin("geladeira", false);
   String reinicioPlanejado = memoria.getString("reinicioPlanejado", "");
   memoria.remove("reinicioPlanejado");
-  motivoInicializacao = reinicioPlanejado.length() ? reinicioPlanejado : nomeMotivoReset(esp_reset_reason());
+  etapaAnteriorReinicio = memoria.getString("ultimaEtapa", "DESCONHECIDA");
+  const esp_reset_reason_t motivoHardware = esp_reset_reason();
+  panicsConsecutivos = memoria.getUChar("panicCount", 0);
+  if (motivoHardware == ESP_RST_PANIC) {
+    if (panicsConsecutivos < 255) panicsConsecutivos++;
+    memoria.putUChar("panicCount", panicsConsecutivos);
+    motivoInicializacao = "FALHA_DO_PROGRAMA_";
+    motivoInicializacao += etapaAnteriorReinicio;
+    if (panicsConsecutivos >= LIMITE_PANICS_CONSECUTIVOS) {
+      modoSeguroPanico = true;
+      motivoInicializacao = "PANIC_REPETIDO";
+    }
+  } else {
+    // Um boot que não foi panic quebra a sequência. O contador só serve para
+    // identificar falhas consecutivas durante a recuperação automática.
+    panicsConsecutivos = 0;
+    memoria.putUChar("panicCount", 0);
+    motivoInicializacao = reinicioPlanejado.length() ? reinicioPlanejado : nomeMotivoReset(motivoHardware);
+  }
+  marcarEtapa(modoSeguroPanico ? "PANIC_SAFE_MODE" : "BOOT");
   ultimoPedido = memoria.getString("ultimoPedido", "");
   totalInicializacoes = memoria.getUInt("bootCount", 0) + 1;
   memoria.putUInt("bootCount", totalInicializacoes);
@@ -584,18 +675,13 @@ void setup() {
   registrarEvento(eventoBoot);
   configurarWatchdog();
   WiFi.mode(WIFI_STA);
-  while (!conectarWiFi()) {
-    Serial.println("Nenhuma rede disponível; nova tentativa em 2 segundos.");
-    alimentarWatchdog();
-    delay(2000);
+  if (!conectarWiFi()) {
+    inicioWifiIndisponivel = millis();
+    registrarEvento("BOOT_WIFI_PENDING");
+    Serial.println("Nenhuma rede disponível; a reconexão continuará no loop.");
+  } else {
+    iniciarFirebaseSeNecessario();
   }
-  ssl.setInsecure();
-  sslStream.setInsecure();
-  ssl.setConnectionTimeout(1000); ssl.setHandshakeTimeout(5);
-  sslStream.setConnectionTimeout(1000); sslStream.setHandshakeTimeout(5);
-  initializeApp(cliente, firebase, getAuth(credenciais));
-  firebase.getApp<RealtimeDatabase>(banco);
-  banco.url(FIREBASE_DATABASE_URL);
   Serial.printf("ESP32 %s preparado (%s). Motivo da inicialização: %s\n",
                 DEVICE_ID, MODO_TESTE ? "TESTE" : "PRODUCAO", motivoInicializacao.c_str());
 }
@@ -611,6 +697,7 @@ void loop() {
     if (!inicioWifiIndisponivel) {
       inicioWifiIndisponivel = agora;
       registrarEvento("WIFI_DISCONNECTED");
+      marcarEtapa("WIFI_DESCONECTADO");
     }
     if (streamIniciado || (baselineFeito && !recuperacaoStreamPendente)) {
       agendarRecuperacaoStream("WIFI_DESCONECTADO");
@@ -628,11 +715,14 @@ void loop() {
     }
     inicioWifiIndisponivel = 0;
   }
+  iniciarFirebaseSeNecessario();
+  if (!firebaseInicializado) return;
   firebase.loop();
   if (firebase.ready() && !firebaseConfirmado) {
     firebaseConfirmado = true;
     Serial.println("Firebase conectado.");
     registrarEvento("FIREBASE_CONNECTED");
+    marcarEtapa("FIREBASE_CONECTADO");
     piscarIndicador(5); // confirma a conexão com o Firebase
     acenderIndicador(); // permanece aceso até a sincronização inicial dos comandos
   }
@@ -642,6 +732,7 @@ void loop() {
     if (!inicioFirebaseIndisponivel) {
       inicioFirebaseIndisponivel = agora;
       registrarEvento("FIREBASE_UNAVAILABLE");
+      marcarEtapa("FIREBASE_INDISPONIVEL");
     }
     // Wi-Fi funcionando sem Firebase por muito tempo também pode deixar a
     // placa incapaz de receber comandos; reiniciar é a recuperação segura.
@@ -672,7 +763,12 @@ void loop() {
     }
     Serial.println("Monitoramento de comandos ativado.");
     registrarEvento("STREAM_ACTIVE");
+    marcarEtapa("STREAM_ATIVO");
     enviarHeartbeat(true);
+  }
+  if (verificarModoSeguroPanico(agora)) {
+    enviarHeartbeat();
+    return;
   }
   if (estado == AGUARDANDO && pedidoAtual.length() && agora >= proximaAcao) abrirTrava();
   enviarHeartbeat();
