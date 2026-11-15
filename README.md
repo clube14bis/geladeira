@@ -68,7 +68,7 @@ Clube 14 BIS Fridge is a self-service system for a shared refrigerator. Members 
 
 ## ESP32 reliability design
 
-Firmware **2.8.0** is designed for unattended operation. The ESP32 no longer streams the `orders` collection. It keeps a Firebase stream open only for `commands/geladeira`, where every valid request is a boolean `true` under the order ID. The order details remain in Firebase for the web application, reports, and order history, but are never transferred to the ESP32.
+Firmware **2.8.1** is designed for unattended operation. The ESP32 no longer streams the `orders` collection. It keeps a Firebase stream open only for `commands/geladeira`, where every valid request is a boolean `true` under the order ID. The order details remain in Firebase for the web application, reports, and order history, but are never transferred to the ESP32.
 
 This removes the heaviest recurring JSON work from the device: parsing order objects, product lists, prices, and user data. The status heartbeat is also a small fixed-buffer message with only operational fields. Routine status updates run once per minute; lock opening and locking still publish an immediate update. The opening LED is driven by its own ESP32 task, so a delayed network operation cannot hide the visual opening signal.
 
@@ -83,6 +83,7 @@ This removes the heaviest recurring JSON work from the device: parsing order obj
 | Remote restart | An administrator can send `commands/geladeira/system/restart`. The ESP32 consumes the command, closes the lock if necessary, records `REMOTE_RESTART_REQUESTED`, and performs a safe restart. |
 | Compact telemetry | Sends only the status needed to operate the fridge: online state, lock state, Wi-Fi, Firebase, command stream, uptime, firmware, reset reason, and last signal. |
 | Panic recovery | Wi-Fi startup is non-blocking. A panic records the previous operating stage; three consecutive panics keep the lock closed in temporary safe mode, restore connectivity, hold new commands, then resume normal operation after two stable online minutes. |
+| Wi-Fi receive latency | Wi-Fi modem-sleep is disabled because the ESP32 is permanently powered, reducing receive latency for stream commands and keep-alives. |
 | Fragmentation fallback | If the largest allocatable block is below 10 KB in three periodic checks, the relay is locked and the ESP32 performs a safe restart only when no order is in progress. This protection runs internally and does not continuously send memory data. |
 
 The dashboard considers the device offline when the latest heartbeat is older than 180 seconds. Values such as “Firebase connected” and “stream active” are the last status reported by the device; when the device is offline, they are historical values rather than live confirmation.

@@ -48,7 +48,7 @@ constexpr uint32_t WATCHDOG_TIMEOUT_MS = 60000;
 constexpr uint32_t LIMITE_MAIOR_BLOCO_CRITICO = 10UL * 1024UL;
 constexpr uint8_t AMOSTRAS_BLOCO_CRITICO = 3;
 constexpr uint8_t LIMITE_PANICS_CONSECUTIVOS = 3;
-constexpr char VERSAO_FIRMWARE[] = "2.8.0";
+constexpr char VERSAO_FIRMWARE[] = "2.8.1";
 
 struct Rede { const char *ssid; const char *senha; };
 Rede redes[] = {
@@ -675,6 +675,9 @@ void setup() {
   registrarEvento(eventoBoot);
   configurarWatchdog();
   WiFi.mode(WIFI_STA);
+  // A placa fica alimentada continuamente. Sem modem-sleep, o rádio não
+  // atrasa o recebimento de comandos/keep-alives do stream do Firebase.
+  WiFi.setSleep(false);
   if (!conectarWiFi()) {
     inicioWifiIndisponivel = millis();
     registrarEvento("BOOT_WIFI_PENDING");
