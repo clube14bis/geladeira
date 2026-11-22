@@ -68,13 +68,13 @@ Clube 14 BIS Fridge is a self-service system for a shared refrigerator. Members 
 
 ## ESP32 reliability design
 
-Firmware **2.8.1** is designed for unattended operation. The ESP32 no longer streams the `orders` collection. It keeps a Firebase stream open only for `commands/geladeira`, where every valid request is a boolean `true` under the order ID. The order details remain in Firebase for the web application, reports, and order history, but are never transferred to the ESP32.
+Firmware **2.8.3** is designed for unattended operation. The ESP32 no longer streams the `orders` collection. It keeps a Firebase stream open only for `commands/geladeira`, where every valid request is a boolean `true` under the order ID. The order details remain in Firebase for the web application, reports, and order history, but are never transferred to the ESP32.
 
-This removes the heaviest recurring JSON work from the device: parsing order objects, product lists, prices, and user data. The status heartbeat is also a small fixed-buffer message with only operational fields. Routine status updates run once per minute; lock opening and locking still publish an immediate update. The opening LED is driven by its own ESP32 task, so a delayed network operation cannot hide the visual opening signal.
+This removes the heaviest recurring JSON work from the device: parsing order objects, product lists, prices, and user data. The status heartbeat is also a small fixed-buffer message with only operational fields. Routine status updates run once every five minutes. Opening and locking each use one asynchronous multi-location update for order state, device status, and command deletion. A persistent task controls the relay and LED independently of network processing, keeping the six-second wait and twenty-second release local. Confirmations use a bounded queue with limited retries; a closed state supersedes an opening that was not sent before closure.
 
 | Protection | Behaviour |
 | --- | --- |
-| Task watchdog | Restarts the main firmware loop after a complete 60-second stall. Wi-Fi and Firebase background tasks are excluded to prevent false resets during TLS/network activity. |
+| Task watchdog | Restarts the main firmware loop after a complete 60-second stall. Idle tasks are not subscribed by this configuration; the independent interrupt watchdog remains enabled. |
 | Stream health check | Checks the Firebase stream every five seconds and rebuilds it if no event or keep-alive arrives for two minutes. |
 | Wi-Fi recovery | Tries the configured 2.4 GHz networks again after a disconnect. |
 | Wi-Fi fallback reset | If Wi-Fi cannot return for five minutes, locks the relay output and restarts with `WIFI_SEM_RETORNO`. |
@@ -86,7 +86,7 @@ This removes the heaviest recurring JSON work from the device: parsing order obj
 | Wi-Fi receive latency | Wi-Fi modem-sleep is disabled because the ESP32 is permanently powered, reducing receive latency for stream commands and keep-alives. |
 | Fragmentation fallback | If the largest allocatable block is below 10 KB in three periodic checks, the relay is locked and the ESP32 performs a safe restart only when no order is in progress. This protection runs internally and does not continuously send memory data. |
 
-The dashboard considers the device offline when the latest heartbeat is older than 180 seconds. Values such as “Firebase connected” and “stream active” are the last status reported by the device; when the device is offline, they are historical values rather than live confirmation.
+The dashboard considers firmware 2.8.3 and later offline after fifteen minutes without a status update (three five-minute intervals). Older firmware retains the 180-second threshold. The lower send frequency trades slower idle failure detection for less network traffic. Values such as “Firebase connected” and “stream active” are the last status reported by the device; when the device is offline, they are historical values rather than live confirmation.
 
 Detailed logs remain available through the USB Serial Monitor during local maintenance. The web dashboard intentionally stays small so routine monitoring does not add avoidable payloads or database writes.
 
@@ -98,9 +98,9 @@ The system keeps the full commercial record in Firebase, Google Sheets, and the 
 | --- | --- | --- |
 | Unlock stream | Only `true` at `commands/geladeira/<order-id>` | The ESP32 receives a small Boolean command instead of the complete order JSON. |
 | ESP32 parsing | No ArduinoJson order parsing | Fewer temporary heap allocations and less chance of long-term heap fragmentation. |
-| Device status | Fixed 480-byte heartbeat, once per minute plus immediate lock changes | Less Firebase traffic and fewer TLS buffers during normal operation. |
-| Door timing | Local ESP32 timer | The 20-second lock release ends even if Wi-Fi or Firebase disconnects after the command is accepted. |
-| Indicator LED | Independent ESP32 task on GPIO 2 | The blue LED keeps flashing during the opening period even if a network request is slow. |
+| Device status | Fixed buffers, five-minute idle status, combined asynchronous lock updates | 80% fewer idle writes; two writes per normal opening cycle instead of five. |
+| Door timing | Dedicated ESP32 task with no network or NVS calls | The 20-second lock release ends even if Wi-Fi or Firebase disconnects after the command is accepted. |
+| Indicator LED | Shares the dedicated relay task on GPIO 2 | The blue LED keeps flashing during the opening period even if a network request is slow. |
 | Browser audio | Preloaded and decoded on the customer device | Door sounds do not create Firebase writes or consume ESP32 resources. |
 
 These changes improve the device's stability margin and reduce routine network and memory work. They do not alter the user-facing ordering process: the customer still selects products, confirms, waits six seconds, collects the beverages during the 20-second opening, and can copy Pix after the door is closed. No software design can eliminate external failures such as loss of power, a damaged USB supply, Wi-Fi outage, relay failure, or a problem with the electromagnetic lock.
@@ -153,7 +153,7 @@ Order confirmation uses Firebase transactions to avoid negative stock values. St
 
 The **Restart ESP32** button is enabled only while the dashboard has a fresh device signal. It asks for confirmation, sends one protected Boolean command, and is disabled while the restart is in progress. If a customer opening is underway, the ESP32 finishes the 20-second opening period, locks the door, and only then restarts. The board normally returns online in about 15 seconds. The command is removed by the device after it is received and is ignored if it already existed at boot, so an old command cannot trigger a later restart.
 
-- **Online** means the most recent heartbeat is less than 180 seconds old.
+- **Online** means the most recent status is at most fifteen minutes old for firmware 2.8.3 or later, or three minutes for older firmware. It is inferred from the last report, not a live reachability check.
 - **Lock state** is red when locked and green when open.
 - **Wi-Fi** includes the network name, RSSI in dBm, and a quality label.
 - **Last initialization** shows why the currently running firmware started.

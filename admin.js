@@ -185,11 +185,22 @@ function atualizarWiFiESP(wifi) {
   campo.classList.add("wifi-status");
   campo.append(barras, texto);
 }
+function limiteSemSinalESP(dados) {
+  // Firmware 2.8.3 envia status de repouso a cada 5 min; versões anteriores,
+  // a cada minuto. Três intervalos sem sinal tornam a leitura antiga.
+  const versao = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(dados?.firmware || ""));
+  const [, major, minor, patch] = versao ? versao.map(Number) : [];
+  const intervaloLongo = major > 2 || (major === 2 && (minor > 8 || (minor === 8 && patch >= 3)));
+  return intervaloLongo ? 900 : 180;
+}
+function espEstaOnline(dados) {
+  const timestamp = Number(dados?.lastSeen);
+  return Boolean(dados?.online) && timestamp > 0 && Date.now() - timestamp <= limiteSemSinalESP(dados) * 1000;
+}
 function atualizarStatusESP(dados = estadoESP) {
   estadoESP = dados || null;
   const timestamp = Number(dados?.lastSeen);
-  const segundosSemSinal = timestamp ? (Date.now() - timestamp) / 1000 : Infinity;
-  const online = Boolean(dados?.online) && segundosSemSinal <= 180;
+  const online = espEstaOnline(dados);
   const pill = $("#esp-status-pill");
   pill.className = `status-pill ${online ? "online" : "offline"}`;
   pill.textContent = online ? "ONLINE" : "OFFLINE";
@@ -220,15 +231,14 @@ function atualizarStatusESP(dados = estadoESP) {
   $("#esp-status-detalhe").textContent = online
     ? "PRONTO PARA RECEBER COMANDOS DE ABERTURA."
     : timestamp
-      ? "O ÚLTIMO SINAL PASSOU DE 180 SEGUNDOS. CONFIRA ENERGIA, WI-FI E FIREBASE."
+      ? `O ÚLTIMO SINAL PASSOU DE ${limiteSemSinalESP(dados) / 60} MINUTOS. CONFIRA ENERGIA, WI-FI E FIREBASE.`
       : "AGUARDANDO O PRIMEIRO SINAL DO ESP32.";
 }
 
 async function solicitarReinicioESP() {
   const botao = $("#reiniciar-esp");
   const mensagem = $("#esp-acao-mensagem");
-  const timestamp = Number(estadoESP?.lastSeen);
-  const online = Boolean(estadoESP?.online) && timestamp && Date.now() - timestamp <= 180000;
+  const online = espEstaOnline(estadoESP);
   if (!online) {
     mensagem.textContent = "O ESP32 ESTÁ OFFLINE. AGUARDE O SINAL ANTES DE REINICIAR.";
     return;
