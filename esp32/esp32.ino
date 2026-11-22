@@ -16,6 +16,10 @@
 #include <esp_heap_caps.h>
 #include <esp_system.h>
 #include <esp_task_wdt.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/queue.h>
+#include "ControleTrava.h"
 #include "secrets.h"
 
 // Cada placa precisa de um identificador próprio. Na placa de testes,
@@ -32,15 +36,16 @@ constexpr uint8_t LED_INDICADOR = 2;
 constexpr uint8_t RELE_TRAVA = 26;
 constexpr uint8_t RELE_TRAVADO = HIGH; // confirme no módulo relé antes de ligar a trava
 constexpr uint8_t RELE_DESTRAVADO = LOW;
-constexpr unsigned long ESPERA_ANTES_DE_ABRIR_MS = 6000;
-constexpr unsigned long TEMPO_DESTRAVADO_MS = 20000;
-// A abertura notifica o painel imediatamente; fora isso, um status por minuto
-// preserva a telemetria sem criar tráfego e buffers TLS desnecessários.
-constexpr unsigned long INTERVALO_HEARTBEAT_MS = 60000;
+// Eventos de abertura/fechamento levam o status no mesmo PATCH.
+// Em repouso, um único status a cada cinco minutos.
+constexpr unsigned long INTERVALO_HEARTBEAT_MS = 300000;
+constexpr unsigned long INTERVALO_DIAGNOSTICO_MS = 60000;
+constexpr unsigned long INTERVALO_REPETICAO_ENVIO_MS = 5000;
+constexpr unsigned long LIMITE_ENVIO_MS = 15000;
 constexpr unsigned long INTERVALO_RECONEXAO_STREAM_MS = 3000;
 constexpr unsigned long INTERVALO_VERIFICACAO_STREAM_MS = 5000;
 constexpr unsigned long LIMITE_SEM_EVENTO_STREAM_MS = 120000;
-constexpr unsigned long INTERVALO_REINICIO_PREVENTIVO_MS = 5UL * 60UL * 60UL * 1000UL;
+constexpr unsigned long INTERVALO_REINICIO_PREVENTIVO_MS = 24UL * 60UL * 60UL * 1000UL;
 constexpr unsigned long LIMITE_WIFI_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
 constexpr unsigned long LIMITE_FIREBASE_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
 constexpr unsigned long INTERVALO_ESTABILIZACAO_PANIC_MS = 2UL * 60UL * 1000UL;
@@ -48,7 +53,7 @@ constexpr uint32_t WATCHDOG_TIMEOUT_MS = 60000;
 constexpr uint32_t LIMITE_MAIOR_BLOCO_CRITICO = 10UL * 1024UL;
 constexpr uint8_t AMOSTRAS_BLOCO_CRITICO = 3;
 constexpr uint8_t LIMITE_PANICS_CONSECUTIVOS = 3;
-constexpr char VERSAO_FIRMWARE[] = "2.8.1";
+constexpr char VERSAO_FIRMWARE[] = "2.8.3";
 
 struct Rede { const char *ssid; const char *senha; };
 Rede redes[] = {
@@ -72,9 +77,27 @@ EstadoTrava estado = AGUARDANDO;
 String pedidoAtual;
 String ultimoPedido;
 String pedidoNaFila;
-unsigned long proximaAcao = 0;
-TaskHandle_t tarefaLedAbertura = nullptr;
-volatile bool piscarLedAberturaAtivo = false;
+// Callbacks apenas copiam eventos. Rede, NVS e cancelamento de tarefas são
+// processados pelo loop, depois que FirebaseClient devolve o controle.
+String comandoRecebido;
+bool reinicioRecebido = false;
+bool sincronizacaoConcluidaPendente = false;
+bool cancelamentoStreamPendente = false;
+TaskHandle_t tarefaControleTrava = nullptr;
+QueueHandle_t eventosTrava = nullptr;
+struct EventoTrava { TemporizadorTrava::Evento tipo; };
+FilaConfirmacoesTrava confirmacoes;
+bool statusPendente = false;
+bool envioEmAndamento = false;
+bool envioTemConfirmacao = false;
+bool envioIncluiReinicio = false;
+bool limpezaReinicioPendente = false;
+uint8_t resultadoEnvio = 0;
+uint32_t sequenciaEnvio = 0;
+unsigned long inicioEnvio = 0;
+unsigned long proximoEnvio = 0;
+unsigned long ultimoDiagnostico = 0;
+char uidEnvio[24] = {};
 bool baselineFeito = false;
 bool firebaseConfirmado = false;
 bool firebaseInicializado = false;
@@ -102,10 +125,9 @@ String motivoInicializacao = "DESCONHECIDO";
 String etapaAnteriorReinicio;
 String etapaAtual;
 String caminhoStatus;
-String caminhoExecucao;
 String caminhoComandos;
-char bufferHeartbeat[480];
-char bufferCaminho[112];
+char bufferHeartbeat[768];
+char bufferEnvio[1152];
 
 struct DiagnosticoMemoria {
   bool pronto = false;
@@ -121,42 +143,42 @@ struct DiagnosticoMemoria {
 };
 DiagnosticoMemoria diagnosticoMemoria;
 
-void tarefaPiscarLedAbertura(void *) {
-  // Esta tarefa permanece independente das transmissões Wi-Fi/Firebase do
-  // loop principal. Assim o sinal luminoso acompanha a abertura real do relé.
-  while (piscarLedAberturaAtivo) {
-    digitalWrite(LED_INDICADOR, HIGH);
-    vTaskDelay(pdMS_TO_TICKS(250));
-    if (!piscarLedAberturaAtivo) break;
-    digitalWrite(LED_INDICADOR, LOW);
-    vTaskDelay(pdMS_TO_TICKS(250));
-  }
-  digitalWrite(LED_INDICADOR, LOW);
-  tarefaLedAbertura = nullptr;
-  vTaskDelete(nullptr);
-}
-
-void iniciarPiscarLedAbertura() {
-  piscarLedAberturaAtivo = true;
-  digitalWrite(LED_INDICADOR, HIGH);
-  if (!tarefaLedAbertura) {
-    BaseType_t criada = xTaskCreatePinnedToCore(
-      tarefaPiscarLedAbertura, "led_abertura", 2048, nullptr, 1,
-      &tarefaLedAbertura, 0
-    );
-    if (criada != pdPASS) {
-      tarefaLedAbertura = nullptr;
-      Serial.println("Não foi possível iniciar a tarefa do LED.");
+void tarefaAcionarTrava(void *) {
+  // Esta tarefa é a única responsável pelo ciclo físico. Não faz rede,
+  // Serial, NVS, alocações ou chamadas Firebase. Dorme entre as verificações.
+  TemporizadorTrava temporizador;
+  for (;;) {
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    temporizador.iniciar(millis());
+    unsigned long ultimoPiscar = millis();
+    bool ledAceso = false;
+    for (;;) {
+      const unsigned long agora = millis();
+      EventoTrava evento{temporizador.atualizar(agora)};
+      if (evento.tipo == TemporizadorTrava::ABRIU) {
+        digitalWrite(RELE_TRAVA, RELE_DESTRAVADO);
+        ledAceso = true;
+        ultimoPiscar = agora;
+        digitalWrite(LED_INDICADOR, HIGH);
+        xQueueSend(eventosTrava, &evento, 0);
+      } else if (evento.tipo == TemporizadorTrava::TRANCOU) {
+        // Primeiro a saída física; a comunicação pode continuar indisponível.
+        digitalWrite(RELE_TRAVA, RELE_TRAVADO);
+        digitalWrite(LED_INDICADOR, LOW);
+        xQueueSend(eventosTrava, &evento, 0);
+        break;
+      }
+      if (temporizador.aberta() && agora - ultimoPiscar >= 250) {
+        ultimoPiscar = agora;
+        ledAceso = !ledAceso;
+        digitalWrite(LED_INDICADOR, ledAceso ? HIGH : LOW);
+      }
+      vTaskDelay(pdMS_TO_TICKS(10));
     }
   }
 }
 
-void pararPiscarLedAbertura() {
-  piscarLedAberturaAtivo = false;
-  digitalWrite(LED_INDICADOR, LOW);
-}
-
-void apagarLeds() { pararPiscarLedAbertura(); }
+void apagarLeds() { digitalWrite(LED_INDICADOR, LOW); }
 void acenderIndicador() { digitalWrite(LED_INDICADOR, HIGH); }
 
 void iniciarPedido(const String &id);
@@ -194,7 +216,8 @@ void atualizarDiagnosticoMemoria() {
 }
 
 bool prontoParaReinicioSeguro() {
-  return estado == AGUARDANDO && !pedidoAtual.length() && !pedidoNaFila.length();
+  return estado == AGUARDANDO && !pedidoAtual.length() && !pedidoNaFila.length() &&
+         confirmacoes.vazia() && !envioEmAndamento;
 }
 
 void verificarFragmentacaoMemoria() {
@@ -245,7 +268,8 @@ void configurarWatchdog() {
   esp_task_wdt_config_t config = {
     .timeout_ms = WATCHDOG_TIMEOUT_MS,
     // Monitoramos apenas este loop. As tarefas de Wi-Fi/Firebase ocupam os
-    // núcleos internos durante conexões TLS e não devem provocar reset falso.
+    // núcleos internos durante conexões TLS. O watchdog de interrupções
+    // continua independente desta configuração.
     .idle_core_mask = 0,
     .trigger_panic = true
   };
@@ -348,108 +372,143 @@ const char *estadoDispositivo() {
 }
 
 void enviarHeartbeat(bool imediato = false) {
-  if (!firebase.ready() || !baselineFeito) return;
-  unsigned long agora = millis();
-  if (!imediato && agora - ultimoHeartbeat < INTERVALO_HEARTBEAT_MS) return;
-  ultimoHeartbeat = agora;
-  atualizarDiagnosticoMemoria();
-  // Só contam as leituras periódicas. Estados imediatos de abrir/trancar não
-  // podem provocar um reinício por uma queda transitória de memória.
-  if (!imediato) verificarFragmentacaoMemoria();
-  const int escrito = snprintf(
-    bufferHeartbeat, sizeof(bufferHeartbeat),
-    "{\"online\":true,\"state\":\"%s\",\"firmware\":\"%s\",\"uptimeSeconds\":%lu,"
-    "\"firebaseConnected\":%s,\"streamActive\":%s,\"remoteRestartPending\":%s,\"resetReason\":\"%s\","
-    "\"wifi\":{\"connected\":%s,\"ssid\":\"%s\",\"rssi\":%d},"
-    "\"lastSeen\":{\".sv\":\"timestamp\"}}",
-    estadoDispositivo(), VERSAO_FIRMWARE, agora / 1000UL,
-    firebase.ready() ? "true" : "false", streamIniciado ? "true" : "false",
-    reinicioRemotoPendente ? "true" : "false",
-    motivoInicializacao.c_str(), WiFi.status() == WL_CONNECTED ? "true" : "false",
-    WiFi.SSID().c_str(), WiFi.RSSI()
-  );
-  if (escrito < 0 || static_cast<size_t>(escrito) >= sizeof(bufferHeartbeat)) {
-    Serial.println("Heartbeat ignorado: buffer de status insuficiente.");
-    return;
-  }
-  if (!banco.update<object_t>(cliente, caminhoStatus, object_t(bufferHeartbeat))) {
-    Serial.printf("Falha no heartbeat: %s\n", cliente.lastError().message().c_str());
-  }
+  // Apenas solicita o envio. Não cria tarefas Firebase nem espera pela rede.
+  if (imediato || millis() - ultimoHeartbeat >= INTERVALO_HEARTBEAT_MS) statusPendente = true;
 }
 
 void registrarEstado(const char *novoEstado) {
-  caminhoExecucao = "/orders/";
-  caminhoExecucao += pedidoAtual;
-  caminhoExecucao += "/execution/state";
-  bool ok = banco.set<string_t>(cliente, caminhoExecucao, string_t(novoEstado));
-  if (!ok) Serial.printf("Falha ao registrar estado: %s\n", cliente.lastError().message().c_str());
-}
-
-void removerComando(const String &id) {
-  const int escrito = snprintf(bufferCaminho, sizeof(bufferCaminho), "/commands/%s/%s", DEVICE_ID, id.c_str());
-  if (escrito < 0 || static_cast<size_t>(escrito) >= sizeof(bufferCaminho)) return;
-  if (!banco.remove(cliente, bufferCaminho)) {
-    Serial.printf("Falha ao limpar comando: %s\n", cliente.lastError().message().c_str());
+  // O ID é copiado antes de pedidoAtual ser liberado para o próximo da fila.
+  if (!confirmacoes.adicionar(pedidoAtual.c_str(), strcmp(novoEstado, "opened") == 0,
+                              envioEmAndamento && envioTemConfirmacao)) {
+    registrarEvento("FILA_CONFIRMACOES_CHEIA");
   }
 }
 
-void removerComandoReinicioRemoto() {
-  const int escrito = snprintf(bufferCaminho, sizeof(bufferCaminho),
-                               "/commands/%s/system/restart", DEVICE_ID);
-  if (escrito < 0 || static_cast<size_t>(escrito) >= sizeof(bufferCaminho)) return;
-  if (!banco.remove(cliente, bufferCaminho)) {
-    Serial.printf("Falha ao limpar comando de reinício: %s\n", cliente.lastError().message().c_str());
+void processarResultadoEnvio(AsyncResult &resultado) {
+  if (!envioEmAndamento || resultado.uid() != uidEnvio || !resultado.isResult()) return;
+  if (resultado.isError()) resultadoEnvio = 2;
+  else if (resultado.available()) resultadoEnvio = 1;
+}
+
+// Escapa o SSID para que aspas e barras não invalidem o JSON do status.
+void escaparSSID(const String &ssid, char *destino) {
+  static const char hex[] = "0123456789abcdef";
+  char *saida = destino;
+  for (size_t i = 0; i < ssid.length() && i < 32; ++i) {
+    const unsigned char c = ssid[i];
+    if (c == '"' || c == '\\') { *saida++ = '\\'; *saida++ = c; }
+    else if (c < 0x20) {
+      *saida++ = '\\'; *saida++ = 'u'; *saida++ = '0'; *saida++ = '0';
+      *saida++ = hex[c >> 4]; *saida++ = hex[c & 15];
+    } else *saida++ = c;
   }
+  *saida = 0;
+}
+
+void processarEnvios(unsigned long agora) {
+  if (envioEmAndamento && (resultadoEnvio || agora - inicioEnvio >= LIMITE_ENVIO_MS)) {
+    const bool ok = resultadoEnvio == 1;
+    envioEmAndamento = false;
+    if (!ok) {
+      // Fora do callback, apenas o PATCH em trânsito é cancelado.
+      cliente.stopAsync(String(uidEnvio));
+      registrarEvento("ENVIO_STATUS_FALHOU");
+    }
+    if (envioTemConfirmacao && (ok || confirmacoes.primeiraAberturaSuperada() ||
+        confirmacoes.primeira().tentativas >= 3)) {
+      if (!ok && confirmacoes.primeira().tentativas >= 3) registrarEvento("CONFIRMACAO_SEM_RETORNO");
+      confirmacoes.removerPrimeira();
+    }
+    if (ok && envioIncluiReinicio) limpezaReinicioPendente = false;
+    // Um heartbeat de repouso que falhou aguarda o próximo intervalo normal.
+    // Confirmações e consumo de reinício têm as tentativas prioritárias.
+    if (!ok && (envioTemConfirmacao || limpezaReinicioPendente)) statusPendente = true;
+    proximoEnvio = agora + (ok ? 0 : INTERVALO_REPETICAO_ENVIO_MS);
+  }
+  if (envioEmAndamento || !firebase.ready() || !baselineFeito ||
+      WiFi.status() != WL_CONNECTED || cliente.taskCount() ||
+      static_cast<int32_t>(agora - proximoEnvio) < 0) return;
+  if (confirmacoes.vazia() && !statusPendente) return;
+
+  char ssidJSON[193];
+  escaparSSID(WiFi.SSID(), ssidJSON);
+  int escrito = snprintf(
+    bufferHeartbeat, sizeof(bufferHeartbeat),
+    "{\"online\":true,\"state\":\"%s\",\"firmware\":\"%s\",\"uptimeSeconds\":%lu,"
+    "\"firebaseConnected\":true,\"streamActive\":%s,\"remoteRestartPending\":%s,\"resetReason\":\"%s\","
+    "\"wifi\":{\"connected\":true,\"ssid\":\"%s\",\"rssi\":%d},"
+    "\"lastSeen\":{\".sv\":\"timestamp\"}}",
+    estadoDispositivo(), VERSAO_FIRMWARE, agora / 1000UL,
+    streamIniciado ? "true" : "false", reinicioRemotoPendente ? "true" : "false",
+    motivoInicializacao.c_str(), ssidJSON, WiFi.RSSI());
+  if (escrito < 0 || static_cast<size_t>(escrito) >= sizeof(bufferHeartbeat)) return;
+
+  envioTemConfirmacao = !confirmacoes.vazia();
+  // Uma confirmação de pedido tem prioridade; o reinício vai no próximo PATCH.
+  envioIncluiReinicio = !envioTemConfirmacao && limpezaReinicioPendente;
+  if (envioTemConfirmacao) {
+    ConfirmacaoTrava &item = confirmacoes.primeira();
+    escrito = snprintf(bufferEnvio, sizeof(bufferEnvio),
+      "{\"devices/%s\":%s,\"orders/%s/execution/state\":\"%s\",\"commands/%s/%s\":null}",
+      DEVICE_ID, bufferHeartbeat, item.pedido, item.abriu ? "opened" : "locked", DEVICE_ID, item.pedido);
+  } else if (envioIncluiReinicio) {
+    escrito = snprintf(bufferEnvio, sizeof(bufferEnvio),
+      "{\"devices/%s\":%s,\"commands/%s/system/restart\":null}", DEVICE_ID, bufferHeartbeat, DEVICE_ID);
+  } else {
+    escrito = snprintf(bufferEnvio, sizeof(bufferEnvio), "{\"devices/%s\":%s}", DEVICE_ID, bufferHeartbeat);
+  }
+  if (escrito < 0 || static_cast<size_t>(escrito) >= sizeof(bufferEnvio)) return;
+  if (envioTemConfirmacao) confirmacoes.primeira().tentativas++;
+  snprintf(uidEnvio, sizeof(uidEnvio), "status_%lu", static_cast<unsigned long>(++sequenciaEnvio));
+  resultadoEnvio = 0;
+  inicioEnvio = agora;
+  ultimoHeartbeat = agora;
+  statusPendente = false;
+  envioEmAndamento = true;
+  // Um único PATCH assíncrono atualiza pedido, status e limpeza do comando.
+  banco.update<object_t>(cliente, "/", object_t(bufferEnvio), processarResultadoEnvio, uidEnvio);
 }
 
 void abrirTrava() {
-  digitalWrite(RELE_TRAVA, RELE_DESTRAVADO);
-  iniciarPiscarLedAbertura();
-  Serial.println("GELADEIRA ABERTA: 20 segundos");
-  registrarEstado("opened");
+  // O relé e o temporizador já foram acionados pela tarefa independente.
   estado = DESTRAVADA;
+  registrarEstado("opened");
   registrarEvento("LOCK_OPENED");
-  proximaAcao = millis() + TEMPO_DESTRAVADO_MS;
-  enviarHeartbeat(true);
 }
 
 void trancarGeladeira() {
-  digitalWrite(RELE_TRAVA, RELE_TRAVADO);
-  Serial.println("GELADEIRA TRANCADA");
+  // O relé já voltou ao estado trancado antes de qualquer NVS ou comunicação.
+  estado = AGUARDANDO;
   registrarEstado("locked");
   memoria.putString("ultimoPedido", pedidoAtual);
   ultimoPedido = pedidoAtual;
   pedidoAtual = "";
-  apagarLeds();
-  estado = AGUARDANDO;
   marcarEtapa("PRONTO");
   registrarEvento("LOCKED");
-  enviarHeartbeat(true);
-  if (pedidoNaFila.length()) {
-    String proximo = pedidoNaFila;
-    pedidoNaFila = "";
-    iniciarPedido(proximo);
+}
+
+void processarEventosTrava() {
+  EventoTrava evento;
+  while (eventosTrava && xQueueReceive(eventosTrava, &evento, 0) == pdTRUE) {
+    if (evento.tipo == TemporizadorTrava::ABRIU) abrirTrava();
+    else if (evento.tipo == TemporizadorTrava::TRANCOU) trancarGeladeira();
   }
 }
 
 void iniciarPedido(const String &id) {
-  if (modoSeguroPanico) {
-    if (!pedidoNaFila.length() || id < pedidoNaFila) pedidoNaFila = id;
-    registrarEvento("PEDIDO_AGUARDANDO_RECUPERACAO");
-    Serial.printf("Pedido %s aguardando o fim do modo seguro após panic.\n", id.c_str());
-    return;
-  }
   if (MODO_TESTE) {
     Serial.printf("Pedido %s ignorado: placa em modo de teste.\n", id.c_str());
     return;
   }
+  if (modoSeguroPanico || !tarefaControleTrava || !confirmacoes.reservarCiclo()) {
+    if (!pedidoNaFila.length() || id < pedidoNaFila) pedidoNaFila = id;
+    return;
+  }
   pedidoAtual = id;
-  marcarEtapa("PEDIDO_EM_ANDAMENTO");
-  // O comando de abertura é descartado assim que foi aceito. Desse modo, o
-  // próximo snapshot do stream permanece vazio e não acumula pedidos antigos.
-  removerComando(id);
   estado = AGUARDANDO;
-  proximaAcao = millis() + ESPERA_ANTES_DE_ABRIR_MS;
+  // Nenhuma gravação ou operação de rede antecede o início da espera local.
+  xTaskNotifyGive(tarefaControleTrava);
+  marcarEtapa("PEDIDO_EM_ANDAMENTO");
   registrarEvento("ORDER_RECEIVED");
   Serial.printf("Novo pedido %s. Abrindo em 6 segundos.\n", id.c_str());
 }
@@ -465,7 +524,7 @@ void agendarRecuperacaoStream(const char *motivo) {
   char evento[90];
   snprintf(evento, sizeof(evento), "STREAM_%s", motivo);
   registrarEvento(evento);
-  clienteStream.stopAsync(true);
+  cancelamentoStreamPendente = true;
   streamIniciado = false;
   recuperacaoStreamPendente = true;
   sincronizacaoSolicitada = false;
@@ -497,7 +556,7 @@ void reiniciarComSeguranca(const char *motivo) {
 
 bool verificarModoSeguroPanico(unsigned long agora) {
   if (!modoSeguroPanico) return false;
-  if (reinicioRemotoPendente && prontoParaReinicioSeguro()) {
+  if (reinicioRemotoPendente && !limpezaReinicioPendente && !envioEmAndamento && prontoParaReinicioSeguro()) {
     reiniciarComSeguranca("REMOTO");
   }
   if (!firebase.ready() || !streamIniciado) return true;
@@ -529,14 +588,14 @@ void verificarReinicioPreventivo(unsigned long agora) {
     reinicioPreventivoPendente = true;
   }
   // Nunca interrompe a abertura de uma bebida nem o intervalo de 6 segundos.
-  if (reinicioRemotoPendente && prontoParaReinicioSeguro()) {
+  if (reinicioRemotoPendente && !limpezaReinicioPendente && !envioEmAndamento && prontoParaReinicioSeguro()) {
     reiniciarComSeguranca("REMOTO");
   }
   if (reinicioMemoriaPendente && prontoParaReinicioSeguro()) {
     reiniciarComSeguranca("MEMORIA_FRAGMENTADA");
   }
   if (reinicioPreventivoPendente && prontoParaReinicioSeguro()) {
-    reiniciarComSeguranca("PREVENTIVO_5H");
+    reiniciarComSeguranca("PREVENTIVO_24H");
   }
 }
 
@@ -567,7 +626,7 @@ void solicitarReinicioRemoto() {
   // que nunca sobreviva como uma solicitação pendente depois de um boot.
   if (!baselineFeito || reinicioRemotoPendente) return;
   reinicioRemotoPendente = true;
-  removerComandoReinicioRemoto();
+  limpezaReinicioPendente = true;
   registrarEvento("REMOTE_RESTART_REQUESTED");
   Serial.println("Reinício remoto solicitado; aguardando a trava ficar fechada.");
   enviarHeartbeat(true);
@@ -585,9 +644,7 @@ void processarSincronizacaoInicial(AsyncResult &resultado) {
 
   // O conteúdo inicial é propositalmente ignorado. A coleção contém somente
   // comandos mínimos; qualquer comando anterior ao boot é considerado antigo.
-  concluirSincronizacaoInicial();
-  sincronizacaoSolicitada = false;
-  recuperacaoStreamPendente = false;
+  sincronizacaoConcluidaPendente = true;
 }
 
 void processarStream(AsyncResult &resultado) {
@@ -609,7 +666,7 @@ void processarStream(AsyncResult &resultado) {
   if (evento == "keep-alive" || evento != "put") return;
   String caminho = stream.dataPath();
   if (caminho == "/") {
-    concluirSincronizacaoInicial();
+    sincronizacaoConcluidaPendente = true;
     return;
   }
   // Cada novo comando é somente o valor JSON literal `true`. O ID vem do
@@ -617,12 +674,43 @@ void processarStream(AsyncResult &resultado) {
   const char *conteudo = stream.to<const char *>();
   if (!conteudo || strcmp(conteudo, "true") != 0) return;
   if (caminho == "/system/restart") {
-    solicitarReinicioRemoto();
+    if (baselineFeito) reinicioRecebido = true;
     return;
   }
   if (caminho.indexOf('/', 1) >= 0) return;
   String id = caminho.substring(1);
-  analisarComandoNovo(id);
+  if (!id.length() || id.length() > 100) return;
+  for (size_t i = 0; i < id.length(); ++i) {
+    const char c = id[i];
+    if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+          (c >= '0' && c <= '9') || c == '-' || c == '_')) return;
+  }
+  if (baselineFeito && id > ultimoPedido &&
+      (!comandoRecebido.length() || id < comandoRecebido)) comandoRecebido = id;
+}
+
+void processarEventosFirebase() {
+  // Nunca chamar esta função de um callback: as operações síncronas abaixo
+  // podem fazer a biblioteca processar novos resultados antes de retornarem.
+  if (cancelamentoStreamPendente) {
+    cancelamentoStreamPendente = false;
+    clienteStream.stopAsync(true);
+  }
+  if (sincronizacaoConcluidaPendente) {
+    sincronizacaoConcluidaPendente = false;
+    concluirSincronizacaoInicial();
+    sincronizacaoSolicitada = false;
+    recuperacaoStreamPendente = false;
+  }
+  if (reinicioRecebido) {
+    reinicioRecebido = false;
+    solicitarReinicioRemoto();
+  }
+  if (comandoRecebido.length()) {
+    String id = comandoRecebido;
+    comandoRecebido = "";
+    analisarComandoNovo(id);
+  }
 }
 
 void setup() {
@@ -631,11 +719,11 @@ void setup() {
   pedidoAtual.reserve(40);
   ultimoPedido.reserve(40);
   pedidoNaFila.reserve(40);
+  comandoRecebido.reserve(40);
   motivoInicializacao.reserve(64);
   etapaAnteriorReinicio.reserve(32);
   etapaAtual.reserve(32);
   caminhoStatus.reserve(48);
-  caminhoExecucao.reserve(96);
   caminhoComandos.reserve(48);
   caminhoStatus = "/devices/";
   caminhoStatus += DEVICE_ID;
@@ -644,6 +732,11 @@ void setup() {
   pinMode(LED_INDICADOR, OUTPUT);
   acenderIndicador();
   pinMode(RELE_TRAVA, OUTPUT); digitalWrite(RELE_TRAVA, RELE_TRAVADO);
+  // Dois eventos por ciclo; o próximo pedido só começa após drenar ambos.
+  eventosTrava = xQueueCreate(2, sizeof(EventoTrava));
+  if (eventosTrava && xTaskCreatePinnedToCore(tarefaAcionarTrava, "controle_trava", 2048,
+      nullptr, 2, &tarefaControleTrava, 1) != pdPASS) tarefaControleTrava = nullptr;
+  if (!tarefaControleTrava) Serial.println("Controle da trava indisponível; relé mantido trancado.");
   memoria.begin("geladeira", false);
   String reinicioPlanejado = memoria.getString("reinicioPlanejado", "");
   memoria.remove("reinicioPlanejado");
@@ -692,9 +785,19 @@ void setup() {
 void loop() {
   alimentarWatchdog();
   unsigned long agora = millis();
-  // O tempo de abertura nunca depende da internet: a porta volta a travar
-  // mesmo durante uma reconexão de Wi-Fi/Firebase.
-  if (estado == DESTRAVADA && agora >= proximaAcao) trancarGeladeira();
+  // O ciclo físico roda em outra tarefa, inclusive durante TLS/reconexões.
+  processarEventosTrava();
+  if (agora - ultimoDiagnostico >= INTERVALO_DIAGNOSTICO_MS) {
+    ultimoDiagnostico = agora;
+    atualizarDiagnosticoMemoria();
+    verificarFragmentacaoMemoria();
+  }
+  if (!pedidoAtual.length() && pedidoNaFila.length() && !modoSeguroPanico &&
+      tarefaControleTrava && confirmacoes.reservarCiclo()) {
+    String proximo = pedidoNaFila;
+    pedidoNaFila = "";
+    iniciarPedido(proximo);
+  }
 
   if (WiFi.status() != WL_CONNECTED) {
     if (!inicioWifiIndisponivel) {
@@ -709,7 +812,7 @@ void loop() {
     inicioFirebaseIndisponivel = 0;
     // Se a pilha Wi-Fi ficar presa tentando reconectar, a placa volta ao
     // estado seguro e reinicia. O motivo será enviado no próximo heartbeat.
-    if (agora - inicioWifiIndisponivel >= LIMITE_WIFI_SEM_RETORNO_MS) {
+    if (agora - inicioWifiIndisponivel >= LIMITE_WIFI_SEM_RETORNO_MS && !pedidoAtual.length()) {
       reiniciarComSeguranca("WIFI_SEM_RETORNO");
     }
     if (!conectarWiFi()) {
@@ -721,13 +824,14 @@ void loop() {
   iniciarFirebaseSeNecessario();
   if (!firebaseInicializado) return;
   firebase.loop();
+  processarEventosTrava();
+  processarEventosFirebase();
   if (firebase.ready() && !firebaseConfirmado) {
     firebaseConfirmado = true;
     Serial.println("Firebase conectado.");
     registrarEvento("FIREBASE_CONNECTED");
     marcarEtapa("FIREBASE_CONECTADO");
-    piscarIndicador(5); // confirma a conexão com o Firebase
-    acenderIndicador(); // permanece aceso até a sincronização inicial dos comandos
+    if (!pedidoAtual.length()) { piscarIndicador(5); acenderIndicador(); }
   }
   if (firebase.ready()) {
     inicioFirebaseIndisponivel = 0;
@@ -739,17 +843,17 @@ void loop() {
     }
     // Wi-Fi funcionando sem Firebase por muito tempo também pode deixar a
     // placa incapaz de receber comandos; reiniciar é a recuperação segura.
-    if (agora - inicioFirebaseIndisponivel >= LIMITE_FIREBASE_SEM_RETORNO_MS) {
+    if (agora - inicioFirebaseIndisponivel >= LIMITE_FIREBASE_SEM_RETORNO_MS && !pedidoAtual.length()) {
       reiniciarComSeguranca("FIREBASE_SEM_RETORNO");
     }
   }
   verificarSaudeStream(agora);
   if (firebase.ready() && (!baselineFeito || recuperacaoStreamPendente) && !sincronizacaoSolicitada && millis() >= proximaTentativaSincronizacao) {
     sincronizacaoSolicitada = true;
-    banco.get(cliente, caminhoComandos, processarSincronizacaoInicial, "sincronizacaoInicial");
+    banco.get(cliente, caminhoComandos, processarSincronizacaoInicial, false /* leitura única */, "sincronizacaoInicial");
     Serial.println(recuperacaoStreamPendente ? "Sincronizando comandos após recuperar stream." : "Sincronizando comandos iniciais.");
   }
-  if (firebase.ready() && baselineFeito && !streamIniciado && millis() >= proximaTentativaStream) {
+  if (firebase.ready() && baselineFeito && !recuperacaoStreamPendente && !cancelamentoStreamPendente && !streamIniciado && millis() >= proximaTentativaStream) {
     // O stream só é aberto depois da autenticação: assim todo pedido novo é recebido.
     clienteStream.setSSEFilters("get,put,patch,keep-alive,cancel,auth_revoked");
     banco.get(clienteStream, caminhoComandos, processarStream, true /* stream SSE */, "comandosStream");
@@ -769,11 +873,10 @@ void loop() {
     marcarEtapa("STREAM_ATIVO");
     enviarHeartbeat(true);
   }
-  if (verificarModoSeguroPanico(agora)) {
-    enviarHeartbeat();
-    return;
-  }
-  if (estado == AGUARDANDO && pedidoAtual.length() && agora >= proximaAcao) abrirTrava();
+  verificarModoSeguroPanico(millis());
+  processarEventosTrava();
   enviarHeartbeat();
-  verificarReinicioPreventivo(agora);
+  processarEnvios(millis());
+  verificarReinicioPreventivo(millis());
+  delay(1);
 }
