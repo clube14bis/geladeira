@@ -79,7 +79,7 @@ This removes the heaviest recurring JSON work from the device: parsing order obj
 | Wi-Fi recovery | Tries the configured 2.4 GHz networks again after a disconnect. |
 | Wi-Fi fallback reset | If Wi-Fi cannot return for five minutes, locks the relay output and restarts with `WIFI_SEM_RETORNO`. |
 | Firebase fallback reset | If Wi-Fi is connected but Firebase does not return for five minutes, locks the relay output and restarts with `FIREBASE_SEM_RETORNO`. |
-| Preventive reset | Every five hours, restarts only when the lock is closed and there is no order being processed. |
+| Preventive reset | After 24 hours of uptime, restarts only when the lock is closed, no order is being processed or waiting, and pending confirmations have finished. Reports `PREVENTIVO_24H`. |
 | Remote restart | An administrator can send `commands/geladeira/system/restart`. The ESP32 consumes the command, closes the lock if necessary, records `REMOTE_RESTART_REQUESTED`, and performs a safe restart. |
 | Compact telemetry | Sends only the status needed to operate the fridge: online state, lock state, Wi-Fi, Firebase, command stream, uptime, firmware, reset reason, and last signal. |
 | Panic recovery | Wi-Fi startup is non-blocking. A panic records the previous operating stage; three consecutive panics keep the lock closed in temporary safe mode, restore connectivity, hold new commands, then resume normal operation after two stable online minutes. |

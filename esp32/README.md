@@ -32,7 +32,7 @@ The following values are built into firmware 2.8.3. The browser and ESP32 both u
 | `TemporizadorTrava::ESPERA_MS` | 6,000 ms | Delay after accepting a command. |
 | `TemporizadorTrava::ABERTURA_MS` | 20,000 ms | Door release duration. |
 | `INTERVALO_HEARTBEAT_MS` | 300,000 ms | Normal Firebase status update interval. |
-| `INTERVALO_REINICIO_PREVENTIVO_MS` | 5 hours | Safe preventive restart interval. |
+| `INTERVALO_REINICIO_PREVENTIVO_MS` | 24 hours | Safe preventive restart interval, counted from boot. |
 | `WATCHDOG_TIMEOUT_MS` | 60 seconds | Main-loop watchdog timeout. |
 
 ## Required wiring
@@ -131,7 +131,7 @@ Firmware 2.8.3 uses several independent safeguards, including one persistent ESP
 - If Wi-Fi is connected but Firebase does not return for five minutes, the same safe restart occurs with `FIREBASE_SEM_RETORNO`.
 - Boot never waits forever for Wi-Fi. The relay starts locked, then Wi-Fi and Firebase reconnection continue from the main loop so a failed connection cannot leave startup blocked indefinitely.
 - Wi-Fi modem-sleep is disabled because the device is permanently powered. This avoids power-save receive latency for Firebase stream commands and keep-alives.
-- A preventive restart is scheduled every five hours and only occurs when the lock is closed and no order is in progress.
+- A preventive restart is scheduled after 24 hours of uptime and only occurs when the lock is closed, no order is in progress or waiting, and confirmations have finished. The reported reason is `PREVENTIVO_24H`.
 - Before each major stage (Wi-Fi, Firebase, command stream, and order handling), the firmware stores a compact diagnostic marker. A later panic reports `FALHA_DO_PROGRAMA_<stage>` in the dashboard.
 - Three consecutive program panics activate a temporary safe mode: the relay remains locked while the device restores Wi-Fi and Firebase, and new commands are held instead of being discarded. After two stable online minutes, it resumes normal operation and processes the held command.
 - The device reports only online state, lock state, Wi-Fi, Firebase, command-stream state, uptime, firmware, and reset reason. This keeps the normal heartbeat small.

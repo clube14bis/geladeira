@@ -45,7 +45,7 @@ constexpr unsigned long LIMITE_ENVIO_MS = 15000;
 constexpr unsigned long INTERVALO_RECONEXAO_STREAM_MS = 3000;
 constexpr unsigned long INTERVALO_VERIFICACAO_STREAM_MS = 5000;
 constexpr unsigned long LIMITE_SEM_EVENTO_STREAM_MS = 120000;
-constexpr unsigned long INTERVALO_REINICIO_PREVENTIVO_MS = 5UL * 60UL * 60UL * 1000UL;
+constexpr unsigned long INTERVALO_REINICIO_PREVENTIVO_MS = 24UL * 60UL * 60UL * 1000UL;
 constexpr unsigned long LIMITE_WIFI_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
 constexpr unsigned long LIMITE_FIREBASE_SEM_RETORNO_MS = 5UL * 60UL * 1000UL;
 constexpr unsigned long INTERVALO_ESTABILIZACAO_PANIC_MS = 2UL * 60UL * 1000UL;
@@ -595,7 +595,7 @@ void verificarReinicioPreventivo(unsigned long agora) {
     reiniciarComSeguranca("MEMORIA_FRAGMENTADA");
   }
   if (reinicioPreventivoPendente && prontoParaReinicioSeguro()) {
-    reiniciarComSeguranca("PREVENTIVO_5H");
+    reiniciarComSeguranca("PREVENTIVO_24H");
   }
 }
 
